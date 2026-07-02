@@ -1,0 +1,7 @@
+__pycache__/
+_tts_play*.wav
+_tts_render.*
+_tts_debug.log
+*.spec
+build/
+dist/
