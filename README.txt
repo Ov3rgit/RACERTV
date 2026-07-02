@@ -67,13 +67,23 @@ CONTROLS (work even though clicks pass through to the game)
 TEAM RADIO VOICE (TTS)
 ----------------------
 Radio messages are spoken aloud through a "team radio" effect (band-pass +
-static + squelch click), each driver with a persona voice. Uses Windows'
-built-in System.Speech (no install). Each driver gets a voice/accent assigned
-from whatever voices are installed. To add accents (British, Spanish/South
-American, French, Italian, English male) install them via Windows Settings ->
-Time & Language -> Speech -> Add voices; the overlay picks them up
-automatically. tts.py holds the FX knobs (NOISE, DRIVE, MASTER_VOL) and
-per-persona PERSONA_VOICE table.
+static + squelch click), each driver with a persona voice.
+
+VOICES: nothing to install. The overlay uses Microsoft's online neural
+voices (edge-tts) — a full international cast of accents, synthesized in
+the cloud — so you get broadcast-quality voices out of the box. The only
+requirement is an INTERNET CONNECTION while playing.
+
+OFFLINE FALLBACK: with no internet, the overlay automatically drops back
+to Windows' built-in offline voices (System.Speech). Most PCs only have
+one or two of these, so it sounds far more robotic — that's expected.
+To improve the fallback, install extra voices via Windows Settings ->
+Time & Language -> Speech -> Add voices, reboot, then run
+setup_voices.ps1 AS ADMINISTRATOR (it exposes the new voices to the
+overlay). This is optional and only affects offline play.
+
+tts.py holds the FX knobs (NOISE, DRIVE, MASTER_VOL) and the voice cast
+tables (NEURAL_VOICES, PERSONA_VOICE).
 
 NOTE: data only streams while a replay is PLAYING (RaceRoom freezes the field
 when paused). Press play and the timing appears within ~2s.
