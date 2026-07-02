@@ -2,6 +2,8 @@
 player's speed trace, names them 'Turn N' (universal), maps a lap fraction to the
 right corner, falls back to the real sector before corners are learned, and the
 engineer places an overtake ('great move into Turn 2'). Works in any session."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

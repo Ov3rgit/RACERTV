@@ -2,6 +2,8 @@
 answer must come from the SAME paired topic (no more non-sequiturs), and the
 commentator's hand-back must follow. Drives a race and forces the 35s-cadence
 crosstalk repeatedly, then maps every emitted Q/A back to its topic by template."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import re, sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

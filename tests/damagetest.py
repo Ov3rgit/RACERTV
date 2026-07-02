@@ -1,5 +1,7 @@
 """Engineer must call CAR DAMAGE: light contact (small health drop), severe
 (box to repair), a SEPARATE later hit re-reports, and N/A (-1) stays silent."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

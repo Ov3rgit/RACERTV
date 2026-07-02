@@ -2,6 +2,8 @@
 update_commentary across race, quali and practice with synthetic shared memory.
 No tkinter, no TTS (tts=None). Exercises the new engineer paths (quali off-track,
 sector coaching, mandatory pit, intro gate)."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import os, sys, time, ctypes
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

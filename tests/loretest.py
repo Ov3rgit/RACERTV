@@ -3,6 +3,8 @@ Schumacher/Barrichello/Häkkinen; Brett (pundit) is a Le Mans/WEC champion who
 battled the endurance greats. Lore must be TRACK-FOCUSED (a real memory for
 known circuits), drop the right easter-egg names, never sound off-backstory, and
 the track keys must match real names (no smushed-key bug)."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 from r3e_overlay import Overlay

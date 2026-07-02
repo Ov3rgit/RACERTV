@@ -2,6 +2,8 @@
 a new sector he occasionally gives a track-specific heads-up ('Into sector 2 now
 — <tip>'). It must name a real sector, carry a real track tip, only fire on the
 sector rising edge, and stay quiet on an unknown track / in the pits."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

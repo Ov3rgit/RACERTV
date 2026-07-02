@@ -1,5 +1,7 @@
 """Timed-race end-of-race awareness: booth + engineer announce minutes to go,
 and lap races announce '5 laps to go'."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

@@ -1,6 +1,8 @@
 """Sustained-battle callout: a fight that stays unresolved for a long time must
 produce a 'battle_sustained' line naming both drivers, the position, and the
 duration in laps. Also verify it's rate-limited (doesn't immediately repeat)."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

@@ -1,5 +1,7 @@
 """Quali/practice: engineer warns EVERY track-limits/off, gives a session
 intro, and the solo booth has varied content (not the same line repeated)."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys, random
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

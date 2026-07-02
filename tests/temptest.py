@@ -1,6 +1,8 @@
 """Engineer must read live TYRE and BRAKE temperatures: overheating tyres, cold
 tyres, and hot brakes — each against the car's own optimal/cold/hot refs. And it
 must stay SILENT when the temp model is off (all zero/N-A, the harness default)."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

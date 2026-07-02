@@ -1648,6 +1648,8 @@ class Overlay:
         if bags is None:
             bags = {}
             try:
+                if os.environ.get("RACERTV_EPHEMERAL"):
+                    raise RuntimeError    # tests: in-memory decks, no disk state
                 with open(self._BAG_FILE, encoding="utf-8") as f:
                     for k, v in json.load(f).items():
                         bags[k] = {"bag": set(v.get("bag") or []),
@@ -1661,6 +1663,8 @@ class Overlay:
     def _bag_save(self, force=False):
         """Throttled write (every ~20s and on quit) — the file is tiny but
         there's no need to hit the disk on every single line."""
+        if os.environ.get("RACERTV_EPHEMERAL"):
+            return                        # tests never touch the real deck state
         now = time.time()
         if not force and now - getattr(self, "_bag_saved_t", 0) < 20:
             return

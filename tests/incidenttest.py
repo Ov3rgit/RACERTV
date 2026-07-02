@@ -1,5 +1,7 @@
 """Incident points: engineer reports EVERY pickup, escalates near the DQ limit,
 and works from the green flag. Also: engineer session intro fires."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

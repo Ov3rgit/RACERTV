@@ -1,5 +1,7 @@
 """Lights-out must fire at green and NOT be preempted by a bogus 'gone off' as
 the grid sorts out. Also: no DRS in engineer lines."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

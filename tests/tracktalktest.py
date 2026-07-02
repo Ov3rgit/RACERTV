@@ -4,6 +4,8 @@ have history (TRACK_FACTS), analysis (TRACK_COACH) and pundit colour
 'brandshatch' vs 'brands hatch' bug class), the pundit must be track-specific on
 known circuits and varied-generic otherwise, and the generic pool must not be
 the old all-'history' set."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 from r3e_overlay import Overlay

@@ -1,6 +1,8 @@
 """Finish accuracy: win call fires at the leader's crossing, but the podium /
 summary / engineer verdict use the FINAL order after the player crosses — so a
 last-corner pass for the player's place is reported correctly."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

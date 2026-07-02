@@ -1,6 +1,8 @@
 """Rival driver radio must be session-aware: in practice/quali, foreign-voice
 rivals use lap/pace chatter (not race-battle lines), and practice has no 'pole'.
 Race-battle rival lines must never fire in non-race sessions."""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys, random
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R

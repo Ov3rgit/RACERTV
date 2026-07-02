@@ -3,6 +3,8 @@
      cut_track_warnings does NOT increment (the grass/gravel offs it used to miss).
   2) BOOTH gives a lighter 'ran wide' note on a MODERATE off (pace dip, no spin).
 """
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
+
 import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R
