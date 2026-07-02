@@ -298,6 +298,12 @@ class Tts:
                                    # rendered under an older epoch is discarded so
                                    # an incident truly CUTS IN instead of waiting
                                    # for in-flight/queued audio to finish first
+        self._eng_epoch = 0        # ENGINEER's own cutoff: only advances on a
+                                   # FULL purge (stop/flush). A booth interrupt
+                                   # keeps this behind _epoch so an engineer job
+                                   # caught MID-RENDER (already popped from the
+                                   # queue, so _purge can't re-stamp it) isn't
+                                   # dropped as stale — his TTL still applies
         # SAPI fallback worker + voice list
         self.proc = None
         self.voices = _list_voices()
@@ -319,6 +325,8 @@ class Tts:
         queued engineer calls ("And we're racing!", overtake acks). He's talking
         to the player; an incident sting shouldn't erase him."""
         self._epoch += 1
+        if not keep_engineer:
+            self._eng_epoch = self._epoch
         kept = []
         for q in (self.gen_q, self.play_q):
             try:
@@ -335,6 +343,13 @@ class Tts:
             # stamp the new epoch so the survivor isn't dropped as stale
             lst[5 if len(lst) == 8 else 4] = self._epoch
             self._qput(q, "ENGINEER", tuple(lst))
+
+    def _stale(self, persona, epoch):
+        """True if a pipeline job was superseded by an interrupt. ENGINEER is
+        judged against his own epoch, which booth interrupts don't advance —
+        otherwise a job of his caught mid-render is silently cut."""
+        return epoch < (self._eng_epoch if persona == "ENGINEER"
+                        else self._epoch)
 
     def _qput(self, q, persona, payload):
         """Queue a pipeline job with ENGINEER priority (0) ahead of everything
@@ -522,10 +537,12 @@ class Tts:
             # stale (an interrupt happened after this was rendered, or the line
             # outlived its TTL waiting in the queue — e.g. "5 minutes remaining"
             # after the flag) or stopped — drop without playing
-            if (not self.enabled or epoch < self._epoch
+            if (not self.enabled or self._stale(persona, epoch)
                     or (deadline and time.time() > deadline)):
                 if deadline and time.time() > deadline:
                     _log(f"play DROP-stale persona={persona} :: {text[:40]}")
+                elif self.enabled:
+                    _log(f"play DROP-cut persona={persona} :: {text[:40]}")
                 try:
                     os.remove(wav)
                 except Exception:
@@ -559,7 +576,9 @@ class Tts:
                 deadline=None, topic=None):
         # already superseded before we even started rendering — skip the (slow)
         # synthesis entirely so the queue clears fast after an interrupt
-        if not self.enabled or epoch < self._epoch:
+        if not self.enabled or self._stale(persona, epoch):
+            if self.enabled:
+                _log(f"render DROP-old persona={persona} :: {text[:40]}")
             self._topic_done(topic)
             return
         # gone stale in the gen queue (a backlog built up) — don't waste a slow
@@ -618,7 +637,7 @@ class Tts:
         _write_wav(wav, srate, mixed)
         # one last staleness check — an interrupt may have landed during the slow
         # render; if so, drop this rather than play it ahead of the incident
-        if epoch < self._epoch:
+        if self._stale(persona, epoch):
             _log(f"render DROP-cut persona={persona} :: {text[:40]}")
             try:
                 os.remove(wav)
