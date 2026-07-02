@@ -1497,5 +1497,27 @@
   "The clock is ticking down: {togo} laps left to change the story of this race.",
   "Only {togo} laps left now — whatever's going to happen has to happen soon.",
   "{togo} laps remain — the margin for error shrinks with each one."
+ ],
+ "career_back": [
+  "Worth mentioning — {drv} has raced here {times} before. Best finish of P{best}, so he knows his way around {trk}.",
+  "{drv} is no stranger to {trk} — that's {times} he's raced this place. The homework should be done.",
+  "Our cameras have followed {drv} around {trk} before — P{last} last time out. Let's see what he's learned.",
+  "A familiar hunting ground for {drv} — he's been around {trk} {times} on this channel. Experience counts here.",
+  "{pundit}, you'll remember {drv} from our last visit here — P{last} that day. He'll fancy better this afternoon.",
+  "RacerTV has seen {drv} at {trk} before — best of P{best}. The potential's there, today's about converting it."
+ ],
+ "career_podium_here": [
+  "Remember, {drv} has stood on the podium at {trk} before — a P{best} on this channel. This place suits him.",
+  "{trk} has been kind to {drv} — a best of P{best} here. He'll believe silverware is on today's menu.",
+  "{pundit}, our records show a P{best} for {drv} around {trk}. There's proven pace between him and this tarmac.",
+  "{drv} knows what champagne tastes like at {trk} — P{best} last visit to the podium places. Watch him today.",
+  "A podium man at this circuit, {drv} — P{best} his best around {trk}. He's not here to make up the numbers."
+ ],
+ "career_won_here": [
+  "And remember — {drv} has WON at {trk} on this very channel. {times} here before, and he's tasted the top step.",
+  "{trk} and {drv} — a winning combination before on RacerTV. The rest of this field has been warned.",
+  "{pundit}, we've watched {drv} win around {trk}. Defending home turf today, you'd almost say.",
+  "The record books say {drv} has won here — victory at {trk} {wins}. Class is permanent, as they say.",
+  "{drv} has taken the top step at {trk} before, folks — {wins}. If it happened once, it can happen again."
  ]
 }

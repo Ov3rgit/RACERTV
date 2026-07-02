@@ -1682,6 +1682,73 @@ class Overlay:
         except Exception:
             pass
 
+    # ---- career memory (the booth remembers YOU across sessions) ------------
+    # A tiny persistent record of the player's results per track, so the booth
+    # can say "back at Monza — won here last time out, didn't he Brett?" months
+    # into a live-service game. Recorded at the finish, referenced once early
+    # in each race. Same ephemeral rule as the shuffle-bags for tests.
+    _CAREER_FILE = os.path.join(_DIR, "_career.json")
+
+    def _career(self):
+        c = getattr(self, "_career_data", None)
+        if c is None:
+            c = {"races": 0, "wins": 0, "podiums": 0, "tracks": {}}
+            try:
+                if not os.environ.get("RACERTV_EPHEMERAL"):
+                    with open(self._CAREER_FILE, encoding="utf-8") as f:
+                        d = json.load(f)
+                    for k in c:
+                        c[k] = d.get(k, c[k])
+            except Exception:
+                pass                          # missing/corrupt -> fresh career
+            self._career_data = c
+        return c
+
+    def _career_record(self, trk, pos, field):
+        """Record the player's finishing position at this track."""
+        if not pos or pos < 1:
+            return
+        c = self._career()
+        c["races"] += 1
+        if pos == 1:
+            c["wins"] += 1
+        if pos <= 3:
+            c["podiums"] += 1
+        key = (trk or "").lower()[:24] or "unknown"
+        t = c["tracks"].setdefault(key, {"visits": 0, "wins": 0,
+                                         "best": 0, "last": 0})
+        t["visits"] += 1
+        if pos == 1:
+            t["wins"] += 1
+        if not t["best"] or pos < t["best"]:
+            t["best"] = pos
+        t["last"] = pos
+        if os.environ.get("RACERTV_EPHEMERAL"):
+            return
+        try:
+            tmp = self._CAREER_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(c, f)
+            os.replace(tmp, self._CAREER_FILE)
+        except Exception:
+            pass
+
+    def _career_note(self, trk):
+        """(category, kwargs) for a booth callback to the player's history at
+        this track, or None when there's no history worth mentioning."""
+        t = self._career()["tracks"].get((trk or "").lower()[:24])
+        if not t or not t.get("visits"):
+            return None
+        times = {1: "once", 2: "twice"}.get(t["visits"], f'{t["visits"]} times')
+        kw = {"times": times, "best": t["best"], "last": t["last"]}
+        if t.get("wins"):
+            kw["wins"] = ("once" if t["wins"] == 1 else
+                          "twice" if t["wins"] == 2 else f'{t["wins"]} times')
+            return ("career_won_here", kw)
+        if t.get("best") and t["best"] <= 3:
+            return ("career_podium_here", kw)
+        return ("career_back", kw)
+
     def _pick(self, pool, key):
         """Deal a line from the pool's shuffle-bag: no repeats for this key
         until every line in the pool has been used once."""
@@ -3068,6 +3135,11 @@ class Overlay:
                 fn2 = self._dname(order[1]) if len(order) > 1 else ""
                 fn3 = self._dname(order[2]) if len(order) > 2 else ""
                 chasers = [self._dname(d) for d in order[1:5]]
+                if pfin is not None:
+                    self._career_record(trk, next(
+                        (i + 1 for i, d in enumerate(order)
+                         if d.driver_info.slot_id == s.vehicle_info.slot_id),
+                        0), len(order))
                 self._finish_sequence(fn1, fn2, fn3, trk, chasers, include_win=False)
                 self._signed_off = True
                 self._comm_prev = cur
@@ -3483,6 +3555,26 @@ class Overlay:
                 and not self._comm_flags.get("final_lap")):
             self._comm_flags["final_lap"] = True
             L("final_lap", 0, persona="COMMENTATOR")
+
+        # CAREER CALLBACK (once, early-mid race): the booth remembers the
+        # player's past results at this circuit across sessions — the thing
+        # that makes RacerTV feel like it's been covering YOUR career.
+        if (is_race and phase != "opening" and not self._comm_flags.get("career")
+                and leader is not None and leader.completed_laps >= 1):
+            self._comm_flags["career"] = True
+            note = self._career_note(trk)
+            pd = next((d for d in order if d.driver_info.slot_id
+                       == s.vehicle_info.slot_id), None)
+            if note and pd is not None:
+                ccat, ckw = note
+                cpool = COMMENTARY_LINES.get(ccat)
+                if cpool:
+                    cands.append((4, _safe_format(
+                        self._pick(cpool, ("COMM", ccat)),
+                        dict(ckw, trk=trk, drv=self._dname(pd),
+                             comm=COMMENTATOR_NAME, pundit=PUNDIT_NAME)),
+                        ccat, 0,
+                        "PUNDIT" if random.random() < 0.5 else "COMMENTATOR"))
 
         # a circuit-trivia drop early on (once, around lap 2) — name & history.
         # Hold it back until the MID race — the opening belongs to the leaders.
