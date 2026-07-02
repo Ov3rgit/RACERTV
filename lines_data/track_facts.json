@@ -4,14 +4,18 @@
   "The Corkscrew falls nearly six storeys in just a few hundred metres.",
   "Who could forget Alex Zanardi's pass around the outside of the Corkscrew here — one of the boldest overtakes ever seen.",
   "Rossi versus Stoner in 2008, side by side through the Corkscrew — that duel is the stuff of Laguna Seca legend.",
-  "It's a short lap, but every corner here demands absolute precision."
+  "It's a short lap, but every corner here demands absolute precision.",
+  "The Corkscrew drops nearly six storeys in the space of a few car lengths — drivers aim at a gap in the trees and commit.",
+  "Cool Pacific air off Monterey Bay means the track never quite grips the way you expect — it keeps champions humble."
  ],
  "bathurst": [
   "Mount Panorama at Bathurst — over a hundred and seventy metres of elevation change across the mountain.",
   "Bathurst is part street circuit, part race track, and all intimidating.",
   "The Bathurst 1000 is one of the great endurance classics — they call it the race that stops a nation in Australia.",
   "Across the top of the mountain there's barely a car's width of room — get it wrong here and there's nowhere to go.",
-  "Peter Brock made this mountain his own — the King of the Mountain himself."
+  "Peter Brock made this mountain his own — the King of the Mountain himself.",
+  "Mount Panorama climbs 174 metres from Pit Straight to the top of the Mountain — a public road most of the year.",
+  "The lap across the top — the Cutting, Skyline, the Esses — is walled on both sides. Get it wrong up there and the Mountain keeps your car."
  ],
  "panorama": [
   "Mount Panorama — few circuits in the world are as daunting as this run across the mountain.",
@@ -22,7 +26,9 @@
   "Spa is famous for its microclimate — bone dry at one end, pouring with rain at the other.",
   "Who could forget Schumacher carving through the field here in the wet — Spa has always rewarded the truly fearless.",
   "At over seven kilometres, this is the longest lap of the season — a proper old-school road course.",
-  "Eau Rouge has tested the nerve of every great driver in history."
+  "Eau Rouge has tested the nerve of every great driver in history.",
+  "Eau Rouge and Raidillon — the most famous sequence of corners in racing. Flat out if you're brave, legendary if you're not.",
+  "At seven kilometres, Spa is one of the longest laps in world racing — it can be raining at one end and bone dry at the other."
  ],
  "monza": [
   "Monza, the Temple of Speed — the fastest circuit of them all.",
@@ -38,13 +44,17 @@
  "nordschleife": [
   "The Nordschleife — the Green Hell, over twenty kilometres and a hundred and fifty corners.",
   "Jackie Stewart christened this place the Green Hell, and the name stuck.",
-  "Stirling Moss and Jackie Stewart both produced wet-weather masterclasses around this terrifying place."
+  "Stirling Moss and Jackie Stewart both produced wet-weather masterclasses around this terrifying place.",
+  "Jackie Stewart named it the Green Hell — twenty-one kilometres and more than 150 corners through the Eifel forest.",
+  "There is nowhere like it in world motorsport — crests, jumps, banking, fog, and history in every armco scar."
  ],
  "suzuka": [
   "Suzuka, with its unique figure-of-eight layout — the only one of its kind on the calendar.",
   "The Esses here are a glorious rhythm section, a true test of precision.",
   "So many championships have been decided at Suzuka — the infamous Senna–Prost collisions among them.",
-  "130R is one of the great high-speed corners left in the sport."
+  "130R is one of the great high-speed corners left in the sport.",
+  "Suzuka is the world's only figure-of-eight Grand Prix circuit — the back straight literally crosses over the first sector.",
+  "130R — one of the fastest corners in world motorsport, taken barely breathing at over 300 kilometres an hour."
  ],
  "imola": [
   "Imola, a classic old-school circuit that runs anti-clockwise and demands total respect.",
@@ -54,11 +64,15 @@
   "Silverstone, the home of British motor racing — it hosted the very first World Championship Grand Prix back in 1950.",
   "Maggotts and Becketts is one of the great high-speed sequences anywhere in the world.",
   "Nigel Mansell gave Nigel Mansell fans the famous Silverstone moment — the crowd invasion of 1992 will never be forgotten.",
-  "An old airfield circuit, fast and flowing, where bravery is everything."
+  "An old airfield circuit, fast and flowing, where bravery is everything.",
+  "Silverstone was a wartime airfield — the old runways still shape the circuit's flat-out character.",
+  "The first ever Formula One World Championship Grand Prix was held right here in 1950."
  ],
  "zandvoort": [
   "Zandvoort, with its dramatic banked corners nestled in the sand dunes.",
-  "The banking lets the drivers carry astonishing speed — a real throwback."
+  "The banking lets the drivers carry astonishing speed — a real throwback.",
+  "Zandvoort's banked final corner fires cars onto the pit straight like a slingshot — rebuilt steeper than some ovals.",
+  "The circuit winds through the North Sea dunes — wind-blown sand on the racing line is part of the challenge here."
  ],
  "brands hatch": [
   "Brands Hatch — a rollercoaster of elevation through the Grand Prix loop.",
@@ -78,10 +92,14 @@
  "interlagos": [
   "Interlagos in São Paulo — a short anti-clockwise lap that always seems to deliver drama.",
   "This is Ayrton Senna's home circuit — his emotional 1991 win here, stuck in sixth gear, is the stuff of legend.",
-  "So many title deciders have come down to the wire at Interlagos."
+  "So many title deciders have come down to the wire at Interlagos.",
+  "Interlagos runs anti-clockwise and punishes necks and left-front tyres in equal measure.",
+  "The Senna S at turn one has decided more championship battles than almost any corner in racing."
  ],
  "watkins": [
-  "Watkins Glen, a fast, flowing classic of American road racing."
+  "Watkins Glen, a fast, flowing classic of American road racing.",
+  "Watkins Glen hosted the United States Grand Prix for twenty years — the spiritual home of American road racing.",
+  "The uphill Esses here reward total commitment — the fast way through is the frightening way through."
  ],
  "road america": [
   "Road America — four miles of fast, sweeping curves through the Wisconsin countryside, barely changed in decades."
@@ -92,7 +110,9 @@
  ],
  "daytona": [
   "Daytona, with its steep high banking — a true test of bravery and machinery.",
-  "The Daytona 24 Hours is one of the cornerstones of endurance racing."
+  "The Daytona 24 Hours is one of the cornerstones of endurance racing.",
+  "The banking at Daytona towers at thirty-one degrees — you don't so much drive it as get pinned to it.",
+  "The Daytona 24 Hours is America's great endurance test — the infield dark, the banking a blur, all night long."
  ],
  "le mans": [
   "Le Mans — the spiritual home of endurance racing, where the Mulsanne Straight goes on and on.",
@@ -127,7 +147,9 @@
   "Sebring — twelve hours of the most punishing endurance racing on earth, on an old Second World War airfield.",
   "That bumpy concrete shakes the cars to pieces — survive Sebring and you can survive anywhere.",
   "The 12 Hours is one of the crown jewels of sportscar racing, run here since 1952.",
-  "It's brutally physical and brutally hard on the machinery — a true test of car and driver."
+  "It's brutally physical and brutally hard on the machinery — a true test of car and driver.",
+  "Sebring is built on a wartime airfield and its concrete sections are famously brutal — they say if your car survives Sebring, it'll survive Le Mans.",
+  "The Sebring 12 Hours has run since 1952 — America's oldest road race, and still one of its toughest."
  ],
  "portim": [
   "Portimão, the Algarve circuit — a rollercoaster of blind crests and plunging elevation changes.",
@@ -162,7 +184,9 @@
   "The Guia Circuit at Macau — one of the most dangerous and revered street tracks in the world.",
   "Lisboa corner is the great overtaking spot, but the mountain section is barely wider than the cars.",
   "Senna, Schumacher, Häkkinen — the Macau Grand Prix has launched the careers of so many greats.",
-  "There's no margin for error here at all — the walls are right there, the whole way around."
+  "There's no margin for error here at all — the walls are right there, the whole way around.",
+  "The Macau Grand Prix through these streets is the proving ground of future world champions — the barriers grade the homework.",
+  "Ayrton Senna won here in 1983 — the roll call of Macau winners reads like a hall of fame."
  ],
  "dubai": [
   "The Dubai Autodrome — a modern, flowing circuit best known for its gruelling 24-hour race.",

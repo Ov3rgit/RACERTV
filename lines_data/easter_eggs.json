@@ -6,7 +6,10 @@
   "He came from nowhere! Where did he come from?!",
   "Is that Glock?! He's catching them on the line!",
   "He overtook me on the outside, that's just not normal!",
-  "Where did he come from?! He was nowhere a lap ago!"
+  "Where did he come from?! He was nowhere a lap ago!",
+  "He's using me as a brake marker! A BRAKE MARKER!",
+  "Simply lovely. Karma will find him, tell him I said that.",
+  "GP2 move! GP2! Argh!"
  ],
  "caught": [
   "Leave me alone, I know what I'm doing!",
@@ -16,7 +19,10 @@
   "I am stuck behind, I can't... look, just leave me to it!",
   "I'm giving it everything I've got, everything!",
   "Bono, my tyres are gone, the tyres are gone!",
-  "Just leave me to it, I'll hold this position!"
+  "Just leave me to it, I'll hold this position!",
+  "He is faster than me. Do NOT let him past.",
+  "My tyres are gone, mate. They're just... memories now.",
+  "I'm giving it everything! There's nothing left to give!"
  ],
  "crash": [
   "It was just a racing incident, that's all it was!",
@@ -25,7 +31,10 @@
   "That is not fair! That is just NOT fair!",
   "He just turned in on me! He turned in on me!",
   "I can't believe it! After everything, it ends like this!",
-  "What happened?! What... what just happened to me?!"
+  "What happened?! What... what just happened to me?!",
+  "Is he okay?! ...Okay good, then that was hilarious.",
+  "That's the second most spectacular thing I've seen all year.",
+  "He's beached it like a whale! A WHALE!"
  ],
  "taunt": [
   "Get in there! Yes! Simply lovely!",
@@ -34,6 +43,9 @@
   "Multi twenty-one? Not today. I'm not moving over.",
   "I am the best driver out here, and I just proved it!",
   "Still I rise! Did you see that one?!",
-  "That, my friends, is how it is done!"
+  "That, my friends, is how it is done!",
+  "Leave me alone, I know what I'm doing.",
+  "Bwoah. Easy.",
+  "Tell him the tow was lovely, thanks for the lift."
  ]
 }

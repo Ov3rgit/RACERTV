@@ -722,7 +722,15 @@
   "{pundit}, with a Le Mans crown to your name, how does this lot compare to the WEC legends you raced?",
   "Take us back, {pundit} — you raced the endurance era's very best. What's the trick to {trk}?",
   "You've felt {trk} at the limit in a prototype, {pundit}. What separates the quick from the rest here?",
-  "{pundit}, from one champion to a room full of hopefuls — what's the secret this circuit demands?"
+  "{pundit}, from one champion to a room full of hopefuls — what's the secret this circuit demands?",
+  "{pundit}, you did this in anger for twenty years — what's the one thing about {trk} the onboard cameras never show you?",
+  "Be honest, {pundit} — could the you of your Le Mans years have lived with this field around {trk}?",
+  "{pundit}, you shared a garage with some legends of endurance racing. Who'd have loved a scrap like this one?",
+  "You've raced through the night at Le Mans, {pundit} — does a sprint around {trk} even raise your pulse?",
+  "{pundit}, hand on heart — how many of these corners at {trk} would you still take flat?",
+  "What's harder, {pundit} — twenty-four hours of concentration, or twenty minutes of this kind of madness?",
+  "{pundit}, you always said endurance racing is chess at three hundred k's. So what's this then?",
+  "Talk to me about fear, {pundit} — where does it live around a place like {trk}?"
  ],
  "lore_a": [
   "{trk}? I raced sportscars at places like this in my Le Mans years — wheel to wheel with Tom Kristensen more times than I can count. Endurance teaches patience, and that wins here too.",
@@ -730,21 +738,45 @@
   "I won my share against the endurance greats — Kristensen, Pirro, McNish — and {trk} rewards the very same things: rhythm, respect, and saving the car for when it matters.",
   "We didn't have all this telemetry in my prototype days — you felt it through the seat. Battling Lotterer through corners like these, you drove on instinct alone.",
   "One of my best ever drives came at a circuit much like {trk} — Dindo Capello and I refusing to lift, two cars as one. Commit, trust it, never lift when your gut says lift.",
-  "The greats I raced never forced it — Kristensen was smoothest of the lot, never fighting the car. These youngsters could learn a thing or two from that."
+  "The greats I raced never forced it — Kristensen was smoothest of the lot, never fighting the car. These youngsters could learn a thing or two from that.",
+  "Pulse? Mate, I did the last stint at Le Mans with the clutch gone and Tom Kristensen two seconds back. THIS is a holiday.",
+  "Every corner's flat if you're brave enough, {comm} — that's what McNish used to say. Usually right before the accident.",
+  "The cameras never show you the bumps. A place like {trk} beats your spine to pieces — and you've still got to be millimetre-perfect.",
+  "Chess at three hundred? This lot are playing speed chess and slapping the clock, {comm}. I love it.",
+  "Fear lives wherever the walls are closest, mate. And around {trk}, they're never far away.",
+  "Emanuele Pirro told me once: the car always knows when you're lying to it. Around here, there's nowhere to lie.",
+  "Honestly? The me of twenty years ago would've had a go. The me of today is very happy up here with a coffee.",
+  "Allan McNish crashed at Le Mans and walked into the garage apologising to the SANDWICHES. Endurance drivers are not normal people, {comm}.",
+  "You drive the night stints on instinct and the day stints on ego. A track like {trk} asks for both at once.",
+  "Who'd love this scrap? Lotterer. He'd already be in the middle of it, and he'd be smiling."
  ],
  "lore_q_rally": [
   "{comm}, you were World Champion before you ever went rallying — bet you saw a few things at a place like {trk}?",
   "You raced Schumacher and Häkkinen for a title, {comm}. Does this lot have what those greats had?",
   "{comm}, F1 champion turned rally man — what does {trk} take, in your book?",
   "You've battled the very best wheel to wheel, {comm}, then gone sideways through the forests. Do these drivers impress you?",
-  "From a world title to the rally stages, {comm} — how would you be tackling {trk}?"
+  "From a world title to the rally stages, {comm} — how would you be tackling {trk}?",
+  "{comm}, you won a world title and then went and threw yourself down forest roads for fun. Explain yourself.",
+  "Come on, {comm} — one lap of {trk} in your old Grand Prix car versus the modern stuff. Where's your money?",
+  "You raced wheel to wheel with Schumacher, {comm}. Does anything on this grid remind you of him?",
+  "{comm}, what did rallying teach you that Formula One never could?",
+  "Grand Prix winner, rally podiums — and now you're stuck in a box with me, {comm}. Career going well?",
+  "Honestly {comm}, at a circuit like {trk} — do your hands still twitch when they go through the fast stuff?"
  ],
  "lore_a_rally": [
   "{trk}? I won races at places like this in my Formula One days — wheel to wheel with Schumacher and Häkkinen, no lifting, no quarter. Then I went rallying and learned car control all over again!",
   "In my championship year I'd attack a circuit like {trk} flat out, Rubens Barrichello filling my mirrors the whole way. Later, in rally, I learned the limit's a feeling — and the best here drive on that feeling.",
   "I took my F1 title scrapping with the very best — Mika, Michael, Rubens — at tracks like {trk}. Then the forests humbled me all over again. Car control is car control, wherever you race.",
   "Ha! After a world championship, throwing a rally car blind over a crest taught me real humility. {trk} rewards that same bravery — commit, and trust it.",
-  "I raced Häkkinen for a title down to the last round — ice in the veins, neither of us lifting. That's what {trk} demands of these drivers too, if they want it."
+  "I raced Häkkinen for a title down to the last round — ice in the veins, neither of us lifting. That's what {trk} demands of these drivers too, if they want it.",
+  "Rallying taught me the road doesn't care who you are, {pundit}. A hundred metres of gravel humbles you faster than any championship table.",
+  "Stuck in a box with you and I've never been happier — nobody crashes a commentary booth. Well. Almost nobody.",
+  "My hands twitch at every quick circuit, {pundit}. You never stop wanting it — you just stop being daft enough to chase it.",
+  "Schumacher never gave you a centimetre you didn't earn. Watch the leader tonight — same thing. It's rarer than people think.",
+  "Häkkinen was the quickest thing I ever saw in the wet — until I sat next to a rally driver on a night stage. Different sport, different madness.",
+  "My old car around {trk}? It'd be sideways, screaming, and probably on fire. And I'd still queue up to do it.",
+  "Colin used to say 'if in doubt, flat out'. I tried it exactly once in a Grand Prix car, {pundit}. The marshals were very kind about it.",
+  "The title never changed my driving. Rallying did — it taught me the difference between brave and stupid is about half a metre."
  ],
  "stat": [
   "{p1} leads {p2} by {gap} at the front.",

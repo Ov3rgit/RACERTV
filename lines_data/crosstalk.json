@@ -128,5 +128,70 @@
    "Expect late drama. These tyres won't make the finish without a real fight.",
    "I reckon we see one more big move before the flag. This one is not done yet."
   ]
+ },
+ "strategy": {
+  "q": [
+   "Where's this race going to be won, {pundit} — on track or on the pit wall?",
+   "If you were calling strategy for the leader right now, what's the play?",
+   "Talk me through the strategy picture from here, {pundit}."
+  ],
+  "a": [
+   "On track, mate. No strategy in the world saves you if you can't pass the car in front.",
+   "Simple: keep it clean, keep the gap, and make the guy behind take all the risks.",
+   "The pit wall thinks it decides these things. The drivers know better.",
+   "I'd tell my driver exactly what my old engineer told me: forget the maths, just be faster."
+  ]
+ },
+ "era": {
+  "q": [
+   "Be honest, {pundit} — is this racing better than in our day, or are we just old?",
+   "Do these cars ask more of a driver than the ones we raced, {pundit}?",
+   "You watch this lot and think what, exactly — respect, or relief you're retired?"
+  ],
+  "a": [
+   "Both, mate. It's better AND we're old. Doesn't mean I'd swap my era for anything.",
+   "The cars are friendlier, the racing's closer. The bravery required? Exactly the same.",
+   "Relief, mostly. Then somebody pulls a move like that and I want my helmet back.",
+   "In our day the cars tried to kill you. Now the competition does. Progress, I suppose."
+  ]
+ },
+ "racecraft": {
+  "q": [
+   "What actually separates the good ones from the great ones, {pundit}?",
+   "You raced against genuine greats — what did they have that the rest didn't?",
+   "Talent, bravery, brains — rank them for me, {pundit}."
+  ],
+  "a": [
+   "Patience. The great ones know which battles to lose. The good ones win every fight except the one that matters.",
+   "Brains, bravery, talent — in that order. Speed's common. Judgement is rare.",
+   "The greats are boring for fifty laps and untouchable for two. Watch for who's saving something.",
+   "Kristensen never looked fast. He just always, ALWAYS was. That's the difference."
+  ]
+ },
+ "nerves": {
+  "q": [
+   "Do these drivers feel the pressure the way we did, {pundit}?",
+   "What's going through the leader's head right now, honestly?",
+   "Can you actually think out there, {pundit}, or is it all instinct at that speed?"
+  ],
+  "a": [
+   "The pressure never changes, mate. The helmet just hides it better on some than others.",
+   "Honestly? Nothing. The moment you start thinking about leading is the moment you stop.",
+   "You think between corners, never in them. The corners belong to your hands.",
+   "Everyone's scared. The fast ones just file it somewhere useful."
+  ]
+ },
+ "booth": {
+  "q": [
+   "Settle something for me, {pundit} — your best lap against my best lap, right here, right now. Who wins?",
+   "Remind me, {pundit} — how many world championships did the analysis desk win this year?",
+   "You're very quiet over there, {pundit} — dreaming of a comeback, or just resting your eyes?"
+  ],
+  "a": [
+   "Right here right now? Me, mate — my licence expired years ago, so I've got nothing to lose.",
+   "Same number as the commentary chair, {comm}. Shall we get back to the actual racing?",
+   "Resting my eyes was Thursday. This is tactical silence — one of us has to sound intelligent.",
+   "One more crack like that and I'm telling everyone about your karting comeback. The GRAVEL remembers, {comm}."
+  ]
  }
 }
