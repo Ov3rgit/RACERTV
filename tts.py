@@ -17,6 +17,7 @@ import shutil
 import struct
 import subprocess
 import threading
+import time
 import wave
 
 try:
@@ -136,6 +137,14 @@ COMMENTATOR_VOICE = "en-GB-RyanNeural"      # lead play-by-play (British)
 PUNDIT_VOICE = "en-AU-WilliamNeural"        # colour/analysis man (Australian)
 CLEAN_PERSONAS = ("COMMENTATOR", "PUNDIT")
 
+# how long a queued line stays AIRABLE (seconds). Play-by-play goes stale fast —
+# "5 minutes remaining" heard after the flag breaks the illusion completely —
+# while driver radio/engineer banter tolerates a longer wait. Checked when the
+# line is RENDERED and again when it's PLAYED, not when it's queued. force=True
+# (scripted finish wrap / crosstalk) is exempt: those sequences must complete.
+TTL_BOOTH = 12.0     # COMMENTATOR / PUNDIT live calls & colour
+TTL_RADIO = 22.0     # drivers + engineer
+
 # per-persona speaking rate (edge-tts), keeps the natural neural cadence
 PERSONA_RATE = {
     "HOTHEAD": "+16%", "COCKY": "+0%", "VETERAN": "-6%", "DRAMATIC": "+12%",
@@ -241,6 +250,18 @@ class Tts:
             open(_LOG, "w").close()                 # fresh log each launch
         except Exception:
             pass
+        # sweep temp render/play wavs left behind by a previous crash/kill so
+        # the folder doesn't accumulate debris on users' machines
+        try:
+            import glob
+            for f in (glob.glob(os.path.join(_DIR, "_tts_play*.wav"))
+                      + [_OUT, _MP3]):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         self.enabled = True
         self.engine = "edge" if _HAVE_EDGE else "sapi"
         # two-stage pipeline: the GENERATE thread renders the next line's audio
@@ -262,6 +283,7 @@ class Tts:
         self.names = [v[0] for v in self.voices]
         self._start_sapi()
         self._stings = {}          # (persona, group) -> [cached wav paths]
+        self._topics = {}          # topic -> pending count (dedup, see speak())
         threading.Thread(target=self._gen_loop, daemon=True).start()
         threading.Thread(target=self._play_loop, daemon=True).start()
         threading.Thread(target=self._build_stings, daemon=True).start()
@@ -359,6 +381,7 @@ class Tts:
                     q.get_nowait()
             except Exception:
                 pass
+        self._topics.clear()               # purged lines can't hold their topic
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
@@ -369,7 +392,7 @@ class Tts:
             shutil.copyfile(src, dst)
         except Exception:
             return False
-        self.play_q.put((dst, on_play, text, persona, self._epoch))
+        self.play_q.put((dst, on_play, text, persona, self._epoch, None, None))
         return True
 
     # ---- voice selection ----
@@ -393,7 +416,7 @@ class Tts:
         return self.names[idx]
 
     def speak(self, text, persona="ENGINEER", seed="", intensity=0, on_play=None,
-              force=False, urgent=False):
+              force=False, urgent=False, ttl=None, topic=None):
         if not self.enabled or not text:
             _log(f"speak SKIP enabled={self.enabled} text={bool(text)}")
             return
@@ -410,10 +433,27 @@ class Tts:
                 _log(f"speak DROP-busy persona={persona} urgent={urgent} "
                      f"pending={self._pending()}")
                 return
+        # topic dedup: only one line per topic may be pending at a time, so a
+        # busy moment can't stack near-identical calls (two winner lines, two
+        # "gap closing" reads) that then air back to back
+        if topic and self._topics.get(topic, 0) > 0:
+            _log(f"speak DROP-dupe topic={topic} :: {text[:40]}")
+            return
+        if ttl is None and not force:
+            ttl = TTL_BOOTH if persona in CLEAN_PERSONAS else TTL_RADIO
+        deadline = (time.time() + ttl) if ttl else None
+        if topic:
+            self._topics[topic] = self._topics.get(topic, 0) + 1
         self.gen_q.put((text, persona, self._voice_for(persona, seed), intensity,
-                        on_play, self._epoch))
+                        on_play, self._epoch, deadline, topic))
         _log(f"speak QUEUE persona={persona} i={intensity} pending={self._pending()} "
              f":: {text[:40]}")
+
+    def _topic_done(self, topic):
+        if topic and topic in self._topics:
+            self._topics[topic] -= 1
+            if self._topics[topic] <= 0:
+                del self._topics[topic]
 
     def _gen_loop(self):
         """Render audio to a wav file, then hand it to the player. Runs ahead of
@@ -432,14 +472,19 @@ class Tts:
             job = self.play_q.get()
             if job is None:
                 break
-            wav, on_play, text, persona, epoch = job
-            # stale (an interrupt happened after this was rendered) or stopped —
-            # drop without playing so the incident that replaced it isn't delayed
-            if not self.enabled or epoch < self._epoch:
+            wav, on_play, text, persona, epoch, deadline, topic = job
+            # stale (an interrupt happened after this was rendered, or the line
+            # outlived its TTL waiting in the queue — e.g. "5 minutes remaining"
+            # after the flag) or stopped — drop without playing
+            if (not self.enabled or epoch < self._epoch
+                    or (deadline and time.time() > deadline)):
+                if deadline and time.time() > deadline:
+                    _log(f"play DROP-stale persona={persona} :: {text[:40]}")
                 try:
                     os.remove(wav)
                 except Exception:
                     pass
+                self._topic_done(topic)
                 continue
             try:
                 if on_play:
@@ -458,15 +503,24 @@ class Tts:
             finally:
                 self._speaking = False
                 self._speaking_persona = None
+                self._topic_done(topic)
                 try:
                     os.remove(wav)
                 except Exception:
                     pass
 
-    def _render(self, text, persona, voice, intensity=0, on_play=None, epoch=0):
+    def _render(self, text, persona, voice, intensity=0, on_play=None, epoch=0,
+                deadline=None, topic=None):
         # already superseded before we even started rendering — skip the (slow)
         # synthesis entirely so the queue clears fast after an interrupt
         if not self.enabled or epoch < self._epoch:
+            self._topic_done(topic)
+            return
+        # gone stale in the gen queue (a backlog built up) — don't waste a slow
+        # network synth on a line that will be dropped at play time anyway
+        if deadline and time.time() > deadline:
+            _log(f"render DROP-stale persona={persona} :: {text[:40]}")
+            self._topic_done(topic)
             return
         samples, srate, prebuilt = None, 24000, False
         if self.engine == "edge":
@@ -485,6 +539,7 @@ class Tts:
                 samples = None
         if not samples:
             _log(f"render NO-SAMPLES engine={self.engine} persona={persona}")
+            self._topic_done(topic)
             return
         if prebuilt:
             # the build ramp already set the per-clause levels (clause 1 ≈ normal
@@ -515,8 +570,10 @@ class Tts:
                 os.remove(wav)
             except Exception:
                 pass
+            self._topic_done(topic)
             return
-        self.play_q.put((wav, on_play, text, persona, epoch))  # blocks if behind
+        # blocks if behind
+        self.play_q.put((wav, on_play, text, persona, epoch, deadline, topic))
 
     # ---- neural generation ----
     # excitement ladder for the booth voices: as intensity climbs the delivery
@@ -704,6 +761,7 @@ class Tts:
                     q.get_nowait()
             except Exception:
                 pass
+        self._topics.clear()               # purged lines can't hold their topic
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)   # stop current sound
@@ -724,6 +782,7 @@ class Tts:
                     q.get_nowait()
             except Exception:
                 pass
+        self._topics.clear()               # purged lines can't hold their topic
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
@@ -743,6 +802,7 @@ class Tts:
                     q.get_nowait()
             except Exception:
                 pass
+        self._topics.clear()               # purged lines can't hold their topic
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)

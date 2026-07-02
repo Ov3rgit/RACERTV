@@ -3419,6 +3419,12 @@ class Overlay:
 
     def _colour_race(self, c):
         """MID-RACE colour rotation (extracted verbatim from update_commentary)."""
+        # once the win is announced the race is OVER for the booth: no more
+        # "X minutes remaining" / stakes / analysis colour — those lines queue
+        # behind the finish wrap and air stale after the flag, which is the
+        # single most immersion-breaking thing the booth can do
+        if self._comm_flags.get("winannounced"):
+            return
         is_race, phase, cands, now = c.is_race, c.phase, c.cands, c.now
         order, placemap, leader = c.order, c.placemap, c.leader
         total, togo, timed = c.total, c.togo, c.timed
