@@ -2783,14 +2783,24 @@ class Overlay:
                 self.driver_radio_cd[sl] = now
             spoke = "no-tts"
             if self.tts and self.tts.enabled:
-                # show the BUBBLE when the audio actually starts (on_play), so the
-                # message on screen matches what you hear instead of racing ahead.
-                # native lines are spoken as-is (no English name/gap substitution).
-                say_text = (spoken_text if spoken_text is not None
-                            else self._spoken(txt))
-                self.tts.speak(say_text, persona, seed=nm,
-                               on_play=lambda t, p, _m=msg: self._air_bubble(_m))
-                spoke = "spoke"
+                # queue FREE -> speak it, showing the bubble when the audio
+                # actually starts (on_play) so screen matches sound.
+                # queue BUSY (booth mid-flow) -> a DRIVER line's audio would
+                # only be TTL-dropped later, killing the bubble with it; so air
+                # the bubble NOW without voice instead, like a broadcast running
+                # team-radio tickers under the commentary. Radio stays visible
+                # even when the booth never shuts up. The ENGINEER is exempt —
+                # he's talking to YOU and always gets his audio queued.
+                if (persona == "ENGINEER"
+                        or (self.tts._pending() < 2 and not self.tts.speaking())):
+                    say_text = (spoken_text if spoken_text is not None
+                                else self._spoken(txt))
+                    self.tts.speak(say_text, persona, seed=nm,
+                                   on_play=lambda t, p, _m=msg: self._air_bubble(_m))
+                    spoke = "spoke"
+                else:
+                    self._air_bubble(msg)
+                    spoke = "ticker"
             else:
                 self._air_bubble(msg)                 # muted / no TTS -> show now
                 spoke = "muted" if self.tts else "no-tts"

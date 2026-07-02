@@ -607,29 +607,17 @@ class Tts:
              2: ("+14%", "+3Hz", "+20%")}
 
     def _gen_edge(self, text, persona, voice, intensity=0):
-        # BIG MOMENTS (intensity 2, booth voices): build the excitement THROUGH
-        # the sentence — start grounded at normal volume, then swell louder and
-        # a touch faster clause by clause, the way a real commentator lifts on a
-        # move. Returns a 3-tuple (sr, samples, True) that _render passes through
-        # WITHOUT its usual peak-normalise (which would flatten the ramp).
-        if intensity >= 2 and persona in CLEAN_PERSONAS:
-            built = self._gen_edge_build(text, voice)
-            if built is not None:
-                return built                      # (sr, samples, prebuilt=True)
-            # single-clause line (e.g. a short incident call): fall through to a
-            # normal render so we don't pay the multi-render cost for nothing.
-
-        if persona == "PUNDIT":
-            # Warm, authoritative analysis man. Rate kept near-natural so the
+        # BOTH booth voices use the pundit's flat, warm, near-natural setting.
+        # The lead used to have an excitement ladder (_HYPE) + a big-moment
+        # loudness swell (_gen_edge_build) — it made him lurch louder out of
+        # nowhere mid-race, while the flat pundit read sounded the most human.
+        # The swell/hype code is kept below (unused) in case we ever re-tune it.
+        if persona in CLEAN_PERSONAS:
+            # Warm, authoritative booth read. Rate kept near-natural so the
             # phonemes don't get clipped (that was the "robotic" symptom —
             # rushing the voice past its natural cadence breaks the delivery).
             com = edge_tts.Communicate(text, voice, rate="+2%", pitch="-4Hz",
                                        volume="+18%")
-        elif persona in CLEAN_PERSONAS:          # COMMENTATOR play-by-play
-            rate, pitch, volume = self._HYPE.get(max(0, min(2, intensity)),
-                                                 self._HYPE[0])
-            com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch,
-                                       volume=volume)
         else:
             com = edge_tts.Communicate(text, voice,
                                        rate=PERSONA_RATE.get(persona, "+0%"))
