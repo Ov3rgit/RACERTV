@@ -3872,10 +3872,14 @@ class Overlay:
             # talks over the radio, never the other way round. (Only urgent calls
             # do this; routine colour still waits its turn politely.)
             # SIGNATURE moments that must NEVER be dropped or buried, even if the
-            # queue is busy — the lights-out start and the final-lap call. These
-            # interrupt whatever's playing (e.g. the long pregrid welcome) so the
-            # call lands ON the moment, and force=True so they can't be dropped.
-            signature = cat in ("start", "final_lap")
+            # queue is busy — the pregrid welcome ("Race day on RacerTV..."),
+            # the lights-out start and the final-lap call. These interrupt
+            # whatever's playing (e.g. leftover quali chatter before the grid
+            # forms) so the call lands ON the moment, and force=True so they're
+            # exempt from the TTL/busy-drop. The welcome can still be cut by the
+            # lights-out sting if the race goes green mid-sentence — that's the
+            # one thing allowed to talk over it.
+            signature = cat in ("start", "final_lap", "pregrid")
             if urgent:
                 sp = self.tts.speaking_persona()
                 if signature:
@@ -4005,10 +4009,13 @@ class Overlay:
         # venue, then the RacerTV sign-off — the signature send-off.
         say("victory_signoff", "COMMENTATOR", 2, p1=n1)                  # sign off
 
-        # protect the whole wrap from the leave-session flush: ~6.5s per line is
-        # a safe upper bound for the queued conversation to play out even as the
-        # player drops to the results screen.
-        self._wrap_until = time.time() + max(20.0, n * 6.5)
+        # protect the whole wrap from the leave-session flush. The window must
+        # cover not just the wrap's own lines (~8s each) but whatever is ALREADY
+        # queued ahead of them — at the flag the queue is full of driver
+        # celebrations, and the sign-off was getting flushed when the player
+        # dropped to the results screen before the wrap had even started.
+        ahead = self.tts._pending() if self.tts else 0
+        self._wrap_until = time.time() + max(30.0, (n + ahead) * 8.0)
 
     def _report_wide(self, name, now):
         """Lighter booth note for a MODERATE off — you ran wide / had a moment but
