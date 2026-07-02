@@ -5,3 +5,5 @@ _tts_debug.log
 *.spec
 build/
 dist/
+_heard.json
+_eng_*.wav

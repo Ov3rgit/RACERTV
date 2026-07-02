@@ -687,6 +687,7 @@ class Overlay:
 
     def quit(self):
         try:
+            self._bag_save(force=True)     # persist the shuffle-bag decks
             self.reader.close()
             if self.tts:
                 self.tts.close()
@@ -1622,22 +1623,86 @@ class Overlay:
         idx = sum(nm.encode("utf-8", "ignore")) % len(PERSONA_KEYS)
         return PERSONA_KEYS[idx]
 
+    # ---- shuffle-bag line selection (persistent across sessions) ------------
+    # Every pool is dealt like a deck of cards: a line can't repeat until the
+    # WHOLE pool has been heard, and the deck state is saved to disk so it
+    # carries across sessions — a nightly player keeps hearing fresh lines
+    # instead of the same "random" favourites every evening. Lines are tracked
+    # by a hash of their text (not index) so editing/adding lines between
+    # versions never corrupts the state.
+    _BAG_FILE = os.path.join(_DIR, "_heard.json")
+    _HCACHE = {}
+
+    @classmethod
+    def _line_h(cls, text):
+        h = cls._HCACHE.get(text)
+        if h is None:
+            import hashlib
+            h = hashlib.md5(text.encode("utf-8", "ignore")).hexdigest()[:10]
+            cls._HCACHE[text] = h
+        return h
+
+    def _bag_state(self):
+        """Lazy-loaded {key: {"bag": set(remaining hashes), "last": hash}}."""
+        bags = getattr(self, "_bags", None)
+        if bags is None:
+            bags = {}
+            try:
+                with open(self._BAG_FILE, encoding="utf-8") as f:
+                    for k, v in json.load(f).items():
+                        bags[k] = {"bag": set(v.get("bag") or []),
+                                   "last": v.get("last")}
+            except Exception:
+                pass                              # missing/corrupt -> fresh decks
+            self._bags = bags
+            self._bag_saved_t = time.time()
+        return bags
+
+    def _bag_save(self, force=False):
+        """Throttled write (every ~20s and on quit) — the file is tiny but
+        there's no need to hit the disk on every single line."""
+        now = time.time()
+        if not force and now - getattr(self, "_bag_saved_t", 0) < 20:
+            return
+        self._bag_saved_t = now
+        try:
+            bags = getattr(self, "_bags", None)
+            if bags is None:
+                return
+            out = {k: {"bag": sorted(v["bag"]), "last": v["last"]}
+                   for k, v in bags.items()}
+            tmp = self._BAG_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(out, f)
+            os.replace(tmp, self._BAG_FILE)
+        except Exception:
+            pass
+
     def _pick(self, pool, key):
-        """Random line from pool, avoiding the last several used for this key so
-        you don't hear the same phrase again and again."""
+        """Deal a line from the pool's shuffle-bag: no repeats for this key
+        until every line in the pool has been used once."""
         if not pool:
             return ""
         if len(pool) == 1:
             return pool[0]
-        recent = self._last_line.get(key) or []
-        choices = [i for i in range(len(pool)) if i not in recent]
+        bags = self._bag_state()
+        k = "|".join(str(p) for p in key) if isinstance(key, tuple) else str(key)
+        hs = [self._line_h(t) for t in pool]
+        st = bags.get(k)
+        choices = ([i for i, h in enumerate(hs) if h in st["bag"]]
+                   if st else [])
         if not choices:
-            choices = list(range(len(pool)))
+            # deck exhausted (or pool changed under us): reshuffle everything
+            # back in, but never deal the very last line again immediately
+            last = st["last"] if st else None
+            choices = [i for i, h in enumerate(hs) if h != last] or \
+                      list(range(len(pool)))
+            st = {"bag": set(hs), "last": last}
+            bags[k] = st
         idx = random.choice(choices)
-        # avoid-window scales with pool size: ~1/3 of pool, minimum 5, max pool-1
-        # so a 90-line pool avoids the last 30 = no repeat until you've heard 30 unique
-        avoid = min(len(pool) - 1, max(5, len(pool) // 3))
-        self._last_line[key] = (recent + [idx])[-avoid:]
+        st["bag"].discard(hs[idx])
+        st["last"] = hs[idx]
+        self._bag_save()
         return pool[idx]
 
     def _moodify(self, slot, line):

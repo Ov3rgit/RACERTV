@@ -229,25 +229,31 @@ def _click(rate, ms=80):
     return out
 
 
-def _radioize(samples, rate):
+def _radioize(samples, rate, drive=None, noise=None, lo=220.0, hi=5200.0,
+              shimmer=0.05):
     """Band-pass to the radio band + light distortion + static baked in. Kept
-    fairly open (250 Hz - 4.2 kHz) so accents/clarity survive."""
+    fairly open so accents/clarity survive. The default preset is the DRIVER
+    radio; the engineer gets a much gentler pass (see _render) — he's on a
+    modern intercom, and the heavy chain was flattening the neural prosody
+    that makes the voice sound human."""
+    drive = DRIVE if drive is None else drive
+    noise = NOISE if noise is None else noise
     out = [0.0] * len(samples)
     dt = 1.0 / rate
-    a_lp = dt / (1.0 / (2 * math.pi * 5200.0) + dt)   # wider top = clearer
-    rc_hp = 1.0 / (2 * math.pi * 220.0)
+    a_lp = dt / (1.0 / (2 * math.pi * hi) + dt)
+    rc_hp = 1.0 / (2 * math.pi * lo)
     a_hp = rc_hp / (rc_hp + dt)
     lp = prev_x = prev_hp = 0.0
     for i, x in enumerate(samples):
         lp += a_lp * (x - lp)
         hp = a_hp * (prev_hp + lp - prev_x)
         prev_x, prev_hp = lp, hp
-        v = math.tanh(hp * DRIVE)
+        v = math.tanh(hp * drive)
         n = random.uniform(-1, 1)
         env = abs(v)
         # gentle AM shimmer + a low static floor that only sits UNDER the voice
         # (scaled by envelope) so silences stay quiet and speech stays clear
-        v = v * (1.0 + n * 0.05) + n * NOISE * env
+        v = v * (1.0 + n * shimmer) + n * noise * env
         out[i] = max(-1.0, min(1.0, v * 0.97))
     return out
 
@@ -563,7 +569,14 @@ class Tts:
         else:
             # team radio: the band-pass FX drops the level, so peak-normalise the
             # VOICE first then drive it harder — otherwise it's too quiet to hear
-            vs = _radioize(samples, srate)
+            if persona == "ENGINEER":
+                # modern intercom, not a 1980s handset: wide band, no drive,
+                # a whisper of static, minimal shimmer — keeps the neural
+                # voice's natural prosody (the full chain sounded robotic)
+                vs = _radioize(samples, srate, drive=1.0, noise=0.004,
+                               lo=150.0, hi=6800.0, shimmer=0.015)
+            else:
+                vs = _radioize(samples, srate)
             vpk = max((abs(x) for x in vs), default=0.0) or 1.0
             vs = [x * (0.95 / vpk) for x in vs]
             # softer radio beep: the click sat much louder than the voice and was
