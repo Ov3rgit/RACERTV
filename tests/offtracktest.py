@@ -1,6 +1,8 @@
 """Player off-track coverage:
-  1) ENGINEER warns on a lap-invalidation edge in a RACE even when
-     cut_track_warnings does NOT increment (the grass/gravel offs it used to miss).
+  1) ENGINEER stays SILENT on a full-speed lap-invalidation (a harmless painted
+     kerb clip — the false "you ran over the track limits" complaint), but DOES
+     warn when the lap-invalid edge comes with a real speed collapse (grass/
+     gravel offs that don't tick cut_track_warnings).
   2) BOOTH gives a lighter 'ran wide' note on a MODERATE off (pace dip, no spin).
 """
 import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
@@ -44,12 +46,35 @@ def fresh_green_race():
     return o, s, you
 
 
-print("===== ENGINEER: lap-invalid off WITHOUT a cut-warning =====")
+print("===== ENGINEER: full-speed kerb clip (lap invalid, no cut) stays SILENT =====")
+o, s, you = fresh_green_race()
+assert s.cut_track_warnings == 0
+before = len(o.tts.spoken)
+you.current_lap_valid = 0        # lap goes invalid — full-speed paint clip
+you.car_speed = 55.0             # NO speed loss: not a real off
+o._eng_cd -= 30.0
+drive(o, s, 1)
+o._eng_cd -= 30.0
+drive(o, s, 1)
+if o._eng_off_watch is not None:
+    o._eng_off_watch[0] -= 5.0   # push the confirm window into the past
+o._eng_cd -= 30.0
+drive(o, s, 1)
+eng_new = [t for p, t in o.tts.spoken[before:] if p == "ENGINEER"]
+clip_warn = [t for t in eng_new if any(k in t.lower() for k in OFFKW)]
+assert not clip_warn, \
+    "engineer scolded a harmless full-speed clip: %r" % clip_warn
+print("  engineer stayed quiet on the clean clip: OK")
+
+print("\n===== ENGINEER: lap-invalid off WITH a speed collapse (no cut-warning) =====")
 o, s, you = fresh_green_race()
 assert s.cut_track_warnings == 0
 before = len(o.tts.spoken)
 you.current_lap_valid = 0        # lap goes invalid (off into grass) — NO cut bump
-you.car_speed = 55.0             # still moving fast (not the speed-collapse path)
+you.car_speed = 55.0             # watch opens at this reference speed
+o._eng_cd -= 30.0
+drive(o, s, 1)
+you.car_speed = 20.0             # pace collapses mid-window: a genuine off
 o._eng_cd -= 30.0
 drive(o, s, 1)
 eng_new = [t for p, t in o.tts.spoken[before:] if p == "ENGINEER"]

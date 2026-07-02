@@ -218,7 +218,8 @@ PUNDIT_AFTER = {"overtake": 0.7, "overtake_long": 0.8, "spin": 0.75,
 
 # radio category -> driver-avatar emotion (the face drawn in the bubble)
 ENG_EMOTION = {
-    "start": "fired", "win": "happy", "podium": "happy", "recovery": "fired",
+    "start": "fired", "start_gain": "happy", "start_loss": "worried",
+    "win": "happy", "podium": "happy", "recovery": "fired",
     "slip": "sad", "finish_strong": "happy", "finish_points": "neutral",
     "finish_low": "sad", "fastest": "smug", "lastlap": "fired", "pit": "neutral",
     "lead": "smug", "gained": "happy", "lost": "sad", "catching": "fired",
@@ -475,7 +476,8 @@ class Overlay:
         self.RADIO_HOLD = 6.0        # how long a bubble stays on screen
         self.RADIO_NEAR = 4          # crashes within N places of you = high priority
         self.RADIO_FAR_CHANCE = 0.6  # chance a far-away crash gets a reaction
-        self.RADIO_MAX_BUBBLES = 3   # max bubbles on screen at once (no flooding)
+        self.RADIO_MAX_BUBBLES = 4   # max bubbles on screen at once (no flooding;
+                                     # simultaneous driver+engineer calls stack)
         self.RADIO_MAX_BURST = 3     # max new messages from one big incident
 
         # post-race podium screen
@@ -2063,10 +2065,18 @@ class Overlay:
                 if _et > 0:
                     self._eng_engtemp_base = _et
 
-        # race start (once) — fire the instant the race goes green (_racing edge)
+        # race start (once) — fire the instant the race goes green (_racing
+        # edge; in practice the intro gate above releases us a few seconds in,
+        # so the launch delta vs the grid slot is already meaningful).
+        # bypass=True: this is the engineer's opening word to the player after
+        # lights out — it must never sit behind the 14s radio spacing.
         if not self._eng_flags.get("start") and self._racing:
             self._eng_flags["start"] = True
-            return add("start", 0)
+            if gained >= 1 and "start_gain" in ENGINEER_LINES:
+                return add("start_gain", 0, bypass=True)
+            if gained <= -2 and "start_loss" in ENGINEER_LINES:
+                return add("start_loss", 0, bypass=True)
+            return add("start", 0, bypass=True)
         # race finish (once) -> win / podium / finish. Wait until the PLAYER has
         # actually CROSSED the line (finish_status == 1) so their position is FINAL
         # — otherwise a last-corner pass for your place gets the verdict wrong
@@ -2187,9 +2197,30 @@ class Overlay:
                     and self._racing and focused.in_pitlane != 1)
         self._eng_cuts = s.cut_track_warnings
         self._eng_plv = plv
-        if (cut_edge or lap_edge) and now - getattr(self, "_eng_off_cd", -1e9) > 5.0:
+        if cut_edge and now - getattr(self, "_eng_off_cd", -1e9) > 5.0:
+            # RaceRoom's official limits counter ticked — always a real cut
             self._eng_off_cd = now
+            self._eng_off_watch = None
             return add("warn_offtrack", 1)
+        # The lap-invalid edge alone is NOT proof of an off — it also fires for
+        # a harmless kerb/paint clip at full speed (same reasoning as the booth's
+        # off grading), which had the engineer scolding "you ran over the track
+        # limits" when the player never left the road. Treat it as a CANDIDATE
+        # and only call it if the speed genuinely collapses during the window.
+        spd = abs(s.car_speed)
+        if (lap_edge and spd > 3.0
+                and getattr(self, "_eng_off_watch", None) is None):
+            self._eng_off_watch = [now + 1.8, spd]
+        watch = getattr(self, "_eng_off_watch", None)
+        if watch is not None:
+            deadline, ref = watch
+            if (spd < ref * 0.62
+                    and now - getattr(self, "_eng_off_cd", -1e9) > 5.0):
+                self._eng_off_watch = None       # confirmed: real excursion
+                self._eng_off_cd = now
+                return add("warn_offtrack", 1)
+            if now > deadline:
+                self._eng_off_watch = None       # clean clip — say nothing
         # a serveable penalty (drive-through / stop-go) sitting unserved — remind
         if pen in (0, 1) and now - getattr(self, "_eng_pen_remind", 0.0) > 22.0:
             self._eng_pen_remind = now
@@ -2510,6 +2541,7 @@ class Overlay:
             self._eng_cuts = 0           # last cut_track_warnings count
             self._eng_plv = 1            # last player current_lap_valid (off edge)
             self._eng_off_cd = -1e9      # shared off-track warn cooldown
+            self._eng_off_watch = None   # [deadline, ref_speed] off-confirm dip
             self._eng_lvs = -1           # last lap_valid_state (next-lap warning)
             self._eng_ip = 0             # last incident-point count (every-pickup)
             self._eng_ip_cd = -1e9       # incident-point report cooldown
@@ -4126,11 +4158,16 @@ class Overlay:
                 def _onp(t, p, _f=tuple(followups)):
                     self._show_caption(t, p)     # runs on the TTS play thread
                     for ftxt, fper, finten, ffor in _f:
+                        # exchange=True: the reply outranks even the engineer in
+                        # the pipeline, so nothing can wedge between a question
+                        # and its answer ("What do you think, Brett?" ->
+                        # engineer gap call -> answer broke the whole flow)
                         self.tts.speak(ftxt, fper,
                                        seed=("PUNDIT" if fper == "PUNDIT"
                                              else "COMM"),
                                        intensity=finten, force=ffor,
-                                       on_play=self._show_caption)
+                                       on_play=self._show_caption,
+                                       exchange=ffor)
             else:
                 _onp = self._show_caption
             self.tts.speak(spoken, persona, seed=seed, intensity=inten,
@@ -4646,13 +4683,20 @@ class Overlay:
     def _show_caption(self, text, persona="COMMENTATOR"):
         """Set the lower-third caption (called when audio actually starts, so it
         stays in sync). Runs on the TTS worker thread — a plain assignment."""
+        # hold scales with how long the line takes to SAY — a fixed 5.5s left
+        # long lines captionless while still being spoken (looked out of sync)
+        hold = max(4.5, min(12.0, len(text) * 0.055 + 2.0))
         self._comm_caption = {"text": text, "persona": persona,
-                              "until": time.time() + 5.5}
+                              "until": time.time() + hold}
 
     def _air_bubble(self, msg):
         """Put a team-radio bubble on screen the instant its audio starts, so
         the bubble matches what's heard. Called from the TTS worker thread."""
-        msg["until"] = time.time() + self.RADIO_HOLD
+        # hold at least as long as the audio runs (estimated from length) — a
+        # fixed hold dropped the bubble mid-sentence on longer radio calls,
+        # which read as the captions being out of sync with the voice
+        hold = max(self.RADIO_HOLD, min(14.0, len(msg["text"]) * 0.055 + 2.5))
+        msg["until"] = time.time() + hold
         self.radio_msgs.append(msg)
         self.radio_msgs = self.radio_msgs[-6:]
 

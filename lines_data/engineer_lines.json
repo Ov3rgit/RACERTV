@@ -1,4 +1,17 @@
 {
+ "start_gain": [
+  "Good start! You're up into P{pos}. Keep it rolling.",
+  "Cracking launch — up {gain} to P{pos}. Nicely done.",
+  "That's how you start a race. P{pos}, up {gain} off the line.",
+  "Lovely getaway! P{pos} now. Keep at it.",
+  "Great launch, mate. You've made up {gain} — running P{pos}."
+ ],
+ "start_loss": [
+  "Bit of a slow getaway — P{pos} now. Plenty of time, we'll get them back.",
+  "Lost a couple off the line, P{pos}. Head down, long race ahead.",
+  "Not the launch we wanted — P{pos}. Settle in, the tyres will come to you.",
+  "P{pos} after the start. Forget it, focus forward — we race from here."
+ ],
  "start": [
   "Lights out! P{pos}, send it.",
   "Green flag, here we go. P{pos}, you've got this.",

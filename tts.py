@@ -339,9 +339,9 @@ class Tts:
         self._topics.clear()               # purged lines can't hold their topic
         for q, payload in kept:
             lst = list(payload)
-            # gen jobs are 8-tuples (epoch at [5]), play jobs 7-tuples ([4]);
+            # gen jobs are 9-tuples (epoch at [5]), play jobs 8-tuples ([4]);
             # stamp the new epoch so the survivor isn't dropped as stale
-            lst[5 if len(lst) == 8 else 4] = self._epoch
+            lst[5 if len(lst) == 9 else 4] = self._epoch
             self._qput(q, "ENGINEER", tuple(lst))
 
     def _stale(self, persona, epoch):
@@ -351,10 +351,15 @@ class Tts:
         return epoch < (self._eng_epoch if persona == "ENGINEER"
                         else self._epoch)
 
-    def _qput(self, q, persona, payload):
-        """Queue a pipeline job with ENGINEER priority (0) ahead of everything
-        else (1); the sequence counter keeps FIFO order within each class."""
-        q.put((0 if persona == "ENGINEER" else 1, next(self._seq), payload))
+    def _qput(self, q, persona, payload, prio=None):
+        """Queue a pipeline job by priority class: -1 = an atomic booth
+        exchange follow-up (the pundit's answer / the lead's ack — nothing may
+        wedge between a question and its answer, not even the engineer),
+        0 = ENGINEER (talking to YOU, beats loose booth colour), 1 = everything
+        else. The sequence counter keeps FIFO order within each class."""
+        if prio is None:
+            prio = 0 if persona == "ENGINEER" else 1
+        q.put((prio, next(self._seq), payload))
 
     def _next_wav(self):
         # plenty of unique names so a force-queued burst can never overwrite a
@@ -452,7 +457,8 @@ class Tts:
         except Exception:
             return False
         self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
-                   (dst, on_play, text, persona, self._epoch, None, None))
+                   (dst, on_play, text, persona, self._epoch, None, None, -1),
+                   prio=-1)
         return True
 
     # ---- voice selection ----
@@ -476,7 +482,7 @@ class Tts:
         return self.names[idx]
 
     def speak(self, text, persona="ENGINEER", seed="", intensity=0, on_play=None,
-              force=False, urgent=False, ttl=None, topic=None):
+              force=False, urgent=False, ttl=None, topic=None, exchange=False):
         if not self.enabled or not text:
             _log(f"speak SKIP enabled={self.enabled} text={bool(text)}")
             return
@@ -504,9 +510,10 @@ class Tts:
         deadline = (time.time() + ttl) if ttl else None
         if topic:
             self._topics[topic] = self._topics.get(topic, 0) + 1
+        prio = -1 if exchange else (0 if persona == "ENGINEER" else 1)
         self._qput(self.gen_q, persona,
                    (text, persona, self._voice_for(persona, seed), intensity,
-                    on_play, self._epoch, deadline, topic))
+                    on_play, self._epoch, deadline, topic, prio), prio=prio)
         _log(f"speak QUEUE persona={persona} i={intensity} pending={self._pending()} "
              f":: {text[:40]}")
 
@@ -533,7 +540,7 @@ class Tts:
             _prio, _seq, job = self.play_q.get()
             if job is None:
                 break
-            wav, on_play, text, persona, epoch, deadline, topic = job
+            wav, on_play, text, persona, epoch, deadline, topic, _prio = job
             # stale (an interrupt happened after this was rendered, or the line
             # outlived its TTL waiting in the queue — e.g. "5 minutes remaining"
             # after the flag) or stopped — drop without playing
@@ -573,7 +580,7 @@ class Tts:
                     pass
 
     def _render(self, text, persona, voice, intensity=0, on_play=None, epoch=0,
-                deadline=None, topic=None):
+                deadline=None, topic=None, prio=1):
         # already superseded before we even started rendering — skip the (slow)
         # synthesis entirely so the queue clears fast after an interrupt
         if not self.enabled or self._stale(persona, epoch):
@@ -647,7 +654,8 @@ class Tts:
             return
         # blocks if behind
         self._qput(self.play_q, persona,
-                   (wav, on_play, text, persona, epoch, deadline, topic))
+                   (wav, on_play, text, persona, epoch, deadline, topic, prio),
+                   prio=prio)
 
     # ---- neural generation ----
     # excitement ladder for the booth voices: as intensity climbs the delivery
