@@ -2839,11 +2839,17 @@ class Overlay:
         # gates the chatter so we don't narrate a P12 scrap while the front is
         # the story (and so big stuff lands on time, not buried under midfield).
         ll = leader.completed_laps if leader is not None else 0
-        white = (s.flags.white == 1)            # final lap (both race formats)
+        # RaceRoom's white flag means SLOW CAR ON TRACK (European rules), NOT
+        # final lap — a lap-3 tow-in was making the booth scream "LAST LAP".
+        # So: in LAP races, "final lap" comes from counting laps only; in TIMED
+        # races the white flag is only trusted once the clock has expired
+        # (that's the one case where it does accompany the last lap).
+        wf = (s.flags.white == 1)
         timed = not (total and total > 0)       # RaceRoom online sprints are timed
         self._timed = timed
         if not timed:                           # LAP race: phase by laps to go
             togo = total - ll
+            white = (ll >= 1 and togo == 1)     # leader has started the last lap
             if ll < 1:
                 phase = "opening"
             elif white or togo <= 1:
@@ -2855,6 +2861,7 @@ class Overlay:
         else:                                   # TIMED race: phase by the clock
             togo = 999
             dur, rem = s.session_time_duration, s.session_time_remaining
+            white = (wf and not (rem and rem > 0))   # white only after time-up
             if ll < 1:
                 phase = "opening"
             elif white:
@@ -2912,9 +2919,6 @@ class Overlay:
             self._comm_flags["start"] = True
             self._intro_emit_t = now            # latest opener -> hold engineer
             self._green_at = now                # start of the grid-sort window
-            stxt = _safe_format(
-                self._pick(COMMENTARY_LINES["start"], ("COMM", "start")),
-                {"drv": self._dname(leader), "trk": trk})
             if self.tts:
                 # INSTANT pre-rendered lights-out sting fires on the green edge
                 # with zero render latency; the named "…and {leader} leads them
@@ -2925,11 +2929,22 @@ class Overlay:
                                        on_play=self._show_caption)
                 if not stung:
                     self.tts.interrupt()        # cut the welcome, land on the moment
+                # the sting already SAID "lights out and away we go" — the named
+                # follow-up must not repeat it, so filter the pool to the lines
+                # that don't open with a lights/getaway call
+                pool = COMMENTARY_LINES["start"]
+                if stung:
+                    _lo = re.compile(r"lights|five red|away we go", re.I)
+                    pool = [t for t in pool if not _lo.search(t)] or pool
+                stxt = _safe_format(self._pick(pool, ("COMM", "start")),
+                                    {"drv": self._dname(leader), "trk": trk})
                 self.tts.speak(self._spoken(stxt), "COMMENTATOR", seed="COMM",
                                intensity=2, on_play=self._show_caption, force=True)
                 self._incident_until = now + 3.0  # protect it from being cut
             else:
-                self._show_caption(stxt, "COMMENTATOR")
+                self._show_caption(_safe_format(
+                    self._pick(COMMENTARY_LINES["start"], ("COMM", "start")),
+                    {"drv": self._dname(leader), "trk": trk}), "COMMENTATOR")
         # QUALI/PRACTICE session intro (once) — so the booth names the session
         # correctly instead of calling everything "the race"
         if not is_race and not self._comm_flags.get("qstart"):
