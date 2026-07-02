@@ -41,7 +41,11 @@ from lines import (   # dialogue pools (moved out of this file for size)
     SHORT_TRACK, TRACK_COACH, TRACK_FACTS, TRACK_PUNDIT, TRACK_PUNDIT_BY_TRACK,
     TRACK_TIPS, CORNER_NAMES)
 
-_DIR = os.path.dirname(os.path.abspath(__file__))
+import sys as _sys
+if getattr(_sys, "frozen", False):       # PyInstaller: assets sit next to the exe
+    _DIR = os.path.dirname(_sys.executable)
+else:
+    _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ----- team-radio personalities ----------------------------------------------
 # Each driver is assigned ONE persona (consistently, by name) and speaks from
@@ -4150,8 +4154,7 @@ class Overlay:
         this script). Lets the commentators name the car the player is driving.
         Optional: if the file's missing/unreadable, car mentions just stay off."""
         try:
-            path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "r3e-data.json")
+            path = os.path.join(_DIR, "r3e-data.json")
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             out = {}

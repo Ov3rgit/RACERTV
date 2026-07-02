@@ -30,10 +30,19 @@ try:
     import miniaudio
     import asyncio
     _HAVE_EDGE = True
-except Exception:
+    _EDGE_ERR = ""
+except Exception as _ex:
     _HAVE_EDGE = False
+    _EDGE_ERR = f"{type(_ex).__name__}: {_ex}"   # logged at INIT for diagnosis
 
-_DIR = os.path.dirname(os.path.abspath(__file__))
+# base dir: next to the exe when frozen (PyInstaller), next to this file in dev
+# — assets (stings cache, worker script) and temp wavs must live somewhere
+# persistent and writable, not the frozen bundle's extraction dir
+import sys as _sys
+if getattr(_sys, "frozen", False):
+    _DIR = os.path.dirname(_sys.executable)
+else:
+    _DIR = os.path.dirname(os.path.abspath(__file__))
 _LOG = os.path.join(_DIR, "_tts_debug.log")
 
 
@@ -288,7 +297,8 @@ class Tts:
         threading.Thread(target=self._play_loop, daemon=True).start()
         threading.Thread(target=self._build_stings, daemon=True).start()
         _log(f"INIT engine={self.engine} have_edge={_HAVE_EDGE} "
-             f"winsound={winsound is not None} voices={len(self.voices)}")
+             f"winsound={winsound is not None} voices={len(self.voices)}"
+             + (f" edge_err={_EDGE_ERR}" if _EDGE_ERR else ""))
 
     def _next_wav(self):
         # plenty of unique names so a force-queued burst can never overwrite a
