@@ -1892,6 +1892,18 @@ class Overlay:
         safety timeout passes so the engineer can never be starved into silence."""
         if getattr(self, "_intro_aired", False):
             return True
+        # RACE: the gate ends the moment the lights go out. Holding the
+        # engineer through the booth's opening spiel meant he was mute for most
+        # of lap one — no launch call, and a lap-1 off got reported a lap late
+        # (the edge trackers below the gate never ran). He talks to YOU from
+        # the green; the pipeline's radio priority handles booth overlap.
+        # (NB _racing latches True for ALL non-race sessions, so check the
+        # session type — quali/practice keep waiting for the booth opener.)
+        sk = getattr(self, "_sess_key", None)
+        if (getattr(self, "_racing", False)
+                and sk is not None and sk[2] == 2):
+            self._intro_aired = True
+            return True
         if (not self.commentary_on or self.tts is None
                 or not getattr(self.tts, "enabled", False)):
             self._intro_aired = True

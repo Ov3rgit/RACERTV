@@ -320,10 +320,14 @@ class Tts:
 
     def _purge(self, keep_engineer=False):
         """Epoch-bump and drain both queues (the interrupt mechanic). With
-        keep_engineer, ENGINEER jobs are re-queued under the NEW epoch instead
-        of being thrown away — a booth interrupt/sting used to silently eat
-        queued engineer calls ("And we're racing!", overtake acks). He's talking
-        to the player; an incident sting shouldn't erase him."""
+        keep_engineer, TEAM-RADIO jobs (engineer AND driver radio — any
+        non-booth persona) are re-queued under the NEW epoch instead of being
+        thrown away. A booth interrupt used to silently eat them: the engineer's
+        launch calls and overtake acks first, and after that was fixed, driver
+        radio still vanished — a busy race interrupts every few seconds, so
+        queued driver voices never survived to air ("no radio voices at all").
+        Only booth commentary is play-by-play and stale after a cut; radio
+        lines still make sense a few seconds later (their TTL still applies)."""
         self._epoch += 1
         if not keep_engineer:
             self._eng_epoch = self._epoch
@@ -332,23 +336,29 @@ class Tts:
             try:
                 while True:
                     _prio, _seq, payload = q.get_nowait()
-                    if keep_engineer and payload is not None and _prio == 0:
-                        kept.append((q, payload))
+                    if payload is None:
+                        continue
+                    per = payload[1 if len(payload) == 9 else 3]
+                    if keep_engineer and per not in CLEAN_PERSONAS:
+                        kept.append((q, per, payload))
+                    else:
+                        _log(f"purge DROP persona={per}")
             except Exception:
                 pass
         self._topics.clear()               # purged lines can't hold their topic
-        for q, payload in kept:
+        for q, per, payload in kept:
             lst = list(payload)
             # gen jobs are 9-tuples (epoch at [5]), play jobs 8-tuples ([4]);
             # stamp the new epoch so the survivor isn't dropped as stale
             lst[5 if len(lst) == 9 else 4] = self._epoch
-            self._qput(q, "ENGINEER", tuple(lst))
+            self._qput(q, per, tuple(lst))
 
     def _stale(self, persona, epoch):
-        """True if a pipeline job was superseded by an interrupt. ENGINEER is
-        judged against his own epoch, which booth interrupts don't advance —
-        otherwise a job of his caught mid-render is silently cut."""
-        return epoch < (self._eng_epoch if persona == "ENGINEER"
+        """True if a pipeline job was superseded by an interrupt. Team radio
+        (engineer + driver voices) is judged against the radio epoch, which
+        booth interrupts don't advance — otherwise a radio job caught
+        mid-render is silently cut."""
+        return epoch < (self._eng_epoch if persona not in CLEAN_PERSONAS
                         else self._epoch)
 
     def _qput(self, q, persona, payload, prio=None):

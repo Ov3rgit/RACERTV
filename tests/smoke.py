@@ -207,15 +207,20 @@ def eng_count(emitted):
 def race_scenario(o, s, emitted):
     # tick 1: on grid (not racing). Then go green, run laps, off-track, finish.
     drive(o, s, 2)
-    # go green
+    # INTRO GATE: engineer must be silent ON THE GRID (pre-green) while the
+    # booth sets the scene...
+    assert eng_count(emitted) == 0, "engineer spoke on the grid (pre-green)!"
+    print("  [gate] engineer silent on the grid: OK")
+    # ...but the RACE gate lifts at lights out — he talks to the player from
+    # the launch instead of waiting out the booth's opening spiel (which left
+    # him mute for most of lap one and reported lap-1 offs a lap late).
     for i in range(s.num_cars):
         s.all_drivers_data_1[i].car_speed = 50.0
     drive(o, s, 3)
-    # INTRO GATE: engineer must be silent until the booth intro has aired
-    assert eng_count(emitted) == 0, "engineer spoke before intro aired!"
-    print("  [gate] engineer silent through booth intro: OK")
-    age_intro(o)                    # booth opener has now finished playing
-    drive(o, s, 2)                  # engineer's lights-out call can now land
+    assert eng_count(emitted) > 0, "engineer still gagged after lights out!"
+    print("  [gate] engineer live from lights out: OK")
+    age_intro(o)                    # (kept: exercises the quali-gate helper)
+    drive(o, s, 2)
     # complete several laps, you (slot0) set sector times
     you = s.all_drivers_data_1[0]
     for lap in range(1, 6):
