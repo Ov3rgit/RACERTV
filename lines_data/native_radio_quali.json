@@ -1,0 +1,80 @@
+{
+ "fr": [
+  [
+   "Bon tour, ça vient!",
+   "Good lap, it's coming together!"
+  ],
+  [
+   "La voiture est bien équilibrée.",
+   "The car feels well balanced."
+  ],
+  [
+   "Je pousse, encore un peu de temps à trouver.",
+   "Pushing hard, a bit more time to find."
+  ],
+  [
+   "Presque le tour parfait!",
+   "Almost the perfect lap!"
+  ],
+  [
+   "Il me faut un tour propre.",
+   "I just need a clean lap."
+  ],
+  [
+   "Les pneus sont dans la fenêtre.",
+   "The tyres are in the window now."
+  ]
+ ],
+ "pt": [
+  [
+   "Boa volta, tá vindo!",
+   "Good lap, it's coming together!"
+  ],
+  [
+   "O carro tá bem equilibrado.",
+   "The car feels well balanced."
+  ],
+  [
+   "Tô forçando, falta pouco tempo.",
+   "Pushing hard, a little more time to find."
+  ],
+  [
+   "Quase a volta perfeita!",
+   "Almost the perfect lap!"
+  ],
+  [
+   "Preciso de uma volta limpa.",
+   "I just need a clean lap."
+  ],
+  [
+   "Os pneus tão na temperatura.",
+   "The tyres are up to temperature now."
+  ]
+ ],
+ "ru": [
+  [
+   "Хороший круг, прогресс есть!",
+   "Good lap, making progress!"
+  ],
+  [
+   "Машина хорошо сбалансирована.",
+   "The car feels well balanced."
+  ],
+  [
+   "Давлю, ещё немного времени найти.",
+   "Pushing hard, a bit more time to find."
+  ],
+  [
+   "Почти идеальный круг!",
+   "Almost the perfect lap!"
+  ],
+  [
+   "Нужен чистый круг.",
+   "I just need a clean lap."
+  ],
+  [
+   "Шины вышли на температуру.",
+   "The tyres are up to temperature now."
+  ]
+ ]
+}

@@ -1,0 +1,118 @@
+{
+ "pole": [
+  "That's provisional POLE, mate! Superb lap, P1!",
+  "Top of the timesheets — you're on provisional pole! Mega!",
+  "Get in! Quickest of all. P1, that's pole as it stands!",
+  "P1! Fastest of anyone out there. Brilliant lap.",
+  "Provisional pole! Nobody's touched that. Outstanding driving.",
+  "You're top of the sheets — that's pole position as it stands. Mighty lap.",
+  "P1! The car's hooked up and so are you. Pole, provisionally.",
+  "That's the benchmark now — provisional pole. The rest are chasing you.",
+  "Quickest of the lot! Pole as it stands, mate. Lovely, lovely lap."
+ ],
+ "improve": [
+  "Better lap — provisional P{pos} now, {gap} off pole.",
+  "That's quicker, P{pos}. {gap} to the top, keep chipping away.",
+  "Up to P{pos}, mate. {gap} off pole — there's more in it.",
+  "Improvement! P{pos} provisionally, {gap} to pole.",
+  "Good, that's P{pos} now. {gap} away from top spot.",
+  "Step in the right direction — P{pos}, {gap} to pole. Keep stacking it up.",
+  "Quicker again, P{pos}. The gap to pole's down to {gap}. We're coming.",
+  "That's progress — P{pos}, only {gap} off the top now. One more push.",
+  "Building nicely, P{pos}. {gap} to pole and there's still time in the car."
+ ],
+ "hold": [
+  "Provisional P{pos}, {gap} to pole. We need a bit more.",
+  "Sitting P{pos} for now — {gap} off the top. Let's find it.",
+  "P{pos} on the grid as it stands, {gap} to pole.",
+  "You're P{pos}, {gap} adrift of pole. Time to dig deep.",
+  "Currently P{pos}. {gap} to find — the pace is in the car.",
+  "We're P{pos}, {gap} shy of pole. One clean lap turns that around.",
+  "Holding P{pos}, mate. {gap} to the top — it's there if we tidy up.",
+  "P{pos} as it stands. {gap} the deficit. Don't force it, just link it together."
+ ],
+ "push": [
+  "Track's at its best now — go and get a lap in.",
+  "Clear air ahead, this is your window. Send it.",
+  "Tyres are in, this is the one. Everything you've got.",
+  "Grip's coming up as the track rubbers in — push now.",
+  "This is your lap. Commit to every corner.",
+  "Conditions are peaking — now's the time, leave nothing out there.",
+  "Best of the track right now, mate. Wind it up and let it rip.",
+  "Window's open, tyres are prime. This is the lap to grab it.",
+  "Go and take it — clear road, good grip, no excuses. Send it."
+ ],
+ "pb": [
+  "That's your best of the session — lovely stuff.",
+  "New personal best, mate. The pace is right there.",
+  "Quickest you've gone all session — keep building.",
+  "Best lap yet. That's the benchmark, now beat it.",
+  "Personal best! The improvement's coming lap on lap. Keep it going.",
+  "That's your quickest, mate — chipping away nicely. More to come.",
+  "New best for you. Confidence is building, you can see it in the times.",
+  "Best lap of the day so far — you're finding the limit nicely.",
+  "Quicker again! Every lap a little sharper. Lovely progression.",
+  "That's a personal best, mate. The car's coming to you now.",
+  "New benchmark for you there — keep stacking the tenths.",
+  "Fastest you've gone — the rhythm's there, now go and beat it."
+ ],
+ "traffic": [
+  "You caught traffic there — abort and reset for another go.",
+  "Bin that lap, you had a car right in the way. Go again.",
+  "Traffic ruined that one. Cool the tyres, we'll retry.",
+  "Yellow sector cost you — back off, we'll get another lap.",
+  "Car parked in your braking zone there — scrub that, build a gap, go again.",
+  "That's a write-off with the traffic. Drop back, get clear air, reset."
+ ],
+ "deleted": [
+  "That lap's been deleted — you ran wide. Keep it within the lines next time.",
+  "Lap deleted, mate, track limits. Reset and go again, mind the white lines.",
+  "We've lost that one — exceeded limits. Tidy it up and have another go.",
+  "Deleted, I'm afraid — all four wheels over. Rein it in a touch.",
+  "That time won't count, you went beyond the limits. Next lap, keep it clean.",
+  "Gone — track limits took it. So close to the edge, just pull it back a foot.",
+  "Lap's chalked off, mate. You're carrying so much speed you're running out of road. Ease the exit.",
+  "Deleted again — the limits are biting us. Pick a tighter line on the exits."
+ ],
+ "offbest": [
+  "That's off your best, P{pos}. Have another go, the time's in there.",
+  "Not quite, a bit slower that lap. Reset and build to it.",
+  "Down on your best by a fraction. Cool the tyres, go again.",
+  "Slower lap that one — {gap} off pole still. Tidy the corners up.",
+  "We left a bit out there. Have another crack at it.",
+  "A touch down on that one, P{pos}. The time's still in the car — go again.",
+  "Slightly slower, mate, but no dramas. Reset, cool them, deliver the next one.",
+  "Not your best that lap — shake it off, the pace is still there.",
+  "Bit scrappy, P{pos}. Cool the tyres, regroup, have another crack.",
+  "Off the pace that time. No panic — one clean lap and it's back.",
+  "We left a little out there, P{pos}. Tidy the corners, go again.",
+  "Couple of tenths down, mate. Reset the rhythm and deliver next time."
+ ],
+ "nextlap": [
+  "That's this lap and your NEXT lap gone for track limits — pull it back inside.",
+  "Careful, mate — you've just lost this lap and the next one. Tidy the exits up.",
+  "Both this lap and the next won't count now. Give the white lines some room.",
+  "Track limits again — current and next lap both invalid. Rein it in a touch.",
+  "Heads up, that's two laps void — keep all four wheels in from here."
+ ],
+ "limits": [
+  "Watch the limits there, mate — all four wheels stayed inside, please.",
+  "That's a track-limits warning — keep it within the white lines.",
+  "Ran a touch wide that time. Tighten the line up, mind the limits.",
+  "Careful with the track limits — we can't have laps deleted in qualifying.",
+  "You're flirting with the white lines — rein the exits in a fraction.",
+  "Bit greedy on the kerb there. Keep all four on the road for me.",
+  "Track limits, mate — pull it back a foot and we're golden.",
+  "Mind the edges — that's a warning, let's not make a habit of it."
+ ],
+ "offtrack": [
+  "Whoa — keep it on the island, mate! You all right? Gather it up and reset.",
+  "That's a big moment — off the track there. Take a breath, build a fresh lap.",
+  "Careful! You lost it that time. Cool the tyres, no rush, we'll go again.",
+  "Off the road, mate — that'll have flat-spotted the tyres. Steady lap to scrub them, then push.",
+  "Easy — that's how you bin it in quali. Reset, clear your head, the pace is still there.",
+  "Ran out of road there. No harm done in practice — learn the limit and dial it back a notch.",
+  "That excursion cost you the lap. Get it back on, settle the tyres, build up again.",
+  "Too greedy that time and it bit you. Bring it back, calm lap, then have another go."
+ ]
+}

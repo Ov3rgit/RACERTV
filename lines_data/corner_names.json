@@ -1,0 +1,106 @@
+{
+ "laguna": [
+  "Andretti Hairpin",
+  "Turn 2",
+  "Turn 3",
+  "Turn 4",
+  "Turn 5",
+  "Turn 6",
+  "the Corkscrew",
+  "Rainey Curve",
+  "Turn 10",
+  "Turn 11"
+ ],
+ "spa": [
+  "La Source",
+  "Eau Rouge",
+  "Les Combes",
+  "Malmedy",
+  "Rivage",
+  "Pouhon",
+  "Fagnes",
+  "Stavelot",
+  "the Bus Stop"
+ ],
+ "monza": [
+  "the first chicane",
+  "Curva Grande",
+  "the Roggia chicane",
+  "Lesmo 1",
+  "Lesmo 2",
+  "Ascari",
+  "Parabolica"
+ ],
+ "silverstone": [
+  "Abbey",
+  "Village",
+  "the Loop",
+  "Brooklands",
+  "Luffield",
+  "Copse",
+  "Maggotts",
+  "Becketts",
+  "Stowe",
+  "Vale",
+  "Club"
+ ],
+ "suzuka": [
+  "the first corner",
+  "the esses",
+  "Dunlop",
+  "Degner",
+  "the hairpin",
+  "Spoon",
+  "the chicane"
+ ],
+ "imola": [
+  "Tamburello",
+  "Villeneuve",
+  "Tosa",
+  "Piratella",
+  "Acque Minerali",
+  "the Variante Alta",
+  "Rivazza"
+ ],
+ "zandvoort": [
+  "Tarzan",
+  "Gerlach",
+  "Hugenholtz",
+  "Hunzerug",
+  "Rob Slotemaker",
+  "Scheivlak",
+  "Masters",
+  "the Audi chicane",
+  "Arie Luyendyk"
+ ],
+ "brands hatch": [
+  "Paddock Hill Bend",
+  "Druids",
+  "Graham Hill Bend",
+  "Surtees",
+  "Hawthorn",
+  "Westfield",
+  "Sheene",
+  "Clearways"
+ ],
+ "interlagos": [
+  "the Senna S",
+  "Curva do Sol",
+  "Descida do Lago",
+  "Ferradura",
+  "Laranja",
+  "Pinheirinho",
+  "Bico de Pato",
+  "Mergulho",
+  "Juncao"
+ ],
+ "red bull ring": [
+  "Turn 1",
+  "the Remus hairpin",
+  "Turn 3",
+  "Turn 4",
+  "the Rauch",
+  "Turn 6",
+  "the Rindt"
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "pole": [
+  "Pole! That's what I'm talking about! The car feels mega!",
+  "Quickest of all! Get in there, what a lap!",
+  "Top of the times! Beautiful, the car's hooked up!",
+  "Provisional pole, baby! That's the one!"
+ ],
+ "good": [
+  "Good lap, that. Happy with it — plenty more to come.",
+  "That'll do nicely. Tyres felt great through there.",
+  "Solid lap. We're in the window now.",
+  "Yeah, decent. There's still a bit more in it.",
+  "Car's hooked up nicely — I can lean on it now.",
+  "That felt clean. Confidence is building lap on lap.",
+  "Balance is spot on through there. Happy with the run.",
+  "Found a bit in the middle sector — there's more where that came from."
+ ],
+ "traffic": [
+  "Traffic! Are you kidding me, that cost me the lap!",
+  "I had a car right in my way — lap absolutely ruined!",
+  "Yellows and traffic, useless lap that. Going again.",
+  "Whoever that was just cost me three tenths!",
+  "Backmarker in the worst place — there goes the lap.",
+  "Stuck behind someone on a slow lap, completely killed my rhythm!",
+  "Why is he sitting on the racing line?! Lap's gone."
+ ],
+ "scrappy": [
+  "Lost the rear in sector two — scrap that lap.",
+  "Messy, that one. I'll have to go again.",
+  "Not good enough, I left time out there.",
+  "Locked up into the hairpin, that lap's gone.",
+  "Ran wide on the exit, time's gone — resetting.",
+  "Too greedy on the kerbs, unsettled it. Bin that one.",
+  "Snap of oversteer cost me — I'll tidy it up next time.",
+  "Missed the apex and paid for it. Going again."
+ ],
+ "chasing": [
+  "Someone's gone quicker — right, my turn.",
+  "That's the time to beat now. Let's go and get it.",
+  "Quick lap from someone up there. I've got more in me.",
+  "Right, the gauntlet's down. Time to respond.",
+  "Okay, that's the benchmark. Let's go beat it."
+ ]
+}

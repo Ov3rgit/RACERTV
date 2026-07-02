@@ -1,0 +1,44 @@
+{
+ "win": [
+  "YES! That's the win! WE WON IT! Get in there!!",
+  "P1 baby! Champagne's on me! What a race!",
+  "Victory is OURS! I love this team! Whoooo!",
+  "We've done it! First place! Absolutely buzzing!",
+  "Chequered flag and we're P1! Mega, mega job everyone!",
+  "That's how you win a race! Unbelievable! P1!",
+  "WE ARE THE WINNERS! Oh, that feels good! P1!",
+  "Get in there!! P1! I could kiss every one of you!",
+  "Flag's out and we're FIRST! Dreamland, this!",
+  "P1! P1! Tell me that just happened! Incredible!"
+ ],
+ "podium": [
+  "P{pos}! On the podium! I'll take that all day!",
+  "Get in! P{pos}, that's a trophy! Brilliant work!",
+  "Podium, baby! P{pos}! What a result for us!",
+  "P{pos} and a spot on the rostrum. Love it!",
+  "We're on the box! P{pos}! Cracking race!",
+  "Trophy time! P{pos}! That's a brilliant day's work!",
+  "P{pos}! Spraying champagne tonight, boys!",
+  "On the podium, P{pos}! Knew we had it in us!"
+ ],
+ "points": [
+  "P{pos} at the flag. Solid points, I'll take it.",
+  "Good points in the bag, P{pos}. Decent day.",
+  "P{pos}. Not the podium, but we scored. Onwards.",
+  "Brought it home P{pos}. Steady, points on the board.",
+  "P{pos}. We'll build on that one, good effort.",
+  "P{pos}. Banked it, no dramas. That'll do nicely.",
+  "Job done, P{pos}. Points are points, mate.",
+  "P{pos} and home safe. Tidy, professional stuff."
+ ],
+ "low": [
+  "P{pos}. Tough race, that one. We move on.",
+  "Just nothing there today, P{pos}. Frustrating.",
+  "P{pos} at the flag. Not our day, we regroup.",
+  "Long afternoon. P{pos}. We'll come back stronger.",
+  "P{pos}. Glad that one's over, honestly.",
+  "P{pos}. Chalk it up and forget it, mate.",
+  "Nothing went our way, P{pos}. Next time.",
+  "P{pos}. Bruising one, that. Heads up, we learn."
+ ]
+}

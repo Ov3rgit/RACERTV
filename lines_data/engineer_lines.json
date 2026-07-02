@@ -1,0 +1,540 @@
+{
+ "start": [
+  "Lights out! P{pos}, send it.",
+  "Green flag, here we go. P{pos}, you've got this.",
+  "And we're racing! Good launch, P{pos}.",
+  "Go go go! Clean getaway, P{pos}.",
+  "It's on. P{pos} into turn one, keep it tidy.",
+  "Race is live, P{pos}. Settle in and attack.",
+  "That's the start. P{pos}, big race ahead, stay sharp."
+ ],
+ "win": [
+  "WINNER! P1! Absolutely magnificent drive!",
+  "You've WON it! Yes yes YES! Brilliant!",
+  "That's the win, mate! P1! What a drive!",
+  "First place! Take a bow, that was special!",
+  "VICTORY! P1! You were unstoppable today!"
+ ],
+ "podium": [
+  "P{pos}, that's a PODIUM, baby! Great drive!",
+  "Podium finish! P{pos}! Champagne time!",
+  "Get in! P{pos}, on the box! Brilliant stuff!",
+  "That's a podium, P{pos}! Superb from you!",
+  "P{pos}! You're on the rostrum! Outstanding!"
+ ],
+ "finish_strong": [
+  "P{pos}! Agonisingly close to the podium. Brilliant pace.",
+  "P{pos}, just missed the box. Strong, strong drive.",
+  "P{pos} at the flag. Right in the mix, top job.",
+  "So close, P{pos}. The podium was on. Excellent stuff.",
+  "P{pos}, knocking on the door of the top three. Mighty effort."
+ ],
+ "finish_points": [
+  "P{pos}, solid points in the bag. We'll build on that.",
+  "Good points, P{pos}. A steady, mature drive.",
+  "P{pos} at the line. Banked the points, nicely done.",
+  "That's points, P{pos}. Not spectacular, but solid.",
+  "P{pos}. Decent haul today, we move forward."
+ ],
+ "finish_low": [
+  "P{pos}. Tough one today, mate. We go again next time.",
+  "Not our day, P{pos}. Chin up, we'll bounce back.",
+  "P{pos} at the flag. Hard race. Learn and reset.",
+  "P{pos}. That one got away from us. Onwards.",
+  "Long day, P{pos}. We'll find more next time out."
+ ],
+ "recovery": [
+  "P{pos} from P{grid}! What a recovery drive! Up {gain} places!",
+  "From P{grid} to P{pos}! Outstanding fightback, {gain} spots gained!",
+  "P{pos}! You climbed {gain} places from P{grid}. Sensational.",
+  "That's a drive and a half — P{grid} up to P{pos}! Brilliant.",
+  "Recovery of the day! P{grid} to P{pos}, plus {gain}!"
+ ],
+ "slip": [
+  "P{pos} from P{grid}. Dropped {gain} places, tough watch.",
+  "We slid from P{grid} to P{pos}. Lost {gain}. Rough one.",
+  "P{pos}. Went backwards from P{grid} today. We'll look at why.",
+  "From P{grid} down to P{pos}. Not the day we wanted.",
+  "P{pos}, {gain} places lost from P{grid}. Painful, but we learn."
+ ],
+ "fastest": [
+  "Fastest lap of the race! Superb driving.",
+  "That's the quickest lap out there — beautiful.",
+  "Purple lap, mate. Absolutely flying.",
+  "Get in there! Fastest lap, brilliant stuff.",
+  "New benchmark — fastest lap is yours.",
+  "That's mighty quick. Fastest of anyone."
+ ],
+ "lastlap": [
+  "Last lap now. Bring it home.",
+  "Final lap, P{pos}. Hold it together.",
+  "This is the last one — finish the job.",
+  "White flag's out. Eyes on the exit, P{pos}.",
+  "One lap to go, P{pos}. No mistakes now.",
+  "Final tour. Everything you've got, then ease it home."
+ ],
+ "pit": [
+  "Box, box. Box this lap.",
+  "Pit confirmed, pit lane is open.",
+  "Box now — we're committing.",
+  "In the pits, mind your speed limit."
+ ],
+ "lead": [
+  "You've got the LEAD! P1 — superb. Now control it.",
+  "That's the lead! Brilliant. Manage the gap now.",
+  "P1! You're out front, mate. Keep it clean.",
+  "Into the lead! Control the pace from here.",
+  "Top of the order, P1. Build a cushion.",
+  "You're the leader now, P1! Magnificent. Control the race.",
+  "P1 — that's the front of the field. Calm hands, build a gap.",
+  "Lead is yours, mate! Now it's about managing, not chasing.",
+  "You've hit the front, P1! Brilliant. Set your own pace now.",
+  "First place, P1! Outstanding. Eyes forward, no mistakes.",
+  "That's the lead, P1! Dictate it from here, smooth and clean.",
+  "Out front at last, P1! Superb. Look after the car and lead them home.",
+  "You're leading this race, P1! Keep your head, control the gap."
+ ],
+ "gained": [
+  "P{pos} now — lovely work.",
+  "That's the move! Up to P{pos}.",
+  "Great pass. P{pos}, keep it coming.",
+  "Position gained, P{pos}. On to the next one.",
+  "Up to P{pos}! Brilliant. Eyes forward.",
+  "Yes! P{pos}. That's how it's done.",
+  "Clean overtake, P{pos}. Keep the momentum.",
+  "Beautiful move! P{pos}, now go again.",
+  "That's another one! P{pos}, you're on fire.",
+  "Up to P{pos}! The pace is there, keep hunting.",
+  "Superb pass, P{pos}. Next car's already in range.",
+  "P{pos}! Made it look easy. On to the next.",
+  "Brilliant, P{pos}! That's the way through.",
+  "Done and dusted — P{pos}. Reset and line up the next one.",
+  "In front of him now, P{pos}. Make it stick, build the gap.",
+  "That's a place gained, P{pos}. Tidy work, keep the hammer down.",
+  "Through you come — P{pos}! Now consolidate it.",
+  "Lovely decisive move. P{pos}, and the next car's not far.",
+  "Got him! P{pos}. Don't admire it, eyes up for the next.",
+  "P{pos} and climbing. The car's working, keep delivering.",
+  "Cleanly done — P{pos}. That's the racecraft we need.",
+  "You've cleared him, P{pos}. Settle the rhythm and press on.",
+  "Up another spot, P{pos}! Momentum's with you, ride it.",
+  "That's the overtake — P{pos}. Textbook. Onto the next victim.",
+  "P{pos} now, and you made it look routine. Keep hunting."
+ ],
+ "lost": [
+  "We've dropped to P{pos}. Shake it off.",
+  "P{pos} now. Heads down, long way to go.",
+  "Lost one, P{pos}. Reset and respond.",
+  "He got us there. P{pos} — stay calm.",
+  "P{pos}. Don't chase it, your pace will come back.",
+  "Down to P{pos}. Compose yourself, we go again.",
+  "P{pos}. No drama, we've got the pace to repass.",
+  "He had a run, P{pos}. Stay patient, we'll get it back.",
+  "Don't let it rattle you, P{pos}. Long way to go.",
+  "P{pos} for now. Mark him, find a weakness, strike back.",
+  "He's through, P{pos}. No need to overreact — pace is still there.",
+  "Lost the position, P{pos}. Tuck in, learn his lines, plan the repass.",
+  "P{pos}. That one stings, but the race is long. Stay composed.",
+  "Down to P{pos}. Breathe, reset your braking points, go again.",
+  "He got the run on you, P{pos}. Get a tow back and have him.",
+  "P{pos} now — don't force the response. The opening will come.",
+  "Slipped to P{pos}. Keep him honest, sit in his mirrors.",
+  "That's P{pos}. Shake it off, your long-run pace is better than his.",
+  "He's ahead for now, P{pos}. Patience — pressure makes mistakes.",
+  "P{pos}. Annoying, but stay clinical. We get it back the right way.",
+  "Dropped a spot to P{pos}. Regroup, one corner at a time."
+ ],
+ "catching": [
+  "You're catching {ahead} — {gap} and closing.",
+  "Closing on {ahead}, {gap} to go. Keep pushing.",
+  "{ahead} is in range, {gap}. Have a look.",
+  "Good pace — reeling in {ahead}, {gap}.",
+  "You're quicker than {ahead}, {gap}. Stay patient.",
+  "Eating into it — {gap} to {ahead}. Keep it coming.",
+  "He can't hold this pace. {gap} to {ahead}, push.",
+  "That's it, {gap} now. {ahead} is right there soon.",
+  "{ahead} is struggling for grip — {gap}, go get him.",
+  "Sector two is where you've got {ahead}, {gap} now.",
+  "Keep it up, {gap} to {ahead} and falling every lap.",
+  "You're in the tow — {gap} to {ahead}, set up the pass.",
+  "Lovely outlap. {ahead} is yours for the taking, {gap}.",
+  "Hunt him down — {gap} to {ahead}, the tyres are with you.",
+  "Half a second a lap on {ahead}. {gap} to go, stay clinical.",
+  "{ahead} has locked up ahead — close it down, {gap}!",
+  "Gap to {ahead} is tumbling — {gap} now. Get yourself within striking range.",
+  "You're hauling {ahead} in, {gap}. Pick your corner and commit.",
+  "{gap} to {ahead}. He's defending, which means he's slower — pounce.",
+  "Reeling him in, {gap} to {ahead}. Save a bit of tyre for the move.",
+  "Closing fast on {ahead} — {gap}. One big lap and he's yours.",
+  "{ahead} is coming back to you, {gap}. Stay patient, stay precise.",
+  "That's the gap shrinking — {gap} to {ahead}. The exit onto the straight is your chance.",
+  "You've got {ahead} covered on pace — {gap} and falling. Line it up.",
+  "Right on his gearbox soon, {gap} to {ahead}. Don't show your hand too early.",
+  "{ahead} is yours for the taking — {gap}. Get a clean run and send it.",
+  "Time to {ahead} down to {gap}. Keep this rhythm and the pass is on."
+ ],
+ "defending": [
+  "{behind} is closing — {gapb} back. Defend.",
+  "Watch your mirrors, {behind} is {gapb} behind.",
+  "Keep {behind} behind you. Cover the inside.",
+  "He's coming, {behind} at {gapb}. Stay sharp.",
+  "He's getting closer, but keep your head down — you've got this.",
+  "{behind} is {gapb} back. Don't panic, drive your race.",
+  "Defend hard but smart, {behind} at {gapb}. You can hold this.",
+  "Pressure from {behind}, {gapb}. Hit your marks, you're fine.",
+  "Protect the inside line into turn one, {behind} at {gapb}.",
+  "Good defending. {behind} can look but he can't touch, {gapb}.",
+  "Stay on the racing line, make him take the long way round, {gapb}.",
+  "{behind} will try a lunge — leave him no room, {gapb}.",
+  "Hold your nerve, {gapb} to {behind}. You're doing everything right.",
+  "Get a good exit and he can't get a run — {behind} at {gapb}.",
+  "Defensive but clean, {gapb} to {behind}. Don't hand him a thing.",
+  "{behind} is right with you, {gapb}. Cover the inside, force him wide.",
+  "He's right on your tail now, {behind} at {gapb}. Defend the braking zone.",
+  "Mirrors, mate — {behind} {gapb} back and pushing. Hit your marks.",
+  "{behind} smells a chance, {gapb}. Be firm but fair, give him nothing.",
+  "Hold this line, {gapb} to {behind}. Make him work for every inch.",
+  "He'll lunge if you leave a gap — {behind} at {gapb}. Shut the door early.",
+  "Stay calm under this, {gapb} to {behind}. Your exits are the key.",
+  "{behind}'s throwing everything at it, {gapb}. Keep your cool, you're fine.",
+  "Defend smart, not desperate — {behind} {gapb} back. One clean lap breaks him.",
+  "Protect the inside into the next corner, {behind} at {gapb}. You've got this.",
+  "He's having a look, {behind} {gapb} behind. Don't flinch, hold your nerve."
+ ],
+ "dropping": [
+  "{ahead} is edging away, {gap}. Find some pace.",
+  "Losing touch with {ahead}, {gap}. Dig in.",
+  "{ahead}'s pulling a gap, {gap}. Keep pushing.",
+  "Bit of time to {ahead}, {gap}. Stay with it, don't force it.",
+  "{ahead} has a run, {gap}. Look after the tyres, stay calm.",
+  "{ahead} found a bit there, {gap}. We need a response.",
+  "Don't let {ahead} disappear — {gap} and growing, push on.",
+  "{gap} to {ahead} now. Keep him in your sights, long race yet.",
+  "We're leaking time to {ahead}, {gap}. Where can we find it?",
+  "{ahead} on a charge, {gap}. Settle, hit your braking points.",
+  "{ahead} is inching away, {gap}. Find a tenth in the slow corners.",
+  "Bit of a gap opening to {ahead}, {gap}. Don't panic, manage the tyres.",
+  "He's got a run, {ahead} at {gap}. Stay with him, the race is long.",
+  "{gap} to {ahead} now and growing — where can we claw it back?",
+  "Losing a touch to {ahead}, {gap}. Tidy your exits, the pace will return.",
+  "{ahead} found some time there, {gap}. Keep him in sight, stay patient.",
+  "Don't let {ahead} disappear — {gap}. Dig in, one sector at a time.",
+  "We're leaking a little to {ahead}, {gap}. Smooth inputs, no mistakes.",
+  "{ahead} pulling a small gap, {gap}. Conserve now, attack when it counts."
+ ],
+ "clear": [
+  "You're pulling clear of {behind}, {gapb}. Good.",
+  "Gap back to {behind} is growing, {gapb}. Nice.",
+  "Edging away from {behind}, {gapb}. Keep it up.",
+  "That's the gap we wanted, {gapb} to {behind}. Lovely.",
+  "Breathing room now, {gapb} on {behind}. Manage it.",
+  "{gapb} to {behind} and climbing — you've broken him.",
+  "That's the pressure off, {gapb} clear of {behind}. Settle in.",
+  "Lovely. {behind} is dropping away, {gapb} now. Mind the tyres.",
+  "You've got daylight, {gapb} to {behind}. Drive your own race.",
+  "Gap's out to {gapb} — {behind} has nothing for you. Smooth now.",
+  "You're easing clear of {behind}, {gapb}. Lovely, keep it controlled.",
+  "{behind} is dropping back, {gapb}. The pressure's off — settle in.",
+  "Building a buffer over {behind}, {gapb}. Manage the tyres from here.",
+  "That's daylight to {behind} now, {gapb}. Drive your own race.",
+  "{gapb} clear of {behind} and stretching. You've broken his spirit.",
+  "Gap to {behind} is healthy, {gapb}. No risks needed, bring it home.",
+  "Nicely done — {gapb} over {behind}. Keep hitting your marks.",
+  "{behind} can't live with your pace, {gapb} now. Stay smooth, stay clean.",
+  "Comfortable margin to {behind}, {gapb}. Look after everything, look forward."
+ ],
+ "encourage": [
+  "You're driving really well, keep it up.",
+  "Great rhythm out there. Stay in this zone.",
+  "Lovely and consistent, P{pos}. Exactly what we need.",
+  "Tidy laps, mate. Keep doing what you're doing.",
+  "Pace is strong, P{pos}. Keep your head, we're in good shape.",
+  "That's mature driving. Patient and quick, perfect.",
+  "Good stuff, P{pos}. Long way to go, but you're nailing it.",
+  "Nice and smooth. You look comfortable out there.",
+  "Every lap's a good lap right now. Keep it ticking over.",
+  "Textbook, mate. The car looks glued. Stay relaxed.",
+  "You're in a great window. Don't change a thing.",
+  "Composed and quick — that's the recipe. Keep going.",
+  "Brilliant management out there, P{pos}. We like what we see.",
+  "Heart rate's steady, lap times are mega. Carry on.",
+  "This is exactly the race we talked about. Spot on."
+ ],
+ "enc_top": [
+  "Brilliant drive, P{pos}. You're in control — keep it lit.",
+  "Right at the sharp end, P{pos}. This is mega stuff.",
+  "P{pos} and looking strong. Manage it, bring it home.",
+  "You're the class of the field right now, P{pos}. Keep going.",
+  "Commanding stuff, P{pos}. Don't let up.",
+  "You're driving like a champion, P{pos}. Keep this level.",
+  "Mighty pace at the front, P{pos}. Stay in this zone.",
+  "P{pos} and in total control. This is a masterclass, keep going.",
+  "Right at the sharp end, P{pos}, and looking quick. Bank it lap by lap.",
+  "You belong up here, P{pos}. Composed and fast — perfect.",
+  "Leading the charge, P{pos}. Don't change a thing, just deliver."
+ ],
+ "enc_mid": [
+  "P{pos}, solid. Keep chipping away at the group ahead.",
+  "Good rhythm in P{pos} — there are places to be had up there.",
+  "Tidy laps, P{pos}. Stay patient, we'll pick them off.",
+  "P{pos} and in the mix. Keep the pressure on, mate.",
+  "Decent spot, P{pos}. Heads down, hunt the car ahead.",
+  "We're in the fight in P{pos}. Keep doing the laps.",
+  "P{pos} and right in the mix. Pick them off one by one.",
+  "Solid rhythm, P{pos}. There's a train of cars to hunt up ahead.",
+  "You're in the battle, P{pos}. Stay patient, opportunities will come.",
+  "Good, honest pace in P{pos}. Keep chipping, the points are there.",
+  "P{pos}, nicely placed. Clean laps and we'll climb this order.",
+  "Right in the thick of it, P{pos}. Keep the pressure on the group ahead.",
+  "Steady in P{pos}. Bank every lap, stay ready to strike."
+ ],
+ "enc_back": [
+  "P{pos}, tough spot, but heads down — drive your own race.",
+  "Long way back in P{pos}, but keep the pace up. Things happen.",
+  "P{pos}. Forget the result, nail your laps and we'll climb.",
+  "Not where we want to be, P{pos}, but keep fighting. Never know.",
+  "It's a hard day in P{pos}, mate. Focus on clean, quick laps.",
+  "P{pos}. Use this to build pace — every lap's a chance to learn.",
+  "Keep your chin up, P{pos}. Bank the laps, attrition can help us.",
+  "P{pos} is tough, but heads down — races come to those who finish.",
+  "It's a grind in P{pos}, mate. Nail your laps, things change quickly.",
+  "Don't lose heart in P{pos}. Every clean lap is data and a chance.",
+  "P{pos}. Not where we want to be, but keep fighting — never give up.",
+  "Long way back, P{pos}, but the pace is in there. Keep believing.",
+  "Tough day in P{pos}. Focus on you, attrition can hand us places.",
+  "Stay with it, P{pos}. One good stint and we're back in this."
+ ],
+ "info_ahead": [
+  "P{pos}, {gap} up to {ahead} ahead of you.",
+  "You're P{pos}, {ahead} is {gap} up the road.",
+  "Gap to {ahead} ahead is {gap}, you're P{pos}.",
+  "P{pos}. {ahead} sits {gap} in front — that's your target.",
+  "{gap} to {ahead} ahead, P{pos}. Reel him in.",
+  "P{pos}. {ahead}'s your target, {gap} up the road.",
+  "{ahead} is {gap} ahead, P{pos}. Chip away, lap by lap.",
+  "You're P{pos}, {gap} to make up on {ahead}. It's doable.",
+  "Eyes up the road — {ahead} sits {gap} ahead in P{pos}.",
+  "P{pos}, and {gap} to {ahead}. Keep the pressure coming.",
+  "{gap} the gap to {ahead}, P{pos}. Steady progress, stay on it.",
+  "Next ahead is {ahead}, {gap} away. P{pos} — go hunt."
+ ],
+ "info_behind": [
+  "P{pos}, {gapb} back to {behind} behind you.",
+  "{behind} is {gapb} behind, P{pos}. Keep him there.",
+  "You've got {gapb} over {behind} behind, P{pos}.",
+  "P{pos}, {behind} sits {gapb} back. Stay focused.",
+  "Mirrors check — {behind} {gapb} behind you in P{pos}.",
+  "P{pos}, you've got {gapb} in hand over {behind}. Manage it.",
+  "{behind} is {gapb} adrift, P{pos}. Comfortable for now.",
+  "Gap behind to {behind} is {gapb}, P{pos}. Keep it that way.",
+  "P{pos}. {behind} sits {gapb} back — no immediate threat.",
+  "{gapb} cushion to {behind}, P{pos}. Stay tidy, hold station.",
+  "Nothing urgent behind — {behind} {gapb} back, P{pos}.",
+  "P{pos}, {behind} {gapb} adrift. Drive your race, ignore him."
+ ],
+ "warn_offtrack": [
+  "Careful — keep it on the track, mind the limits.",
+  "Watch the white lines, mate. We don't want a penalty.",
+  "Keep the line tidy — you're flirting with track limits.",
+  "Easy on the kerbs there. Keep all four on the road.",
+  "That's a warning — rein it in a touch, stay within the limits.",
+  "Mind the track limits, we can't afford a penalty here."
+ ],
+ "nextlap": [
+  "Heads up — that's this lap AND your next lap invalidated. Pull it back inside the lines.",
+  "Careful! Track limits again — this lap's gone and so is the next one. Reset and stay clean.",
+  "That's both this lap and the next one void now, mate. Give the kerbs a wider berth.",
+  "Warning — you've lost this lap and the next to track limits. Tidy the line up sharpish.",
+  "This lap and your next won't count now. Ease off the white lines, we can't keep losing laps.",
+  "Two laps gone there — current and next, both invalid. Rein the exits in."
+ ],
+ "warn_penalty": [
+  "You've picked up a {pen}. Heads up, keep it clean from here.",
+  "That's a {pen}, mate. No more risks — drive within yourself.",
+  "Penalty: {pen}. Let's not add to it, tidy laps now.",
+  "We've got a {pen}. Settle down, clean and careful.",
+  "A {pen} for that. Keep the nose clean the rest of the way."
+ ],
+ "warn_points": [
+  "That's an incident point — {pts} of {maxpts}. Keep it clean from here.",
+  "Picked up a point there, mate. {pts} of {maxpts} now, plenty of margin.",
+  "Incident point logged — we're on {pts} of {maxpts}. Tidy it up.",
+  "{pts} of {maxpts} penalty points now. Watch the contact.",
+  "One point added, {pts} of {maxpts}. {left} to go before a DQ — stay aware.",
+  "That's {pts} of {maxpts} on the board. No need to panic, but mind it.",
+  "Another point, mate — {pts} of {maxpts}. Let's not collect any more."
+ ],
+ "points_high": [
+  "That's {pts} of {maxpts} now — over halfway to a DQ. Ease off the risks.",
+  "Careful, {pts} of {maxpts}. {left} from disqualification — drive within yourself.",
+  "Mounting up — {pts} of {maxpts}. We can't keep picking these up, mate.",
+  "{pts} of {maxpts} points. Real danger of a DQ now — calm it right down.",
+  "Getting risky, {pts} of {maxpts}. Only {left} more and we're out of the race.",
+  "We're at {pts} of {maxpts}, {left} from the limit. Pick your battles carefully."
+ ],
+ "points_critical": [
+  "DANGER — {pts} of {maxpts}! Just {left} from disqualification. NO more incidents!",
+  "We're on the brink, mate — {pts} of {maxpts}! {left} from a DQ. Back right off!",
+  "Critical now! {pts} of {maxpts} — one more incident and we're disqualified!",
+  "{left} from out, {pts} of {maxpts}! Protect the finish, give everyone room!",
+  "This is it — {pts} of {maxpts}! Any more and the race is over. Ultra careful!",
+  "Last warning, mate — {pts} of {maxpts}! {left} from a DQ. Drive like it's wet!"
+ ],
+ "fuel_save": [
+  "Fuel's tight — about {laps} laps' worth. Start saving now.",
+  "We need to save fuel, only {laps} laps in the tank. Lift and coast.",
+  "Fuel marginal, {laps} laps left. Short-shift and save where you can.",
+  "You're {laps} laps short on fuel. Time to manage it, mate."
+ ],
+ "fuel_low": [
+  "Fuel's getting low now, keep an eye on it.",
+  "Running light on fuel — be smooth on the throttle.",
+  "Low fuel warning. Save what you can on the straights."
+ ],
+ "tyres_worn": [
+  "Tyres are going off now — look after them, P{pos}.",
+  "The rubber's worn, mate. Smooth inputs, make them last.",
+  "Tyre wear is high — manage them home, don't overdrive.",
+  "Those tyres are tired now. Ease the loads, bring it home.",
+  "Grip's dropping with the wear, P{pos}. Be gentle through the quick stuff."
+ ],
+ "laps_update": [
+  "{togo} laps to go, P{pos}. Keep it steady.",
+  "We're {done} of {total} laps in — {togo} to run. Looking good.",
+  "{togo} laps left, P{pos}. Settle into the rhythm.",
+  "Just over halfway feeling — {togo} laps remaining. Keep pushing.",
+  "{togo} to go, mate. Manage it and bring it home.",
+  "Lap {done} of {total} done. {togo} left, you're doing great."
+ ],
+ "laps_countdown": [
+  "{togo} laps to go now, P{pos} — you've got this.",
+  "Right, {togo} laps left. Heads down, finish the job.",
+  "{togo} to go, mate. Big finish now, stay focused.",
+  "Into the final {togo} laps, P{pos}. Everything you've got.",
+  "{togo} laps remaining — this is where it counts."
+ ],
+ "mins_countdown": [
+  "{mins} to go on the clock, P{pos}. Big finish now, stay focused.",
+  "We're into the final {mins}, P{pos} — everything you've got.",
+  "{mins} left on the timer, mate. This is where it counts.",
+  "Clock's down to {mins}, P{pos}. Heads down, bring it home.",
+  "Just {mins} remaining now — no mistakes, finish the job.",
+  "{mins} to run, P{pos}. Manage it and get this one home.",
+  "Final {mins} on the clock — give me everything you've got left."
+ ],
+ "time_update": [
+  "About {mins} minutes left, P{pos}. Keep it tidy.",
+  "{mins} minutes to go, mate. Manage the race.",
+  "Roughly {mins} minutes remaining, P{pos}. Stay sharp.",
+  "Clock's at {mins} minutes, keep doing what you're doing."
+ ],
+ "status_good": [
+  "Gap's good, no damage, the car's healthy. Keep pushing, P{pos}.",
+  "All looking good here — pace is strong, car's fine. Keep it up.",
+  "Everything's healthy our end, P{pos}. Lovely pace, stay on it.",
+  "No issues at all, mate. Gap's under control. Keep pushing.",
+  "Car's in good shape, times are mega. Exactly what we want, P{pos}.",
+  "Everything green on our end, P{pos}. Lovely pace, no worries — push on.",
+  "No issues anywhere, mate. Tyres good, gap good. Keep delivering, P{pos}.",
+  "Car feels strong, times consistent. We're in great shape, P{pos}.",
+  "All healthy here, P{pos}. You've got the pace — just keep it clean.",
+  "Temps are good, wear is fine, you're flying. Carry on, P{pos}.",
+  "Nothing to report but good news, P{pos}. Stay on it, this is mega."
+ ],
+ "pit_needed": [
+  "Pit window's open, P{pos} — you need to make your stop.",
+  "Time to box, mate — get your mandatory stop done.",
+  "The pit window is open. Don't leave your stop too late.",
+  "We need that pit stop, P{pos}. Box when you're ready.",
+  "Mandatory stop still to come — pit window's open now."
+ ],
+ "penalty_serve": [
+  "Reminder: you've still got that penalty to serve. Don't leave it.",
+  "Don't forget the penalty, mate — serve it before the flag.",
+  "That penalty's still outstanding. Get it served, P{pos}.",
+  "Serve the penalty when you can — we can't risk it to the end."
+ ],
+ "pit_damage": [
+  "That {part} damage is serious — we need to box and repair it.",
+  "The {part}'s badly hurt, P{pos}. Box this lap, we'll fix it.",
+  "We have to pit for that {part} damage — it's costing too much.",
+  "Get it to the pits, mate — the {part} needs replacing."
+ ],
+ "pit_tyres": [
+  "Tyres are done, P{pos} — we need to box for fresh rubber.",
+  "Those tyres are finished. Box this lap for a fresh set.",
+  "We can't go on like this — pit for new tyres, mate.",
+  "Tyre wear is critical now. Get in for fresh ones, P{pos}."
+ ],
+ "tyres_gone": [
+  "Tyres are properly gone now, P{pos} — no stop, so we nurse these home. Smooth as you can.",
+  "Rubber's shot, mate, but we're not boxing. Manage the grip, short-shift, baby the throttle.",
+  "These tyres are finished but we run to the end on them. Brake earlier, ease the loads, bring it home.",
+  "Grip's falling off a cliff, P{pos}. No fresh set coming — drive around it, protect the rears.",
+  "Tyres are cooked. We commit to the finish on these, so be gentle and think about traction zones.",
+  "No more grip left in them, mate. We hold station and survive — slow in, smooth out, mind the kerbs.",
+  "They're done, but so is everyone else's rubber. Manage it better than them and we keep the place."
+ ],
+ "gained_where": [
+  "Lovely move {where} — up to P{pos}!",
+  "That's the pass done {where}. P{pos} now, keep hunting.",
+  "Got him {where}! P{pos}, eyes up for the next one.",
+  "Brilliant move {where} — P{pos}. On you go.",
+  "P{pos}! Made that one stick {where}. Tidy work.",
+  "That's how it's done {where} — P{pos}, keep the momentum.",
+  "Cleanly done {where}. P{pos}, next car's already in range.",
+  "Up to P{pos} with a great move {where}. Eyes forward."
+ ],
+ "section_ahead": [
+  "Sector {sec} coming up — {tip}",
+  "Into sector {sec} now. {tip}",
+  "Heads up for sector {sec}: {tip}",
+  "This next sector, P{pos} — {tip}",
+  "Coming into sector {sec} — {tip}",
+  "Through sector {sec} here. {tip}"
+ ],
+ "damage": [
+  "We've taken some {part} damage — nurse it, but keep going.",
+  "There's {part} damage there, mate. Adjust your style, look after it.",
+  "Picked up {part} damage. It'll cost some pace — manage it.",
+  "That contact's hurt the {part}. Keep it together, we can still finish.",
+  "Some {part} damage showing on our end. Be mindful, bring it home."
+ ],
+ "tyre_cold": [
+  "Those {ax} are still cold, mate — work some temperature in before you lean on it.",
+  "The {ax} aren't up to temperature yet. Give them a lap, build it in gradually.",
+  "Careful — {ax} are below working temp. Wind the loads up slowly, no big inputs.",
+  "Not much heat in the {ax} yet. Be patient, bring them in before you really push.",
+  "{ax} are cold still. Weave a little, get some temperature in before the quick stuff."
+ ],
+ "tyre_hot": [
+  "You're starting to cook the {ax} — ease the entry and let them breathe.",
+  "The {ax} are over temperature, mate. Back the loads off a fraction to bring them down.",
+  "Watch the {ax} — they're overheating. Smooth inputs, give them a chance to recover.",
+  "Temps climbing on the {ax}. Short-shift where you can and stop sliding it.",
+  "The {ax} are getting too hot — you're scrubbing grip. Manage them for a lap or two."
+ ],
+ "tyre_hot_traffic": [
+  "The {ax} are overheating in this dirty air — drop back half a second to cool them.",
+  "Sitting this close is cooking the {ax}, mate. Give yourself a gap, let them breathe.",
+  "You're losing the {ax} in the turbulence. Back off a touch, then have another go.",
+  "Those {ax} are over temp in the wake of that car — ease off, cool them, attack fresh."
+ ],
+ "brake_hot": [
+  "The {ax} brakes are getting hot — short-shift and give them air down the straights.",
+  "Watch the {ax} brakes, mate, temps are high. Brake a fraction earlier, let them cool.",
+  "{ax} brakes are over temperature — ease the pedal pressure or we'll get fade.",
+  "Heat building in the {ax} brakes. Lift and coast a little to bring them back."
+ ],
+ "engine_hot": [
+  "Water temp's creeping up, mate — ease off a touch and let the engine breathe.",
+  "Engine's running hot. Short-shift and lift a little, bring those temps back down.",
+  "Temperatures climbing on the engine — back the pace off a lap, we need to cool it.",
+  "We're getting warm under the bonnet. Lift and coast where you can, protect the engine."
+ ],
+ "engine_hot_dmg": [
+  "That damage is choking the cooling — water temp's climbing. Ease right off or we'll cook it.",
+  "Engine temps are spiking with that damage, mate. Manage the pace, we cannot lose this engine.",
+  "The cooling's compromised after that knock — back off and keep the temperatures in check."
+ ]
+}

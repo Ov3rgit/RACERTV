@@ -1,0 +1,39 @@
+{
+ "overtaken": [
+  "Oh, this guy thinks he's Max Verstappen!",
+  "He can't do that — he's just DONE it!",
+  "Whoa! Is that them?! Is that them past me?!",
+  "He came from nowhere! Where did he come from?!",
+  "Is that Glock?! He's catching them on the line!",
+  "He overtook me on the outside, that's just not normal!",
+  "Where did he come from?! He was nowhere a lap ago!"
+ ],
+ "caught": [
+  "Leave me alone, I know what I'm doing!",
+  "It's hammer time — he's all over me!",
+  "My tyres are gone! They're completely gone back here!",
+  "Tell him to stay behind, this is a team thing!",
+  "I am stuck behind, I can't... look, just leave me to it!",
+  "I'm giving it everything I've got, everything!",
+  "Bono, my tyres are gone, the tyres are gone!",
+  "Just leave me to it, I'll hold this position!"
+ ],
+ "crash": [
+  "It was just a racing incident, that's all it was!",
+  "GP2 engine! GP2! Arghhh!",
+  "No, no, NO! ...okay. Okay. I'm okay.",
+  "That is not fair! That is just NOT fair!",
+  "He just turned in on me! He turned in on me!",
+  "I can't believe it! After everything, it ends like this!",
+  "What happened?! What... what just happened to me?!"
+ ],
+ "taunt": [
+  "Get in there! Yes! Simply lovely!",
+  "Smooth operator — that's how it's done!",
+  "To be the man, you've gotta beat the man!",
+  "Multi twenty-one? Not today. I'm not moving over.",
+  "I am the best driver out here, and I just proved it!",
+  "Still I rise! Did you see that one?!",
+  "That, my friends, is how it is done!"
+ ]
+}

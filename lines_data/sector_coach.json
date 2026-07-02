@@ -1,0 +1,41 @@
+{
+ "slow": [
+  "You're leaving about {d} in sector {sec} — that's where the lap's hiding.",
+  "Sector {sec}'s the weak one, roughly {d} off your best there. Have a look at your lines.",
+  "We're losing {d} in sector {sec}, mate. Get that one right and the lap drops.",
+  "Sector {sec} is costing you, about {d} down. The pace is there everywhere else.",
+  "Bit untidy in sector {sec} — {d} adrift of your best. Focus your next lap there.",
+  "Most of your time loss is sector {sec}, {d} of it. Smooth that section out.",
+  "You're a touch slow in sector {sec}, around {d}, but keep the pace up — the rest is mega.",
+  "Sector {sec}'s the one to find — {d} in it. Commit a bit more there and it's a big step.",
+  "Talk me through sector {sec} — you're {d} off your best in there. Something's not hooking up.",
+  "If we clean up sector {sec} you're a different driver — {d} sat in that one section.",
+  "Watch sector {sec}, {d} lost. Maybe a braking marker too early or a lazy exit.",
+  "Pace is strong but sector {sec} is leaking {d}. Same commitment as the rest and it's gone."
+ ],
+ "mixed": [
+  "Sector {one} was mighty, but you gave it back in sector {two} — {d} of it. Marry the two up.",
+  "Brilliant through sector {one}, then {d} dropped in sector {two}. Carry that pace across.",
+  "Sector {one}'s right on the limit, sector {two}'s {d} off. Find the same in the slow one.",
+  "Lovely sector {one}, mate. Sector {two}'s the homework — {d} to claw back there.",
+  "You're flying in sector {one} but tentative in sector {two}, {d} of it. Trust the car there too.",
+  "Mixed bag — sector {one} purple-quick, sector {two} {d} down. Tidy the weak one and it's a lap.",
+  "Sector {one} is exactly it. Now do that in sector {two}, where you're {d} adrift."
+ ],
+ "strong": [
+  "Sector {sec} was your best yet — whatever you changed, keep doing it.",
+  "That's a cracking sector {sec}, mate. Right on the money. Bank that line.",
+  "Sector {sec} was mega that lap — fastest you've managed there. More of the same.",
+  "Purple-quick in sector {sec}! That's the benchmark now, repeat it.",
+  "Sector {sec} was outstanding — quickest of anyone through there. Brilliant.",
+  "Big improvement in sector {sec}, that's the way. Now string it with the rest."
+ ],
+ "solid": [
+  "Lovely lap — all three sectors right on your best. Nothing to change, just repeat it.",
+  "Beautifully balanced, mate. Every sector's there. That's the lap, do it again.",
+  "Spot on across the board. No weak sector that lap — exactly what we want.",
+  "Consistent everywhere, all three splits on it. That's a proper lap, bank it.",
+  "Tidy in every sector. Nothing wasted — keep delivering that and we're golden.",
+  "Three green sectors, mate. That's the rhythm. Lock it in."
+ ]
+}

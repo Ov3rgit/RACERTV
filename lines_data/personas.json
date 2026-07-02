@@ -1,0 +1,189 @@
+{
+ "HOTHEAD": {
+  "overtaken": [
+   "Oh FUCK OFF, where did he come from?!",
+   "Are you SHITTING me?! He just barged past!",
+   "That's fucking dirty driving and you know it!",
+   "God DAMN it, I lost the place, fuck!",
+   "He divebombed me, that's bullshit!"
+  ],
+  "caught": [
+   "{who}'s all over me, talk to me NOW!",
+   "He's catching me fast, give me more, fucking hell!",
+   "{who} again?! Where's his pace coming from?!",
+   "I can see the bastard in my mirrors, do something!",
+   "He's on my gearbox, this is a fucking joke!",
+   "If {who} dive-bombs me I swear to god...",
+   "Defending like hell back here, he will not get through!"
+  ],
+  "crash": [
+   "FUUUCK! I've thrown it in the wall! P{pos}!",
+   "NO no no, shit shit SHIT! P{pos} now!",
+   "Are you kidding me?! Race fucking ruined, P{pos}!",
+   "I'm off! God damn it, dropped to P{pos}!"
+  ],
+  "taunt": [
+   "Yeah, get fucked, see you later!",
+   "That's how you do it, move over!",
+   "Bye bye, you slow bastard!"
+  ]
+ },
+ "COCKY": {
+  "overtaken": [
+   "Hah, lucky move. He won't keep that up.",
+   "Cute. I'll have him back by the next corner.",
+   "Oh, brave. Let's see how that works out for him.",
+   "He can have the place, I'll take it back, no stress."
+  ],
+  "caught": [
+   "{who}'s catching me? Adorable. Let him try.",
+   "Mirrors getting busy. Time to remind him who's boss.",
+   "He's quick, I'll give him that. Doesn't matter.",
+   "Oh, {who} wants to play. This'll be fun.",
+   "He thinks he's having that corner? Cute.",
+   "Let him get close. I dare him to try a move."
+  ],
+  "crash": [
+   "And he's in the gravel. Knew it. P{pos}, whatever.",
+   "Ha! Threw it away. Amateur. I'm P{pos} now.",
+   "Of course I spun, the car's shit, not me. P{pos}."
+  ],
+  "taunt": [
+   "Too easy. Was that meant to be hard?",
+   "Sit down, son. That's how it's done.",
+   "Thanks for the place, mate. Catch you never."
+  ]
+ },
+ "VETERAN": {
+  "overtaken": [
+   "Alright, he's through. We'll get him back, stay calm.",
+   "Lost one. No panic, long race ahead.",
+   "He committed to that one. Fair enough. Heads down.",
+   "Damn. Okay, what've we got for pace?"
+  ],
+  "caught": [
+   "{who}'s closing. Talk me through the gap.",
+   "Got company behind. How are my tyres looking?",
+   "He's quick in sector two. Where am I losing it?",
+   "{who}'s in my mirrors now. Let's stay calm.",
+   "He'll have a look soon. I'll cover the inside.",
+   "Managing the gap back here, but he's persistent."
+  ],
+  "crash": [
+   "Ah, dammit. Lost the rear. P{pos} now.",
+   "That's a mistake. Frustrating. Down to P{pos}.",
+   "Threw that away. My fault. P{pos}."
+  ],
+  "taunt": [
+   "Clean move, done. On to the next one.",
+   "That's the one. Now reel in the next guy.",
+   "Place made. Eyes forward."
+  ]
+ },
+ "DRAMATIC": {
+  "overtaken": [
+   "NO! This cannot be happening! He's PAST me!",
+   "Unbelievable! Absolutely UNBELIEVABLE! He's through!",
+   "My WHOLE race, gone, just like that! He robbed me!",
+   "I don't BELIEVE it! Where did he even appear from?!"
+  ],
+  "caught": [
+   "{who}'s coming! Oh god, he's RIGHT THERE!",
+   "I can FEEL him behind me! Do something, anything!",
+   "The pressure! {who}'s catching me every single lap!",
+   "He's breathing down my neck! This is TORTURE!",
+   "Make him disappear! I can't take this pressure!",
+   "He's going to try something, I just KNOW it!"
+  ],
+  "crash": [
+   "IT'S OVER! It's all over! I'm in the wall! P{pos}!",
+   "The agony! I've thrown it ALL away! P{pos}!",
+   "My heart! I've spun, it's a catastrophe, P{pos}!"
+  ],
+  "taunt": [
+   "YES! Glorious! Did you SEE that move?!",
+   "And the crowd goes wild! He's PAST!",
+   "Magnificent! Simply magnificent overtaking!"
+  ]
+ },
+ "JOKER": {
+  "overtaken": [
+   "Welp, there he goes. Rude.",
+   "Oh sure, just help yourself to my position, why not.",
+   "Cool cool cool, totally fine, I didn't want P-whatever anyway.",
+   "He passed me? In THIS economy?"
+  ],
+  "caught": [
+   "{who}'s getting friendly back there. Should I wave?",
+   "He's catching up. This is fine. Everything's fine.",
+   "{who} says hi in my mirrors. {who} is annoying.",
+   "Oh good, company. I was getting lonely out here.",
+   "He's close enough to read my sponsors now.",
+   "Tell {who} the back of my car is not for sale."
+  ],
+  "crash": [
+   "And... I'm gardening. Lovely gravel this time of year. P{pos}.",
+   "Whoops. That'll buff right out. P{pos} now lol.",
+   "I have chosen violence against that wall. P{pos}."
+  ],
+  "taunt": [
+   "Don't mind me, just stealing your spot. Ta!",
+   "Knock knock. It's me. In front of you now.",
+   "Adios! Tell the others I said hi!",
+   "Whoopsie, looks like I'm ahead now. Soz."
+  ]
+ },
+ "ROOKIE": {
+  "overtaken": [
+   "Ah crap, he got me. Sorry team, sorry.",
+   "Was I supposed to defend that? Damn it.",
+   "He's through... I panicked, sorry guys.",
+   "Lost a spot. I'll be better, I promise."
+  ],
+  "caught": [
+   "Guys, {who}'s right behind me, what do I do?!",
+   "He's so close, I'm trying not to panic.",
+   "Am I gonna get passed? Tell me what to do!",
+   "{who}'s catching me, am I defending or letting him by?",
+   "I don't wanna make a mistake with him this close...",
+   "He's faster than me, isn't he? Be honest."
+  ],
+  "crash": [
+   "Oh no oh no oh no... I spun it. P{pos}. Sorry.",
+   "I messed up, I'm so sorry team. P{pos}.",
+   "That was all me. Rookie mistake. P{pos}.",
+   "I locked up and lost it... P{pos}. Damn."
+  ],
+  "taunt": [
+   "I-I did it! I actually got him! Yes!",
+   "Did you see that?! I made the move!",
+   "Holy crap, that worked! I'm ahead!"
+  ]
+ },
+ "VILLAIN": {
+  "overtaken": [
+   "Enjoy it while it lasts. I'm coming back.",
+   "He'll regret that. Mark my words.",
+   "A mistake. His mistake. I'll make him pay.",
+   "Fine. Now it's personal."
+  ],
+  "caught": [
+   "{who} wants a fight? He'll get one. Let him come.",
+   "Closing me down? Brave. Foolish, but brave.",
+   "He's in range. Good. Let's make this hurt.",
+   "So {who} fancies his chances. He'll regret it.",
+   "Come closer, little fly. Right into my trap.",
+   "He can try the inside. I'll close the door hard."
+  ],
+  "crash": [
+   "Tch. The wall found me. P{pos}. This isn't over.",
+   "Off track. Someone will answer for this. P{pos}.",
+   "P{pos}? Unacceptable. They'll all pay for it."
+  ],
+  "taunt": [
+   "Out of my way. You were never a match.",
+   "Done. Next victim, please.",
+   "Pathetic defending. You belong behind me."
+  ]
+ }
+}

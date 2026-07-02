@@ -1,0 +1,132 @@
+{
+ "rate": {
+  "q": [
+   "How would you rate {drv}'s afternoon so far out of ten, {pundit}?",
+   "Put a number on {drv}'s drive for me, {pundit} — out of ten?",
+   "Out of ten, what's {drv}'s race been worth so far?"
+  ],
+  "a": [
+   "I'd give {drv} a solid eight — composed, quick, barely a wheel out of place.",
+   "Eight, maybe a nine. The only thing missing for {drv} is the result to cap it off.",
+   "A seven from me — quick, but {drv} has left a touch on the table in a couple of corners.",
+   "Honestly? A nine. {drv} has been just about flawless out there today."
+  ]
+ },
+ "tyres": {
+  "q": [
+   "Are the tyres going to be the story of this race, {pundit}?",
+   "Is this one going to come down to tyre life, do you think?",
+   "How big a factor are the tyres going to be from here?"
+  ],
+  "a": [
+   "No question — whoever looks after their rubber best wins this. The deg is brutal.",
+   "Absolutely. The fronts are going off a cliff, and the driver who manages that takes it.",
+   "It will. We'll see who's truly saved their tyres when the last few laps come around.",
+   "For me, yes — the track temp is high and the rears won't last. Management is everything."
+  ]
+ },
+ "podium_fight": {
+  "q": [
+   "What's your read on the battle for the podium, {pundit}?",
+   "How do you see this podium fight shaking out?",
+   "Who's winning that scrap for the rostrum, do you think?"
+  ],
+  "a": [
+   "It's the best fight on track — three cars covered by a second and none giving an inch.",
+   "Whoever's bravest into the final sector takes that last podium step. It's knife-edge.",
+   "Track position is everything now — clean air there is worth half a second a lap.",
+   "Tyres decide it. The one who saved a set earlier grabs that podium late on."
+  ]
+ },
+ "standout": {
+  "q": [
+   "Who's the standout performer for you so far, {pundit}?",
+   "Who's quietly having the best race that nobody's talking about?",
+   "Give me the name that's impressed you most out there, {pundit}."
+  ],
+  "a": [
+   "{drv}, without a doubt — flying under the radar, but the lap times are right there.",
+   "For me it's {drv}. Not flashy, just relentlessly quick and never a mistake.",
+   "{drv}. Came through traffic, kept it clean, and is reeling them in up front.",
+   "It has to be {drv} — making the tough overtakes look completely routine."
+  ]
+ },
+ "won_lost": {
+  "q": [
+   "Where's this race being won and lost for you, {pundit}?",
+   "Where does this one actually get decided, do you reckon?",
+   "What's the key part of the lap in this one, {pundit}?"
+  ],
+  "a": [
+   "Through the middle sector — that's where the brave ones are finding half a second.",
+   "On the brakes into the final hairpin. Get it right, you're through; wrong, you're in the wall.",
+   "On the in- and out-laps. Whoever nails the undercut window wins this race.",
+   "Traction out of the slow corners. The car that hooks up there just pulls clear."
+  ]
+ },
+ "hold_on": {
+  "q": [
+   "Has {drv} got enough in hand to hold on, do you think?",
+   "Can {drv} make P{pos} stick from here, {pundit}?",
+   "Is {drv} going to keep that position to the flag?"
+  ],
+  "a": [
+   "I think so — {drv} has managed the gap perfectly, always responding when it's needed.",
+   "It'll be tight. {drv} is hanging on, but the tyres are fading and the pressure's building.",
+   "If {drv} keeps it clean, yes. One mistake, though, and that door swings wide open.",
+   "Just about. {drv} has the pace; it's the nerve in the closing laps that gets tested."
+  ]
+ },
+ "move_on": {
+  "q": [
+   "Is there a move on the cards for {drv}, do you reckon?",
+   "Can {drv} find a way past from there, {pundit}?",
+   "Is {drv} going to make that overtake stick?"
+  ],
+  "a": [
+   "Oh, it's coming — {drv} is all over the back of that car and only needs one clean run.",
+   "Down the inside into Turn 1, surely. {drv} has the better exit every single lap now.",
+   "Not yet — {drv} needs to get closer through the last corner first, then it's on.",
+   "I'd say so. {drv} is quicker; it's just a matter of when, not if."
+  ]
+ },
+ "pitwall": {
+  "q": [
+   "What would you be telling {drv} on the radio right now, {pundit}?",
+   "If you were on {drv}'s pit wall, what's the message?",
+   "What's the call to {drv} from the pit wall here, {pundit}?"
+  ],
+  "a": [
+   "Two words: heads down. {drv} has the pace — just keep banking the laps.",
+   "I'd tell {drv} to look after the front-left and stay patient. The chance will come.",
+   "Push now. {drv} has a tyre advantage and this is the window to use it.",
+   "Calm and steady. {drv} doesn't need heroics, just clean laps to the flag."
+  ]
+ },
+ "pressure": {
+  "q": [
+   "Is the pressure starting to tell on {drv}, do you think?",
+   "How's {drv} handling the pressure out there, {pundit}?",
+   "Are the nerves getting to {drv} at all from what you can see?"
+  ],
+  "a": [
+   "Not a flicker so far — {drv} is ice-cool, hitting the same marks every lap.",
+   "You can see it building. {drv} ran a fraction wide last time through; the cracks may show.",
+   "Brilliantly. The closer it gets, the calmer {drv} seems to drive — that's rare.",
+   "It's a real test. {drv} has a car right in the mirrors and absolutely nowhere to hide."
+  ]
+ },
+ "prediction": {
+  "q": [
+   "Where do you see this one finishing up, then, {pundit}?",
+   "Give me your prediction, {pundit} — how does this race end?",
+   "Call it for me, {pundit}: how does this one finish?"
+  ],
+  "a": [
+   "I think it goes down to the final lap — far too close to call right now.",
+   "The leader holds on, but it'll be by less than a second, mark my words.",
+   "Expect late drama. These tyres won't make the finish without a real fight.",
+   "I reckon we see one more big move before the flag. This one is not done yet."
+  ]
+ }
+}
