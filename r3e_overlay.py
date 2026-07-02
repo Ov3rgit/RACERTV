@@ -39,7 +39,7 @@ from lines import (   # dialogue pools (moved out of this file for size)
     PUNDIT_LINES, PUNDIT_PICK, REVENGE, RIVAL_QUALI,
     SECTOR_COACH,
     SHORT_TRACK, TRACK_COACH, TRACK_FACTS, TRACK_PUNDIT, TRACK_PUNDIT_BY_TRACK,
-    TRACK_TIPS, CORNER_NAMES)
+    TRACK_SECTOR_TIPS, TRACK_TIPS, CORNER_NAMES)
 
 import sys as _sys
 if getattr(_sys, "frozen", False):       # PyInstaller: assets sit next to the exe
@@ -184,6 +184,7 @@ CAT_INTENSITY = {
     "pit": 0, "lastlap": 2, "win": 2,
     "second": 1, "third": 1, "summary": 1, "closing": 1, "pulling_away": 0,
     "recovery": 1, "podium_lock": 0, "penalty": 1, "yellow": 1, "analysis": 0,
+    "analysis_strategy": 0,
     "lap_milestone": 0, "standings": 0, "praise": 0, "criticism": 0,
     "time_remaining": 1,
     "track_generic": 0, "track_fact": 0, "crosstalk_q": 0, "stat": 0,
@@ -1849,10 +1850,34 @@ class Overlay:
         # otherwise: name the weakest sector and how much it's costing
         return ("slow", {"sec": worst + 1, "d": d_txt})
 
-    def _emit_sector(self, adv, events, prio):
-        """Append a sector-coaching engineer line for a (category, fmt) advice."""
+    def _sector_tip(self, s, sec):
+        """A per-track coaching tip for a SPECIFIC timing sector (1-3), or None.
+        Curated tracks only, and only on their full/GP layouts — a short layout
+        splits the sectors elsewhere, and a wrong 'sector two is the hairpin'
+        breaks immersion far worse than a generic tip."""
+        full = (R.u8_to_str(s.track_name) or "").lower()
+        if any(w in full for w in ("indy", "national", "club", "short",
+                                   "sprint", "moto", "classic", "junior")):
+            return None
+        for key, secs in TRACK_SECTOR_TIPS.items():
+            if key in full:
+                pool = secs.get(str(sec))
+                if pool:
+                    return self._pick(pool, ("SECTIP", f"{key}#{sec}"))
+        return None
+
+    def _emit_sector(self, adv, events, prio, s=None):
+        """Append a sector-coaching engineer line for a (category, fmt) advice.
+        When the advice names a WEAK sector and we have curated notes for this
+        track, the engineer follows the split with THAT sector's actual tip —
+        'sector two is costing you… here's where the time is'."""
         cat, fmt = adv
         line = _safe_format(self._pick(SECTOR_COACH[cat], ("SEC", cat)), fmt)
+        if s is not None and cat in ("slow", "mixed"):
+            weak = fmt.get("sec") or fmt.get("two")
+            tip = self._sector_tip(s, weak) if weak else None
+            if tip:
+                line = f"{line} {tip}"
         emo = {"strong": "smug", "solid": "smug"}.get(cat, "neutral")
         events.append((prio, -1, "RACE ENGINEER", line, False, "ENGINEER", emo))
 
@@ -1987,12 +2012,12 @@ class Overlay:
                 if kind == "pb":
                     adv = self._sector_advice(s, focused)
                     if adv and random.random() < 0.45:
-                        return self._emit_sector(adv, events, 1)
+                        return self._emit_sector(adv, events, 1, s=s)
                     return qadd("improve", 1)   # PB: reports position + gap to pole
                 if kind == "lap_slow":
                     adv = self._sector_advice(s, focused)
                     if adv:                      # name the weak sector, not just "slow"
-                        return self._emit_sector(adv, events, 2)
+                        return self._emit_sector(adv, events, 2, s=s)
                     return qadd("offbest", 2)
             # otherwise, periodic help — but keep it LIGHT. The real coaching is
             # the SECTOR advice above (only when you're actually slow somewhere);
@@ -2412,10 +2437,24 @@ class Overlay:
                 and cur_sec != prev_sec and focused.in_pitlane != 1
                 and now - self._eng_section_cd > 80.0
                 and random.random() < 0.2):
-            tip = self._track_tip(self._short_track(R.u8_to_str(s.track_name)))
+            # prefer the tip for THE SECTOR you just entered (curated tracks);
+            # otherwise fall back to the general track tip
+            tip = (self._sector_tip(s, cur_sec)
+                   or self._track_tip(self._short_track(R.u8_to_str(s.track_name))))
             if tip:
                 self._eng_section_cd = now
                 return add("section_ahead", 3, sec=cur_sec, tip=tip)
+
+        # LAP-SPLIT coaching (race) — on a completed lap, compare your sector
+        # splits to your own best and point at where the time is going, with
+        # that sector's track-specific tip where we have one. This is the
+        # 'you're struggling in sector two, here's what to do about it' layer;
+        # long cooldown so racing information always comes first.
+        if self._racing and now - self._eng_sec_cd > 75.0:
+            adv = self._sector_advice(s, focused)
+            if adv and adv[0] in ("slow", "mixed"):
+                self._eng_sec_cd = now
+                return self._emit_sector(adv, events, 3, s=s)
 
         # nothing dynamic happening -> stay INVOLVED with a proactive report:
         # a gap to the car ahead/behind, or POSITION-AWARE encouragement (never
@@ -3227,7 +3266,9 @@ class Overlay:
                   drv=self._crosstalk_drv)
             else:
                 d = random.choice(order[:min(6, len(order))])
-                topic = random.choice(list(CROSSTALK))
+                topic = random.choice([t for t in CROSSTALK
+                                       if self._pits_live(order)
+                                       or t not in self._PIT_TOPICS])
                 self._crosstalk_topic = topic
                 self._crosstalk_drv = self._dname(d)
                 self._crosstalk_pos = d.place
@@ -3586,9 +3627,13 @@ class Overlay:
 
         # a circuit-trivia drop early on (once, around lap 2) — name & history.
         # Hold it back until the MID race — the opening belongs to the leaders.
+        # (the flag is latched in _emit_commentary when the line actually AIRS —
+        # latching here lost the track intro for the whole race whenever the
+        # queue happened to be busy at this instant; retry every 20s instead)
         if (is_race and phase != "opening" and not self._comm_flags.get("trackintro")
-                and leader is not None and leader.completed_laps >= 1):
-            self._comm_flags["trackintro"] = True
+                and leader is not None and leader.completed_laps >= 1
+                and now - getattr(self, "_trackintro_try", -1e9) > 20.0):
+            self._trackintro_try = now
             fact = self._track_fact(trk)
             cands.append((4, _safe_format(fact or self._pick(
                 COMMENTARY_LINES["track_generic"], ("COMM", "trk")), {"trk": trk}),
@@ -3604,6 +3649,20 @@ class Overlay:
         self._quali_events(ctx)       # quali/practice event-driven booth
         self._colour_quali(ctx)       # quali/practice filler
         self._emit_commentary(ctx)    # arbitrate cands -> speak
+
+    def _pits_live(self, order):
+        """True when pit strategy is actually part of THIS race: a mandatory
+        stop is configured (pitstop_status != -1 for the field) or somebody has
+        genuinely visited the pit lane. Gates the booth's undercut / pit-wall /
+        strategy chatter out of no-stop sprints, where 'pitting now would throw
+        the strategy into question' is immersion-breaking nonsense."""
+        if getattr(self, "_pit_t", None):
+            return True
+        d = order[0] if order else None
+        return d is not None and getattr(d, "pitstop_status", -1) in (0, 1, 2)
+
+    # crosstalk topics that only make sense when pit stops are part of the race
+    _PIT_TOPICS = ("pitwall", "strategy", "tyres")
 
     def _colour_race(self, c):
         """MID-RACE colour rotation (extracted verbatim from update_commentary)."""
@@ -3625,6 +3684,10 @@ class Overlay:
             # the LEAD commentator is the primary voice — weight filler toward him
             # (~65%) so the pundit complements rather than dominates the booth
             who2 = lambda: "COMMENTATOR" if random.random() < 0.65 else "PUNDIT"
+            pits = self._pits_live(order)
+            # strategy-flavoured analysis only when pitting is really in play
+            ana = lambda: ("analysis_strategy"
+                           if pits and random.random() < 0.3 else "analysis")
             fcd = self._filler_cd
             rdy = lambda t, g: now - fcd.get(t, -1e9) >= g
             pcar = self._player_car(s)
@@ -3740,7 +3803,8 @@ class Overlay:
                     L(cat, 6, persona=who2(), drv=self._dname(dd))
             elif pick == "crosstalk":                    # lead asks the pundit
                 d = random.choice(order[:5])
-                topic = random.choice(list(CROSSTALK))
+                topic = random.choice([t for t in CROSSTALK
+                                       if pits or t not in self._PIT_TOPICS])
                 self._crosstalk_topic = topic
                 self._crosstalk_drv = self._dname(d)
                 self._crosstalk_pos = d.place
@@ -3757,7 +3821,7 @@ class Overlay:
                 if txt:
                     cands.append((6, txt, "stat", 0, who2()))
                 else:
-                    L("analysis", 6, persona=who2())
+                    L(ana(), 6, persona=who2())
             elif pick == "track":
                 # the PUNDIT owns circuit knowledge (history + where-to-find-time
                 # coaching) — it's his analytical role, and what the player loved
@@ -3768,7 +3832,7 @@ class Overlay:
                 else:
                     L("track_generic", 6, persona="PUNDIT")
             else:
-                L("analysis", 6, persona=who2())
+                L(ana(), 6, persona=who2())
 
 
     def _quali_events(self, c):
@@ -3964,6 +4028,9 @@ class Overlay:
         if not urgent and (busy or (now - self._comm_cd) < cd):
             return
         self._comm_cd = now
+        if is_race and cat == "track_fact":
+            # the one-shot race track intro made it to air — latch it now
+            self._comm_flags["trackintro"] = True
         spoken = self._spoken(text)
         seed = "PUNDIT" if persona == "PUNDIT" else "COMM"
         nmkw = {"comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME,
@@ -3996,22 +4063,18 @@ class Overlay:
                     # low-value colour the booth is mid-way through — cut it so
                     # the call lands NOW instead of queuing behind the filler
                     self.tts.interrupt()
-            # caption is shown by the on_play callback the moment audio STARTS,
-            # so the subtitle matches what you actually hear (no desync).
-            self.tts.speak(spoken, persona, seed=seed, intensity=inten,
-                           on_play=self._show_caption, urgent=urgent,
-                           force=signature)
-            # remember roughly when a colour/filler line will finish, so a live
-            # call arriving during it can interrupt (above)
-            if not urgent:
-                self._filler_until = now + min(7.0, len(spoken) * 0.055 + 1.5)
-            else:
-                self._filler_until = 0.0
+            # CONVERSATION follow-ups (the pundit's answer, the lead's ack, the
+            # banter chime-back) are built NOW but queued only from the lead
+            # line's on_play — i.e. the moment the QUESTION actually airs. They
+            # used to be force-queued immediately, so a question that TTL-dropped
+            # in a backlog left its orphaned answer to play with no question
+            # ("answer to nothing" / non-sequitur replies). Chaining makes the
+            # exchange atomic: no question aired, no answer queued.
+            followups = []                     # (text, persona, intensity, force)
             if cat == "crosstalk_q":
                 # full exchange: lead asks -> pundit answers -> lead hands back.
-                # ALL force-queued so the conversation can't be half-dropped. The
-                # answer is drawn from the SAME topic as the question (paired in
-                # CROSSTALK) so it actually responds to what was asked, not a
+                # The answer is drawn from the SAME topic as the question (paired
+                # in CROSSTALK) so it actually responds to what was asked, not a
                 # random non-sequitur. CROSSTALK_ANSWERS is the safe fallback.
                 topic = getattr(self, "_crosstalk_topic", None)
                 apool = (CROSSTALK[topic]["a"] if topic in CROSSTALK
@@ -4020,50 +4083,64 @@ class Overlay:
                                    {"drv": getattr(self, "_crosstalk_drv", ""),
                                     "pos": getattr(self, "_crosstalk_pos", 0),
                                     **nmkw})
-                self.tts.speak(self._spoken(ans), "PUNDIT", seed="PUNDIT",
-                               intensity=0, on_play=self._show_caption, force=True)
+                followups.append((self._spoken(ans), "PUNDIT", 0, True))
                 if random.random() < 0.7:
-                    self.tts.speak(_safe_format(self._pick(CROSSTALK_ACK, ("XACK",)),
-                                   nmkw), "COMMENTATOR", seed="COMM", intensity=0,
-                                   on_play=self._show_caption, force=True)
+                    followups.append((_safe_format(
+                        self._pick(CROSSTALK_ACK, ("XACK",)), nmkw),
+                        "COMMENTATOR", 0, True))
             elif cat == "driverstory_q":
                 # the pundit recaps that driver's race from the RACE STORY data
                 d = getattr(self, "_storyq_d", None)
                 report = self._story_report(d) if d is not None else None
                 if report:
                     self._story_told.add(d.driver_info.slot_id)   # don't repeat it
-                    self.tts.speak(self._spoken(report), "PUNDIT", seed="PUNDIT",
-                                   intensity=0, on_play=self._show_caption,
-                                   force=True)
+                    followups.append((self._spoken(report), "PUNDIT", 0, True))
             elif cat in ("lore_q", "lore_q_rally"):
                 # the OTHER voice answers from their racing past — track-specific
-                # where we have a memory, else a named generic (force-queued so
-                # the exchange always completes)
+                # where we have a memory, else a named generic
                 ans_persona = "PUNDIT" if cat == "lore_q" else "COMMENTATOR"
-                self.tts.speak(self._spoken(_safe_format(
+                followups.append((self._spoken(_safe_format(
                     self._lore_answer(ans_persona, trk), nmkw)),
-                    ans_persona, seed=("PUNDIT" if ans_persona == "PUNDIT" else "COMM"),
-                    intensity=0, on_play=self._show_caption, force=True)
+                    ans_persona, 0, True))
             elif cat in ("track_fact", "track_generic") and random.random() < 0.8:
                 # keep the booth conversational — whoever gave the track
                 # knowledge, the OTHER voice responds, so it feels like the two of
                 # them are watching together. Pundit-led coaching earns a "great
                 # analysis" from the lead; a lead-told fact gets the pundit's take.
                 if persona == "PUNDIT":
-                    self.tts.speak(_safe_format(self._pick(CROSSTALK_ACK, ("XACK",)),
-                                   nmkw), "COMMENTATOR", seed="COMM", intensity=0,
-                                   on_play=self._show_caption, force=True)
+                    followups.append((_safe_format(
+                        self._pick(CROSSTALK_ACK, ("XACK",)), nmkw),
+                        "COMMENTATOR", 0, True))
                 else:
-                    self.tts.speak(self._spoken(_safe_format(
-                                   self._track_pundit(trk), nmkw)),
-                                   "PUNDIT", seed="PUNDIT", intensity=0,
-                                   on_play=self._show_caption, force=True)
+                    followups.append((self._spoken(_safe_format(
+                        self._track_pundit(trk), nmkw)), "PUNDIT", 0, True))
             # the OTHER voice in the booth chimes back on the big moments (banter)
             elif persona == "COMMENTATOR" and random.random() < PUNDIT_AFTER.get(cat, 0.0):
                 pool = PUNDIT_LINES.get(cat, PUNDIT_LINES["generic"])
-                self.tts.speak(self._spoken(self._pick(pool, ("PUNDIT", cat))),
-                               "PUNDIT", seed="PUNDIT", intensity=1,
-                               on_play=self._show_caption)
+                followups.append((self._spoken(self._pick(pool, ("PUNDIT", cat))),
+                                  "PUNDIT", 1, False))
+
+            # caption is shown by the on_play callback the moment audio STARTS,
+            # so the subtitle matches what you actually hear (no desync).
+            if followups:
+                def _onp(t, p, _f=tuple(followups)):
+                    self._show_caption(t, p)     # runs on the TTS play thread
+                    for ftxt, fper, finten, ffor in _f:
+                        self.tts.speak(ftxt, fper,
+                                       seed=("PUNDIT" if fper == "PUNDIT"
+                                             else "COMM"),
+                                       intensity=finten, force=ffor,
+                                       on_play=self._show_caption)
+            else:
+                _onp = self._show_caption
+            self.tts.speak(spoken, persona, seed=seed, intensity=inten,
+                           on_play=_onp, urgent=urgent, force=signature)
+            # remember roughly when a colour/filler line will finish, so a live
+            # call arriving during it can interrupt (above)
+            if not urgent:
+                self._filler_until = now + min(7.0, len(spoken) * 0.055 + 1.5)
+            else:
+                self._filler_until = 0.0
         else:
             self._show_caption(spoken, persona)
         self._radio_recent.append(

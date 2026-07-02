@@ -8,11 +8,15 @@ import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R
 from r3e_overlay import Overlay
-from lines import TRACK_TIPS
+from lines import TRACK_TIPS, TRACK_SECTOR_TIPS
 src = open(r"C:\Users\ADMINI~1\AppData\Local\Temp\claude\D--R3EOverlay\a551edbd-1416-4192-af37-f06169b0707c\scratchpad\smoke.py").read()
 exec(src.split('run_session("RACE"')[0])
 
+# a section tip may come from the per-SECTOR curated notes (preferred) or the
+# generic track-tip pool (fallback)
 LAGUNA_TIPS = set(TRACK_TIPS["laguna"])
+for _pool in TRACK_SECTOR_TIPS["laguna"].values():
+    LAGUNA_TIPS |= set(_pool)
 
 
 def setup(track="Laguna Seca"):

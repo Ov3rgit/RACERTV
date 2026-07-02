@@ -1,0 +1,114 @@
+{
+ "laguna": {
+  "1": ["Sector one is the run to turn two — brake straight, get it slowed, and prioritise the exit onto the climb.",
+        "Time in sector one comes from turn two and three — square them off, rotate early, and get on the power clean."],
+  "2": ["Sector two is the climb — keep the momentum through five and six, and don't scrub speed fighting the camber.",
+        "Through the middle sector, carry your speed up the hill — a tidy turn six sets up the whole top section."],
+  "3": ["Sector three is the Corkscrew and the plunge — brake in a straight line at the top, use the kerbs, and let it flow down to eleven.",
+        "Last sector: patience into the Corkscrew, then commit downhill — and get eleven right, it feeds the whole front straight."]
+ },
+ "spa": {
+  "1": ["Sector one — don't overwork La Source; the lap is the run through Eau Rouge, so exit wide and flat where the car allows.",
+        "Keep it simple in sector one: clean hairpin, full commitment up Raidillon, then hold your line down the Kemmel."],
+  "2": ["Sector two is rhythm — Les Combes through Rivage, then trust the grip in Pouhon. That double-left is where the lap lives.",
+        "The middle sector rewards patience at Rivage and bravery in Pouhon — one more click of commitment there is free time."],
+  "3": ["Sector three: carry everything you dare through Blanchimont, then nail the Bus Stop kerbs without unsettling the car.",
+        "Final sector, two jobs — flat through Blanchimont, tidy through the chicane. Don't give the lap away at the last corner."]
+ },
+ "monza": {
+  "1": ["Sector one is braking and traction — hit your marker for the first chicane, use the kerbs, and get the run through Curva Grande.",
+        "Big stop into turn one — brake deep but straight, and make the exit the priority, the whole sector is the straight after."],
+  "2": ["Sector two: rhythm through the Lesmos — sacrifice entry on the second one for exit speed onto the back section.",
+        "Middle sector is the Roggia chicane and the Lesmos — attack the kerbs at Roggia, but keep the second Lesmo tidy."],
+  "3": ["Sector three is Ascari and Parabolica — smooth through Ascari, then open the wheel early in Parabolica and use every inch of exit.",
+        "The lap is won at Parabolica — in a touch slower, out a lot faster, all the way to the line."]
+ },
+ "silverstone": {
+  "1": ["Sector one flows from Abbey through the Loop — commit through the fast opening, then be disciplined in the slow stuff.",
+        "Keep it flat where you can early in the lap, then get the Loop rotated properly — the exit feeds the Wellington straight."],
+  "2": ["Sector two is Maggotts and Becketts — build the rhythm, sacrifice the first apex to be quick through the last one onto Hangar.",
+        "The middle sector lives and dies in Becketts: smooth hands, one line, and carry everything onto the Hangar straight."],
+  "3": ["Sector three: brake straight into Stowe, and treat Club as two corners — patient in, early power out to the line.",
+        "Last sector is Stowe and Vale — don't overdrive Stowe, and get the final complex straightened early for the run home."]
+ },
+ "zandvoort": {
+  "1": ["Sector one is Tarzan and Hugenholtz — use the banking, let the car roll speed, and don't fight the front end.",
+        "Into Tarzan, brake late but keep it on line — the banking will hold you. Exit speed there is the whole first sector."],
+  "2": ["Sector two through Scheivlak is commitment — trust the grip over the crest and keep your minimum speed up through the dunes.",
+        "The middle sector is fast and blind — memorise your references, because lifting where it's flat costs you all the way."],
+  "3": ["Sector three: use the banked final corner properly — high line, early throttle, and let it sling you down the straight.",
+        "Final sector is about the last banking — get on the power sooner than feels natural, the banking carries it."]
+ },
+ "brands hatch": {
+  "1": ["Sector one is Paddock Hill — brave on entry, let it run down the hill, then get Druids slowed properly. Two very different corners.",
+        "Paddock Hill Bend is the money corner early on — commit over the crest and use the compression at the bottom."],
+  "2": ["Sector two flows through the back section — keep the momentum, and be tidy where the track drops away off camber.",
+        "In the middle sector, smooth is fast — the surface falls away on exit, so feed the power in progressively."],
+  "3": ["Sector three is Sheene and Clearways — sacrifice entry at Clearways for the drive onto the pit straight, that run is everything.",
+        "The lap finishes on the Clearways exit — get the car straight early and carry the run all the way to the line."]
+ },
+ "hockenheim": {
+  "1": ["Sector one: quick right at turn one, then it's all about the run down the Parabolika — clean exit, then breathe.",
+        "Don't overdrive turn one — a tidy exit there is a long, long straight of free time."],
+  "2": ["Sector two is the hairpin — brake deep and straight, rotate it, and prioritise traction out onto the return straight.",
+        "Middle sector: the hairpin decides it. In slow, pivot, out hard — and use all the exit kerb."],
+  "3": ["Sector three is the stadium — keep the rhythm through Mobil 1 and the Sachs Kurve, and be patient onto the power in the final right.",
+        "The stadium section rewards tidiness — short corners, quick direction changes, and a disciplined final exit."]
+ },
+ "imola": {
+  "1": ["Sector one: attack the Tamburello kerbs but keep the car settled — the run to Villeneuve and Tosa is where the sector's decided.",
+        "Take what the Tamburello chicane gives, then make Tosa the priority — slow in, rotated, and hard up the hill."],
+  "2": ["Sector two is Piratella and Acque Minerali — carry speed through the top, then use the downhill compression into Acque.",
+        "The middle sector flows downhill — Piratella entry sets up everything, don't pinch it."],
+  "3": ["Sector three: be aggressive over the Variante Alta kerbs, then double-apex Rivazza with the exit as the only priority.",
+        "The lap ends on the Rivazza exit — give up entry speed and get the power down early for the run to the line."]
+ },
+ "suzuka": {
+  "1": ["Sector one is the Esses — one rhythm, one line, minimum steering. Force it once and you lose the whole sequence.",
+        "Through the first sector let the car flow — the Esses reward patience and punish the first greedy apex."],
+  "2": ["Sector two: tidy through the Degners — they bite. Then straighten the hairpin and prioritise the drive to Spoon.",
+        "Middle sector is Degner discipline and a clean hairpin — both punish overdriving more than they reward bravery."],
+  "3": ["Sector three: commit through 130R, then make the chicane about exit — the run to the line is long.",
+        "Spoon exit and 130R set up the final sector — carry everything you can, then be surgical in the last chicane."]
+ },
+ "red bull ring": {
+  "1": ["Sector one is short and brutal — brake straight up the hill into turn one and get the power down early over the crest.",
+        "Uphill braking into turn one — the car will take more than you think. Exit clean, the straight is long."],
+  "2": ["Sector two is the Remus hairpin — deep, straight braking, rotate it hard, and don't spin it up on the exit over the crest.",
+        "The middle sector is decided at Remus — in slow and rotated beats in fast and wide every single lap."],
+  "3": ["Sector three flows through the fast rights — keep the minimum speed up and use the exit kerbs on the final two corners.",
+        "The last two rights are the lap — commit to the penultimate one and let the final corner sling you to the line."]
+ },
+ "hungaroring": {
+  "1": ["Sector one: brake late into turn one but make the exit count, then be brave through the downhill left at turn four.",
+        "Turn one is an overtaking spot, but on a clean lap the priority is the exit and the run down to the valley."],
+  "2": ["Sector two never stops turning — link the corners, keep the car balanced, and don't let one scruffy apex ruin four.",
+        "The middle sector is rhythm — it's a go-kart section, so keep your hands calm and the speed rolling."],
+  "3": ["Sector three: get the penultimate corner right — it's the setup for the final turn and the whole pit straight.",
+        "The last corner is long — patient entry, early throttle, and use every centimetre of exit kerb to the line."]
+ },
+ "bathurst": {
+  "1": ["Sector one is the climb — clean out of Hell Corner, use all of Mountain Straight, then be precise up through the Cutting.",
+        "Up the mountain, precision beats bravery — the walls don't move and the sector's won in the Cutting."],
+  "2": ["Sector two is across the top — rhythm through the Esses and Skyline, no sudden inputs, the car's never straight up there.",
+        "Across the top of the mountain: commit where you know, survive where you don't. Time up there is earned in trust."],
+  "3": ["Sector three: tidy through Forrest's Elbow — every mistake there is paid down all of Conrod — then nail the Chase.",
+        "The Elbow feeds Conrod Straight — exit speed there is worth more than anywhere else on this mountain."]
+ },
+ "interlagos": {
+  "1": ["Sector one is the Senna S — brake deep downhill, keep it tidy through the left, and carry the run down to Descida do Lago.",
+        "The Senna S decides your first sector — sacrifice the first apex a touch to get the drive out of the second."],
+  "2": ["Sector two is the infield — keep the momentum through the middle, and mind the compression at the bottom of the hill.",
+        "The middle sector twists back on itself — smooth steering and early vision, always looking two corners ahead."],
+  "3": ["Sector three is the climb to the line — get Juncao right and the uphill drag does the rest, it's the longest full-throttle run.",
+        "Everything in the final sector is Juncao — slow hands in, early power out, and hold it flat all the way up the hill."]
+ },
+ "barcelona": {
+  "1": ["Sector one: carry speed through the fast right at turn three — it's the corner that defines the opening sector.",
+        "Brake clean into turn one, but the sector is really turn three — commit to it and the time follows."],
+  "2": ["Sector two is the technical middle — get turn five rotated, then keep the rhythm through the uphill sweeps.",
+        "The middle sector rewards a settled car — smooth through the long corners, and don't ask for everything at once."],
+  "3": ["Sector three is the final chicane and the last corner — traction is everything, get it straight and drive to the line.",
+        "The lap finishes on traction — be disciplined in the chicane and prioritise the run onto the pit straight."]
+ }
+}

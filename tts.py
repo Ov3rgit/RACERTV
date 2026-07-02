@@ -8,6 +8,7 @@ human, real accents). Decoded with miniaudio, then run through a radio-FX chain
 mod. A TTS failure can never affect the overlay.
 """
 import hashlib
+import itertools
 import math
 import os
 import queue
@@ -281,9 +282,14 @@ class Tts:
         self.engine = "edge" if _HAVE_EDGE else "sapi"
         # two-stage pipeline: the GENERATE thread renders the next line's audio
         # while the PLAY thread is still playing the current one, so there's no
-        # dead air waiting on edge-tts network latency between lines
-        self.gen_q = queue.Queue()
-        self.play_q = queue.Queue(maxsize=6)
+        # dead air waiting on edge-tts network latency between lines.
+        # PRIORITY queues: the ENGINEER is talking to YOU — his lines render and
+        # play ahead of any waiting booth chatter (a saturated booth was starving
+        # him past his TTL: launch calls and overtake acks silently vanished).
+        # Everything else keeps strict FIFO via the sequence counter.
+        self.gen_q = queue.PriorityQueue()
+        self.play_q = queue.PriorityQueue(maxsize=6)
+        self._seq = itertools.count()
         self._wav_i = 0
         self._speaking = False     # True while a wav is actually playing (so the
                                    # booth knows when it's cutting someone off)
@@ -305,6 +311,35 @@ class Tts:
         _log(f"INIT engine={self.engine} have_edge={_HAVE_EDGE} "
              f"winsound={winsound is not None} voices={len(self.voices)}"
              + (f" edge_err={_EDGE_ERR}" if _EDGE_ERR else ""))
+
+    def _purge(self, keep_engineer=False):
+        """Epoch-bump and drain both queues (the interrupt mechanic). With
+        keep_engineer, ENGINEER jobs are re-queued under the NEW epoch instead
+        of being thrown away — a booth interrupt/sting used to silently eat
+        queued engineer calls ("And we're racing!", overtake acks). He's talking
+        to the player; an incident sting shouldn't erase him."""
+        self._epoch += 1
+        kept = []
+        for q in (self.gen_q, self.play_q):
+            try:
+                while True:
+                    _prio, _seq, payload = q.get_nowait()
+                    if keep_engineer and payload is not None and _prio == 0:
+                        kept.append((q, payload))
+            except Exception:
+                pass
+        self._topics.clear()               # purged lines can't hold their topic
+        for q, payload in kept:
+            lst = list(payload)
+            # gen jobs are 8-tuples (epoch at [5]), play jobs 7-tuples ([4]);
+            # stamp the new epoch so the survivor isn't dropped as stale
+            lst[5 if len(lst) == 8 else 4] = self._epoch
+            self._qput(q, "ENGINEER", tuple(lst))
+
+    def _qput(self, q, persona, payload):
+        """Queue a pipeline job with ENGINEER priority (0) ahead of everything
+        else (1); the sequence counter keeps FIFO order within each class."""
+        q.put((0 if persona == "ENGINEER" else 1, next(self._seq), payload))
 
     def _next_wav(self):
         # plenty of unique names so a force-queued burst can never overwrite a
@@ -390,14 +425,7 @@ class Tts:
         src, text = random.choice(clips)
         if not os.path.exists(src):
             return False
-        self._epoch += 1                           # invalidate in-flight audio
-        for q in (self.gen_q, self.play_q):
-            try:
-                while True:
-                    q.get_nowait()
-            except Exception:
-                pass
-        self._topics.clear()               # purged lines can't hold their topic
+        self._purge(keep_engineer=True)    # booth cut, engineer lines survive
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
@@ -408,7 +436,8 @@ class Tts:
             shutil.copyfile(src, dst)
         except Exception:
             return False
-        self.play_q.put((dst, on_play, text, persona, self._epoch, None, None))
+        self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
+                   (dst, on_play, text, persona, self._epoch, None, None))
         return True
 
     # ---- voice selection ----
@@ -460,8 +489,9 @@ class Tts:
         deadline = (time.time() + ttl) if ttl else None
         if topic:
             self._topics[topic] = self._topics.get(topic, 0) + 1
-        self.gen_q.put((text, persona, self._voice_for(persona, seed), intensity,
-                        on_play, self._epoch, deadline, topic))
+        self._qput(self.gen_q, persona,
+                   (text, persona, self._voice_for(persona, seed), intensity,
+                    on_play, self._epoch, deadline, topic))
         _log(f"speak QUEUE persona={persona} i={intensity} pending={self._pending()} "
              f":: {text[:40]}")
 
@@ -475,7 +505,7 @@ class Tts:
         """Render audio to a wav file, then hand it to the player. Runs ahead of
         playback so the next line is ready the instant the current one ends."""
         while True:
-            item = self.gen_q.get()
+            _prio, _seq, item = self.gen_q.get()
             if item is None:
                 break
             try:
@@ -485,7 +515,7 @@ class Tts:
 
     def _play_loop(self):
         while True:
-            job = self.play_q.get()
+            _prio, _seq, job = self.play_q.get()
             if job is None:
                 break
             wav, on_play, text, persona, epoch, deadline, topic = job
@@ -589,6 +619,7 @@ class Tts:
         # one last staleness check — an interrupt may have landed during the slow
         # render; if so, drop this rather than play it ahead of the incident
         if epoch < self._epoch:
+            _log(f"render DROP-cut persona={persona} :: {text[:40]}")
             try:
                 os.remove(wav)
             except Exception:
@@ -596,7 +627,8 @@ class Tts:
             self._topic_done(topic)
             return
         # blocks if behind
-        self.play_q.put((wav, on_play, text, persona, epoch, deadline, topic))
+        self._qput(self.play_q, persona,
+                   (wav, on_play, text, persona, epoch, deadline, topic))
 
     # ---- neural generation ----
     # excitement ladder for the booth voices: as intensity climbs the delivery
@@ -765,14 +797,7 @@ class Tts:
         currently playing. Used when RaceRoom closes / on quit so the booth
         doesn't keep talking over a dead session."""
         self.enabled = False
-        self._epoch += 1                       # invalidate anything in flight
-        for q in (self.gen_q, self.play_q):
-            try:
-                while True:
-                    q.get_nowait()
-            except Exception:
-                pass
-        self._topics.clear()               # purged lines can't hold their topic
+        self._purge()                      # session over: engineer clears too
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)   # stop current sound
@@ -786,14 +811,7 @@ class Tts:
         """Drop all queued/playing audio but stay ENABLED — used on a session or
         race RESTART so the previous race's commentary doesn't carry over into
         the new one. (stop() disables; flush() keeps the booth ready to talk.)"""
-        self._epoch += 1                       # invalidate anything in flight
-        for q in (self.gen_q, self.play_q):
-            try:
-                while True:
-                    q.get_nowait()
-            except Exception:
-                pass
-        self._topics.clear()               # purged lines can't hold their topic
+        self._purge()                      # restart: engineer's race is gone too
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
@@ -805,15 +823,9 @@ class Tts:
         incidents that must be heard NOW. Bumping the epoch discards any line
         that's mid-render or already queued (rendered under the old epoch), so the
         incident truly CUTS IN instead of waiting for that audio to finish first.
-        SND_PURGE stops the wav that's actually playing mid-file. Stays enabled."""
-        self._epoch += 1
-        for q in (self.gen_q, self.play_q):
-            try:
-                while True:
-                    q.get_nowait()
-            except Exception:
-                pass
-        self._topics.clear()               # purged lines can't hold their topic
+        SND_PURGE stops the wav that's actually playing mid-file. Stays enabled.
+        Queued ENGINEER lines survive the cut (see _purge)."""
+        self._purge(keep_engineer=True)
         if winsound:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
@@ -823,8 +835,8 @@ class Tts:
     def close(self):
         try:
             self.stop()                       # kill audio immediately first
-            self.gen_q.put(None)
-            self.play_q.put(None)
+            self.gen_q.put((-1, -1, None))     # beats any queued job
+            self.play_q.put((-1, -1, None))
             if self.proc and self.proc.poll() is None:
                 self.proc.stdin.write("__QUIT__\n")
                 self.proc.stdin.flush()
