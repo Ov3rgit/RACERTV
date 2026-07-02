@@ -2745,13 +2745,10 @@ class Overlay:
         for _prio, sl, nm, txt, bypass, persona, emotion in events:
             if emitted >= self.RADIO_MAX_BURST:
                 break
-            # BALANCE: radio shares one serial audio queue with the booth and is
-            # normally never dropped — but if a backlog is building, yield so the
-            # commentary isn't buried under a flood of driver radio. Critical
-            # lines (bypass: revenge / finish reactions) still always get through.
-            if (not bypass and self.tts is not None
-                    and self.tts._pending() >= 3):
-                continue
+            # BALANCE: radio no longer yields to a booth backlog here — dropping
+            # the event killed the bubble too, which is why radio "vanished" in
+            # busy races. Voiced-vs-ticker is decided at the speak site below;
+            # a backlogged queue just means the line airs as a silent ticker.
             if persona == "ENGINEER":
                 # bypass lines (overtake acks, severe damage, incident points,
                 # session intro) skip the 14s spacing — they're one-shot, must
@@ -2783,16 +2780,17 @@ class Overlay:
                 self.driver_radio_cd[sl] = now
             spoke = "no-tts"
             if self.tts and self.tts.enabled:
-                # queue FREE -> speak it, showing the bubble when the audio
-                # actually starts (on_play) so screen matches sound.
-                # queue BUSY (booth mid-flow) -> a DRIVER line's audio would
-                # only be TTL-dropped later, killing the bubble with it; so air
-                # the bubble NOW without voice instead, like a broadcast running
-                # team-radio tickers under the commentary. Radio stays visible
-                # even when the booth never shuts up. The ENGINEER is exempt —
-                # he's talking to YOU and always gets his audio queued.
-                if (persona == "ENGINEER"
-                        or (self.tts._pending() < 2 and not self.tts.speaking())):
+                # queue has HEADROOM (at most one line ahead) -> speak it,
+                # showing the bubble when the audio actually starts (on_play)
+                # so screen matches sound. Waiting behind one booth line is
+                # ~6s, well inside TTL_RADIO, so the audio still airs.
+                # queue BACKLOGGED -> the audio would only be TTL-dropped
+                # later, killing the bubble with it; air the bubble NOW
+                # without voice instead, like a broadcast running team-radio
+                # tickers under the commentary. Radio stays visible even when
+                # the booth never shuts up. The ENGINEER is exempt — he's
+                # talking to YOU and always gets his audio queued.
+                if persona == "ENGINEER" or self.tts._pending() < 2:
                     say_text = (spoken_text if spoken_text is not None
                                 else self._spoken(txt))
                     self.tts.speak(say_text, persona, seed=nm,
