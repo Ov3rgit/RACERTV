@@ -20,6 +20,7 @@ import json
 import os
 import random
 import re
+import threading
 import time
 from ctypes import wintypes
 from types import SimpleNamespace
@@ -251,6 +252,11 @@ ROW_H = 22
 MAX_ROWS = 24
 CORNER_NBINS = 180      # lap-fraction bins for learning corner positions (2°)
 UPDATE_MS = 50          # 20 Hz — snappier event detection + tower updates
+# radio_msgs is mutated from BOTH the TTS play thread (_air_bubble) and the tk
+# loop (draw_radio's prune rebuilds the list) — an unguarded append between the
+# prune's read and reassign was silently lost (audio played, no card). Module
+# level so the headless test harness (object.__new__, no __init__) has it too.
+_RADIO_LOCK = threading.Lock()
 PLACE_CONFIRM_TICKS = 6  # a position must hold this many ticks (~300ms) before
                          # the booth/radio treat it as a REAL change. This kills
                          # the side-by-side flicker that made the booth call a
@@ -1148,7 +1154,11 @@ class Overlay:
             self._q_off_cd = -1e9    # last confirmed off (re-arm cooldown)
             self._q_ref_spd = 0.0    # rolling recent-peak speed reference
             self._q_lvs = -1         # prev lap_valid_state (next-lap-invalid edge)
-            self._q_cuts = 0         # prev cut_track_warnings (track-limits edge)
+            # seed from the LIVE counter, not 0 — the game can carry the count
+            # across the session boundary for a few ticks, and a 0 seed turned
+            # that leftover into a false rising edge ("mind the track limits"
+            # spoken the moment the new session opened)
+            self._q_cuts = max(0, s.cut_track_warnings)
             self._sec_laps = {}      # slot -> completed_laps (sector-coach lap edge)
             # dump any audio still queued from the previous session/race so it
             # never carries over into the new one (everything resets to lap 1)
@@ -1225,12 +1235,17 @@ class Overlay:
         for d in order:
             slot = d.driver_info.slot_id
             self.grid_place.setdefault(slot, d.place)
-            # lap DELETED — flying lap invalidated (track limits) out of the pits
+            # lap DELETED — flying lap invalidated (track limits) out of the pits.
+            # NOT during the chequered/teardown phase: session end invalidates
+            # EVERYONE's current lap at once, which read as a burst of phantom
+            # "lap deleted — track limits" booth calls right as the next
+            # session was loading.
             if is_lap_sess:
                 cv = d.current_lap_valid
                 pv = self._q_valid.get(slot, 1)
                 self._q_valid[slot] = cv
-                if pv == 1 and cv == 0 and d.in_pitlane != 1 and slot in self._q_set:
+                if (pv == 1 and cv == 0 and d.in_pitlane != 1
+                        and slot in self._q_set and s.session_phase != 6):
                     self._q_events.append((slot, "deleted", None))
             p = prog(d)
             g = (lead_prog - p) * ref
@@ -1280,6 +1295,13 @@ class Overlay:
         # excursion by a genuine COLLAPSE in speed (grass / gravel / a spin).
         if is_lap_sess:
             now = time.time()
+            # only warn while the session is RUNNING — at the chequered flag
+            # the game invalidates the current lap and the player naturally
+            # slows for the pits, which the watch used to "confirm" as a
+            # phantom off (the engineer scolded you on the cool-down lap).
+            # "not checkered" rather than "== green": the phase field is often
+            # unset in replays, and detection must keep working there.
+            live = (s.session_phase != 6)
             vslot = s.vehicle_info.slot_id
             pdrv = next((d for d in order
                          if d.driver_info.slot_id == vslot), None)
@@ -1295,7 +1317,7 @@ class Overlay:
             self._q_ref_spd = max(spd, ref * 0.95) if moving else spd
             # ARM the watch on the lap-invalidation EDGE (you crossed a limit), at
             # any speed, on its own cooldown so repeated offs each register
-            if (moving and self._q_off_lv == 1 and plv == 0
+            if (live and moving and self._q_off_lv == 1 and plv == 0
                     and self._q_off_watch is None
                     and now - getattr(self, "_q_off_cd", -1e9) > 5.0):
                 self._q_off_watch = (now + 3.0, max(self._q_ref_spd, spd))
@@ -1306,7 +1328,7 @@ class Overlay:
             # unreported). Only a pit entry or the window expiring cancels it.
             if self._q_off_watch is not None:
                 deadline, refspd = self._q_off_watch
-                if in_pit:
+                if in_pit or not live:
                     self._q_off_watch = None
                 elif refspd > 10.0 and spd < refspd * 0.55:
                     self._q_off_watch = None
@@ -1320,14 +1342,14 @@ class Overlay:
             # (even a mild wheel-over-the-line that the speed-collapse test misses)
             # so the engineer warns you every single time in practice/quali.
             cuts = s.cut_track_warnings
-            if cuts > getattr(self, "_q_cuts", 0):
+            if live and cuts > self._q_cuts:
                 self._q_events.append((vslot, "limits", None))
-            self._q_cuts = cuts
+            self._q_cuts = max(0, cuts)   # a decrease = counter reset, no edge
             # NEXT LAP WON'T COUNT — lap_valid_state == 2 means THIS and the next
             # lap are both invalid. Fire on each rising edge so the engineer warns
             # you every time it happens.
             lvs = getattr(s, "lap_valid_state", -1)
-            if lvs == 2 and getattr(self, "_q_lvs", -1) != 2:
+            if live and lvs == 2 and getattr(self, "_q_lvs", -1) != 2:
                 self._q_events.append((vslot, "nextlap_invalid", None))
             self._q_lvs = lvs
 
@@ -2125,11 +2147,19 @@ class Overlay:
                     cat = "finish_low"        # tough day
                 return add(cat, 0)
 
+        # the flag is out: nothing below is news any more. The cool-down lap
+        # naturally slows, cuts corners and invalidates — without this gate the
+        # engineer scolded "you ran over the track limits" AFTER the race.
+        if self._eng_flags.get("finseen"):
+            return
+
         # INCIDENT POINTS — report EVERY point you pick up and escalate hard as
         # you near the disqualification limit. Checked from the GREEN flag (they
         # count from lap one) and BYPASSES the chatter-drop so you never miss one
         # — the whole point is you should never get DQ'd by surprise.
         ip, mip = s.incident_points, s.max_incident_points
+        if ip >= 0 and ip < getattr(self, "_eng_ip", 0):
+            self._eng_ip = ip                  # game reset the counter — re-seed
         if (self._racing and mip > 0 and ip > getattr(self, "_eng_ip", 0)
                 and now - getattr(self, "_eng_ip_cd", -1e9) > 5.0):
             self._eng_ip = ip
@@ -2204,10 +2234,13 @@ class Overlay:
         # both signals doesn't double-call; the emit loop's RADIO_ENG_CD throttles
         # it further so it never becomes chatter.
         plv = s.current_lap_valid
-        cut_edge = s.cut_track_warnings > self._eng_cuts
+        cuts_now = s.cut_track_warnings
+        cut_edge = cuts_now > self._eng_cuts
         lap_edge = (getattr(self, "_eng_plv", 1) == 1 and plv == 0
                     and self._racing and focused.in_pitlane != 1)
-        self._eng_cuts = s.cut_track_warnings
+        # clamp at 0 so an N/A (-1) reading can never manufacture a rising
+        # edge when the counter comes back; a decrease = reset, no edge
+        self._eng_cuts = max(0, cuts_now)
         self._eng_plv = plv
         if cut_edge and now - getattr(self, "_eng_off_cd", -1e9) > 5.0:
             # RaceRoom's official limits counter ticked — always a real cut
@@ -2534,7 +2567,8 @@ class Overlay:
             self._radio_key = self._sess_key
             self.prev_places = {}
             self.prev_int_focus = None
-            self.radio_msgs = []
+            with _RADIO_LOCK:
+                self.radio_msgs = []
             self.driver_radio_cd = {}
             self._last_line = {}
             self._chase = {}
@@ -2550,12 +2584,15 @@ class Overlay:
             self._finish_built = False
             # engineer telemetry trackers (your car's real data)
             self._eng_pen = -1           # last penaltyType seen (rising-edge warn)
-            self._eng_cuts = 0           # last cut_track_warnings count
+            # cut/incident counters seed from the LIVE values — a 0 seed turned
+            # any count carried over the session boundary into a false rising
+            # edge (phantom "you ran over the track limits" at the green flag)
+            self._eng_cuts = max(0, s.cut_track_warnings)
             self._eng_plv = 1            # last player current_lap_valid (off edge)
             self._eng_off_cd = -1e9      # shared off-track warn cooldown
             self._eng_off_watch = None   # [deadline, ref_speed] off-confirm dip
             self._eng_lvs = -1           # last lap_valid_state (next-lap warning)
-            self._eng_ip = 0             # last incident-point count (every-pickup)
+            self._eng_ip = max(0, s.incident_points)  # last incident-point count
             self._eng_ip_cd = -1e9       # incident-point report cooldown
             self._eng_fuel_cd = 0.0      # fuel-warning cooldown
             self._eng_tyre_cd = 0.0      # tyre-warning cooldown
@@ -4709,8 +4746,9 @@ class Overlay:
         # which read as the captions being out of sync with the voice
         hold = max(self.RADIO_HOLD, min(14.0, len(msg["text"]) * 0.055 + 2.5))
         msg["until"] = time.time() + hold
-        self.radio_msgs.append(msg)
-        self.radio_msgs = self.radio_msgs[-6:]
+        with _RADIO_LOCK:
+            self.radio_msgs.append(msg)
+            self.radio_msgs = self.radio_msgs[-6:]
 
     def draw_commentary(self, s):
         """Lower-third broadcast caption for the latest commentary line."""
@@ -4735,10 +4773,11 @@ class Overlay:
 
     def draw_radio(self, s):
         now = time.time()
-        self.radio_msgs = [m for m in self.radio_msgs if m["until"] > now]
-        if not self.radio_msgs:
+        with _RADIO_LOCK:
+            self.radio_msgs = [m for m in self.radio_msgs if m["until"] > now]
+            show = self.radio_msgs[-self.RADIO_MAX_BUBBLES:]  # oldest..newest
+        if not show:
             return
-        show = self.radio_msgs[-self.RADIO_MAX_BUBBLES:]   # oldest..newest
         w = 340
         x = self.sw - w - 24
         gap = 10
