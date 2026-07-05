@@ -268,6 +268,7 @@ PLACE_CONFIRM_TICKS = 6  # a position must hold this many ticks (~300ms) before
 VK_CONTROL, VK_SHIFT, VK_Q, VK_O, VK_E, VK_M = 0x11, 0x10, 0x51, 0x4F, 0x45, 0x4D
 VK_D = 0x44
 VK_C = 0x43
+VK_LBUTTON = 0x01
 
 
 def key_down(vk):
@@ -606,8 +607,10 @@ class Overlay:
                                 bg="#0a0d12", font=("Segoe UI", 10, "bold"),
                                 padx=12, pady=5, cursor="hand2")
         self.btn_lbl.pack()
-        self.btn_lbl.bind("<Button-1>", lambda e: self.toggle_visible())
-        self.btn_win.bind("<Button-1>", lambda e: self.toggle_visible())
+        # NB no tk <Button-1> bindings: click events don't arrive reliably
+        # over the game, so clicks on this chip are POLLED and hit-tested in
+        # draw_settings (a tk binding here would double-toggle on the systems
+        # where the event DOES fire)
         # toolwindow so it doesn't show in alt-tab
         try:
             h = ctypes.windll.user32.GetAncestor(self.btn_win.winfo_id(), 2)
@@ -667,9 +670,10 @@ class Overlay:
                                     SWP_NOMOVE_NOSIZE_NOACT)
         except Exception:
             pass
-        # real-world clock sits just below the toggle, top-left
+        # real-world clock sits just below the toggle, top-left — shifted
+        # right so the ≡ SETTINGS chip fits BEFORE it on the same row
         try:
-            self.clock_win.geometry(f"+{lx}+{by + 32}")
+            self.clock_win.geometry(f"+{lx + 132}+{by + 32}")
             self.clock_win.attributes("-topmost", True)
             chwnd = (user32.GetAncestor(self.clock_win.winfo_id(), 2)
                      or self._clock_hwnd)
@@ -742,19 +746,15 @@ class Overlay:
             return self.quit()
         o = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_O))
         if o and not self._o_prev:
-            self.toggle_visible()
-            self._toast("UI ON" if self.visible
-                        else "UI HIDDEN — broadcast audio stays live"
-                             "  (Ctrl+Shift+O to restore)")
+            self._do_toggle_ui()
         self._o_prev = o
         e = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_E))
         if e and not self._e_prev:
-            self.compact = not self.compact
+            self._do_toggle_compact()
         self._e_prev = e
         m = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_M))
-        if m and not self._m_prev and self.tts:
-            on = self.tts.toggle()
-            self._toast("ALL VOICES ON" if on else "ALL VOICES MUTED")
+        if m and not self._m_prev:
+            self._do_toggle_mute()
         self._m_prev = m
         dk = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_D))
         if dk and not self._d_prev:
@@ -762,15 +762,26 @@ class Overlay:
         self._d_prev = dk
         ck = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_C))
         if ck and not self._c_prev:
-            self.commentary_on = not self.commentary_on
-            if not self.commentary_on and self.tts:
-                # cut queued booth audio NOW (radio/engineer jobs survive) —
-                # without this the booth keeps talking for many seconds after
-                # the player asked it to shut up
-                self.tts.interrupt()
-            self._toast("BOOTH ON — Miles & Brett are back" if self.commentary_on
-                        else "BOOTH OFF — engineer & driver radio stay live")
+            self._do_toggle_booth()
         self._c_prev = ck
+        # POLLED mouse click for the settings menu (and the ● OVERLAY chip).
+        # The overlay windows are click-through and the game constantly
+        # re-asserts itself over the z-order, so tk <Button-1> events never
+        # arrive reliably — instead the click is polled like the hotkeys and
+        # hit-tested against the rects drawn last frame (see draw_settings).
+        st = ctypes.windll.user32.GetAsyncKeyState(VK_LBUTTON)
+        lmb = bool(st & 0x8000)
+        # bit 0 = "pressed since the last GetAsyncKeyState call": catches a
+        # click shorter than one 50ms tick, which pure state-edge polling missed
+        self._click = None
+        if (lmb and not getattr(self, "_lmb_prev", False)) or (st & 0x0001):
+            try:
+                pt = wintypes.POINT()
+                ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+                self._click = (pt.x - self.game_x, pt.y - self.game_y)
+            except Exception:
+                pass
+        self._lmb_prev = lmb
 
         found = self._lock_to_game()
         s = self.reader.read()
@@ -841,6 +852,10 @@ class Overlay:
                 self._no_data_notice()
             except Exception:
                 pass
+        try:
+            self.draw_settings()     # clickable menu — shows even with UI off
+        except Exception as ex:
+            self._stage_err["settings"] = f"{type(ex).__name__}: {ex}"
         try:
             self.draw_toast()        # hotkey feedback — shows even with UI off
         except Exception:
@@ -4754,6 +4769,108 @@ class Overlay:
             return "in " + {1: "the opening sector", 2: "the middle sector",
                             3: "the final sector"}[sec]
         return ""
+
+    # ---- toggle actions (shared by hotkeys AND the clickable menu) ----------
+    def _do_toggle_ui(self):
+        self.toggle_visible()
+        self._toast("UI ON" if self.visible
+                    else "UI HIDDEN — broadcast audio stays live"
+                         "  (Ctrl+Shift+O or ≡ SETTINGS to restore)")
+
+    def _do_toggle_booth(self):
+        self.commentary_on = not self.commentary_on
+        if not self.commentary_on and self.tts:
+            # cut queued booth audio NOW (radio/engineer jobs survive) —
+            # without this the booth keeps talking for many seconds after
+            # the player asked it to shut up
+            self.tts.interrupt()
+        self._toast("BOOTH ON — Miles & Brett are back" if self.commentary_on
+                    else "BOOTH OFF — engineer & driver radio stay live")
+
+    def _do_toggle_mute(self):
+        if not self.tts:
+            return self._toast("TTS unavailable — no voices to mute")
+        on = self.tts.toggle()
+        self._toast("ALL VOICES ON" if on else "ALL VOICES MUTED")
+
+    def _do_toggle_compact(self):
+        self.compact = not self.compact
+        self._toast("COMPACT TOWER" if self.compact else "FULL TOWER")
+
+    def _do_toggle_debug(self):
+        self.debug = not self.debug
+        self._toast("DEBUG HUD ON" if self.debug else "DEBUG HUD OFF")
+
+    def _menu_flip(self):
+        self._menu_open = not getattr(self, "_menu_open", False)
+
+    def draw_settings(self):
+        """Clickable '≡ SETTINGS' chip pinned to the game's top-left (under
+        the clock) + a toggle menu, so testers never need the hotkeys. Clicks
+        are POLLED and hit-tested against the rects recorded LAST frame (the
+        overlay is click-through, so tk mouse events can't be trusted)."""
+        click = getattr(self, "_click", None)
+        if click is not None:
+            for (rx, ry, rw, rh), action in getattr(self, "_menu_hits", []):
+                if rx <= click[0] < rx + rw and ry <= click[1] < ry + rh:
+                    action()
+                    break
+        self._menu_hits = []
+        # chip sits on the clock row: [≡ SETTINGS] [11:25:49], under ● OVERLAY
+        gx, gy, gw, gh = 12, 40, 126, 28
+        self._begin_panel("gear", gx, gy, gw, gh)
+        open_ = getattr(self, "_menu_open", False)
+        self._card(gx, gy, gw, gh, fill=CARD_BG2,
+                   accent=HEADER_ACCENT if open_ else DIM, side="left")
+        self.text(gx + 12, gy + gh // 2, "≡ SETTINGS",
+                  fill=(HEADER_ACCENT if open_ else TEXT),
+                  font=self.f_row_b, anchor="w")
+        self._menu_hits.append(((gx, gy, gw, gh), self._menu_flip))
+        # the ● OVERLAY chip is its own tk window whose click events don't
+        # arrive over the game — give it the same polled treatment
+        try:
+            bx = self.btn_win.winfo_rootx() - self.game_x
+            by = self.btn_win.winfo_rooty() - self.game_y
+            bw, bh = self.btn_win.winfo_width(), self.btn_win.winfo_height()
+            if bw > 1:
+                self._menu_hits.append(((bx, by, bw, bh), self._do_toggle_ui))
+        except Exception:
+            pass
+        if not open_:
+            return
+        tts_on = bool(self.tts and getattr(self.tts, "enabled", False))
+        rows = [
+            ("Overlay UI  (audio keeps running)",
+             "ON" if self.visible else "OFF", self.visible,
+             self._do_toggle_ui),
+            ("Booth — Miles & Brett",
+             "ON" if self.commentary_on else "OFF", self.commentary_on,
+             self._do_toggle_booth),
+            ("All voices (booth + radio)",
+             "ON" if tts_on else "MUTED", tts_on,
+             self._do_toggle_mute),
+            ("Compact timing tower",
+             "ON" if self.compact else "OFF", self.compact,
+             self._do_toggle_compact),
+            ("Debug HUD",
+             "ON" if self.debug else "OFF", self.debug,
+             self._do_toggle_debug),
+            ("Close RacerTV", "✕", False, self.quit),
+        ]
+        w, rh = 330, 28
+        h = 14 + rh * len(rows)
+        x, y = gx, gy + gh + 6
+        self._begin_panel("menu", x, y, w, h)
+        self._card(x, y, w, h, fill=CARD_BG, accent=HEADER_ACCENT, side="left")
+        ry = y + 8
+        for label, state, ok, action in rows:
+            self.text(x + 14, ry + 12, label, fill=TEXT, font=self.f_row,
+                      anchor="w")
+            self.text(x + w - 14, ry + 12, state,
+                      fill=(GREEN if ok else DIM), font=self.f_row_b,
+                      anchor="e")
+            self._menu_hits.append(((x + 2, ry, w - 4, rh), action))
+            ry += rh
 
     def _toast(self, text, hold=3.5):
         """Transient hotkey feedback ('BOOTH OFF', 'UI HIDDEN…'). Drawn every

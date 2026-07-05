@@ -58,6 +58,10 @@ JOKER, ROOKIE, VILLAIN) live in the PERSONAS dict - add your own lines freely.
 
 CONTROLS (work even though clicks pass through to the game)
 ----------------------------------------------------------
+  Click "≡ SETTINGS" (top-left, under the clock) for a menu with ALL the
+  toggles below — no hotkeys needed:
+    Overlay UI · Booth commentary · All voices · Compact tower · Debug · Quit
+
   Click "● OVERLAY"  hide / show the overlay
   Ctrl + Shift + O   UI on / off — commentary-only mode: with the UI hidden
                      the full broadcast audio (booth, engineer, driver radio)
