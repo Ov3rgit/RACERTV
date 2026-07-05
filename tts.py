@@ -114,31 +114,20 @@ STING_PERSONA = {"alert": "PUNDIT", "lightsout": "COMMENTATOR",
 # ---- neural voice cast (edge-tts) -------------------------------------------
 ENGINEER_VOICE = "en-GB-ThomasNeural"             # your engineer: calm British male
 NEURAL_VOICES = [
-    # Rival drivers, in 3 tiers for an authentic international grid:
-    #  A) correct-English accents — pronounce the English radio lines properly.
-    #     (edge-tts has only two en-GB MALE voices and both are on the booth, so
-    #     the strongest natural male British-Isles accent left is Irish.)
-    "en-IE-ConnorNeural",   # Irish (strong, male, English-language)
-    "en-IN-PrabhatNeural",  # Indian
-    "en-ZA-LukeNeural",     # South African
-    #  B) foreign-accented English — speak the English lines with their accent
-    #     (mispronounce a little, but sound natural — the flavour you liked)
+    # Rival drivers: foreign-accented English ONLY — three voices, Spanish,
+    # German and French. These speak the English radio lines with a natural
+    # accent (the flavour that landed). The old wider cast (Irish / Indian /
+    # South African English tiers + native-language Portuguese / Russian)
+    # sounded off and is gone.
     "de-DE-ConradNeural",   # German
     "es-ES-AlvaroNeural",   # Spanish
-    "it-IT-DiegoNeural",    # Italian
-    #  C) NATIVE LANGUAGE — the audio is in their own tongue; the on-screen
-    #     subtitle is the English translation (see NATIVE_VOICE_LANG / NATIVE_RADIO)
     "fr-FR-HenriNeural",    # French
-    "pt-BR-AntonioNeural",  # Brazilian Portuguese
-    "ru-RU-DmitryNeural",   # Russian
 ]
-# Tier-C voices speak generic radio chatter in their NATIVE language; the overlay
-# shows the English translation as the subtitle. Maps voice -> NATIVE_RADIO key.
-NATIVE_VOICE_LANG = {
-    "fr-FR-HenriNeural": "fr",
-    "pt-BR-AntonioNeural": "pt",
-    "ru-RU-DmitryNeural": "ru",
-}
+# Native-language radio (audio in the driver's own tongue, English subtitle on
+# the bubble) is DORMANT: the mapping is empty so every rival speaks accented
+# English. To re-enable for a voice, map it back to its NATIVE_RADIO key
+# (e.g. "fr-FR-HenriNeural": "fr") — the pipeline downstream still supports it.
+NATIVE_VOICE_LANG = {}
 # the play-by-play race commentator + colour co-commentator (clean broadcast
 # voices, NO radio FX — they're in the booth, not on a team radio)
 # strongly-accented voices on purpose: a clean RP-English read is the easiest
@@ -636,11 +625,11 @@ class Tts:
             # team radio: the band-pass FX drops the level, so peak-normalise the
             # VOICE first then drive it harder — otherwise it's too quiet to hear
             if persona == "ENGINEER":
-                # modern intercom, not a 1980s handset: wide band, no drive,
-                # a whisper of static, minimal shimmer — keeps the neural
-                # voice's natural prosody (the full chain sounded robotic)
-                vs = _radioize(samples, srate, drive=1.0, noise=0.004,
-                               lo=150.0, hi=6800.0, shimmer=0.015)
+                # NO band-pass at all: even the gentle intercom chain was
+                # flattening the neural prosody ("too robotic"). The engineer
+                # is now the CLEAN voice — only the radio-click bookends below
+                # say "intercom"; the voice itself is untouched.
+                vs = list(samples)
             else:
                 vs = _radioize(samples, srate)
             vpk = max((abs(x) for x in vs), default=0.0) or 1.0

@@ -3,195 +3,257 @@
   "q": [
    "How would you rate {drv}'s afternoon so far out of ten, {pundit}?",
    "Put a number on {drv}'s drive for me, {pundit} — out of ten?",
-   "Out of ten, what's {drv}'s race been worth so far?"
+   "Out of ten, what's {drv}'s race been worth so far?",
+   "Out of ten, {pundit} — and be honest, your scores are getting generous.",
+   "Score this field for me, {pundit} — championship standard or Sunday club run?"
   ],
   "a": [
    "I'd give {drv} a solid eight — composed, quick, barely a wheel out of place.",
    "Eight, maybe a nine. The only thing missing for {drv} is the result to cap it off.",
    "A seven from me — quick, but {drv} has left a touch on the table in a couple of corners.",
-   "Honestly? A nine. {drv} has been just about flawless out there today."
+   "Honestly? A nine. {drv} has been just about flawless out there today.",
+   "A strong eight, {comm}. There's real quality in this pack today.",
+   "Seven, with bonus points pending — someone out there is about to do something special, I can feel it."
   ]
  },
  "tyres": {
   "q": [
    "Are the tyres going to be the story of this race, {pundit}?",
    "Is this one going to come down to tyre life, do you think?",
-   "How big a factor are the tyres going to be from here?"
+   "How big a factor are the tyres going to be from here?",
+   "Talk tyres to me, {pundit} — who's managing and who's already spent theirs?",
+   "If tyres could talk, {pundit}, whose would be complaining loudest right now?"
   ],
   "a": [
    "No question — whoever looks after their rubber best wins this. The deg is brutal.",
    "Absolutely. The fronts are going off a cliff, and the driver who manages that takes it.",
    "It will. We'll see who's truly saved their tyres when the last few laps come around.",
-   "For me, yes — the track temp is high and the rears won't last. Management is everything."
+   "For me, yes — the track temp is high and the rears won't last. Management is everything.",
+   "The smooth drivers are banking rubber for the end, {comm} — watch the lap times in ten minutes, that's when the bill arrives.",
+   "Whoever slid through that last sector, {comm} — every slide is a lap of life gone. The disciplined ones will feast later."
   ]
  },
  "podium_fight": {
   "q": [
    "What's your read on the battle for the podium, {pundit}?",
    "How do you see this podium fight shaking out?",
-   "Who's winning that scrap for the rostrum, do you think?"
+   "Who's winning that scrap for the rostrum, do you think?",
+   "Call the podium for me right now, {pundit} — no hedging.",
+   "Sticking your neck out, {pundit}: does this podium change before the flag?"
   ],
   "a": [
    "It's the best fight on track — three cars covered by a second and none giving an inch.",
    "Whoever's bravest into the final sector takes that last podium step. It's knife-edge.",
    "Track position is everything now — clean air there is worth half a second a lap.",
-   "Tyres decide it. The one who saved a set earlier grabs that podium late on."
+   "Tyres decide it. The one who saved a set earlier grabs that podium late on.",
+   "As it stands, yes — but there's a charger coming through this field, {comm}, and one of those three knows it.",
+   "The gap says settled, the tyre wear says anything but. I'm saying one more change, {comm}."
   ]
  },
  "standout": {
   "q": [
    "Who's the standout performer for you so far, {pundit}?",
    "Who's quietly having the best race that nobody's talking about?",
-   "Give me the name that's impressed you most out there, {pundit}."
+   "Give me the name that's impressed you most out there, {pundit}.",
+   "Who's impressed you most so far, {pundit} — and it can't be the leader, that's cheating.",
+   "Find me an unsung hero in this field, {pundit}."
   ],
   "a": [
    "{drv}, without a doubt — flying under the radar, but the lap times are right there.",
    "For me it's {drv}. Not flashy, just relentlessly quick and never a mistake.",
    "{drv}. Came through traffic, kept it clean, and is reeling them in up front.",
-   "It has to be {drv} — making the tough overtakes look completely routine."
+   "It has to be {drv} — making the tough overtakes look completely routine.",
+   "Look further down the order, {comm} — there's a drive going on in the midfield that deserves its own camera.",
+   "The one making no mistakes, {comm}. Nobody claps for clean laps until they see the result sheet."
   ]
  },
  "won_lost": {
   "q": [
    "Where's this race being won and lost for you, {pundit}?",
    "Where does this one actually get decided, do you reckon?",
-   "What's the key part of the lap in this one, {pundit}?"
+   "What's the key part of the lap in this one, {pundit}?",
+   "Won by brilliance or lost by mistakes, {pundit} — how does this one get decided?",
+   "Is this race being won at the front or lost behind, {pundit}?"
   ],
   "a": [
    "Through the middle sector — that's where the brave ones are finding half a second.",
    "On the brakes into the final hairpin. Get it right, you're through; wrong, you're in the wall.",
    "On the in- and out-laps. Whoever nails the undercut window wins this race.",
-   "Traction out of the slow corners. The car that hooks up there just pulls clear."
+   "Traction out of the slow corners. The car that hooks up there just pulls clear.",
+   "Races like this are lost first and won second, {comm}. Fewest errors takes the silverware.",
+   "Brilliance gets the highlight reel, {comm}, but discipline gets the trophy. Ask anyone who's won one."
   ]
  },
  "hold_on": {
   "q": [
    "Has {drv} got enough in hand to hold on, do you think?",
    "Can {drv} make P{pos} stick from here, {pundit}?",
-   "Is {drv} going to keep that position to the flag?"
+   "Is {drv} going to keep that position to the flag?",
+   "Can the leader hold this, {pundit}, or are we watching a slow-motion heartbreak?",
+   "Leader's got it under control, {pundit} — or is that what we said last time, right before it all went wrong?"
   ],
   "a": [
    "I think so — {drv} has managed the gap perfectly, always responding when it's needed.",
    "It'll be tight. {drv} is hanging on, but the tyres are fading and the pressure's building.",
    "If {drv} keeps it clean, yes. One mistake, though, and that door swings wide open.",
-   "Just about. {drv} has the pace; it's the nerve in the closing laps that gets tested."
+   "Just about. {drv} has the pace; it's the nerve in the closing laps that gets tested.",
+   "The pace says yes, the pressure says maybe, {comm}. Front-running is the loneliest job in sport.",
+   "Holding a lead is harder than taking one, {comm} — every lap the mirrors get bigger."
   ]
  },
  "move_on": {
   "q": [
    "Is there a move on the cards for {drv}, do you reckon?",
    "Can {drv} find a way past from there, {pundit}?",
-   "Is {drv} going to make that overtake stick?"
+   "Is {drv} going to make that overtake stick?",
+   "That move, {pundit} — brave, brilliant, or borrowing from the insurance company?",
+   "Rate that overtake for me, {pundit} — would you have pulled it?"
   ],
   "a": [
    "Oh, it's coming — {drv} is all over the back of that car and only needs one clean run.",
    "Down the inside into Turn 1, surely. {drv} has the better exit every single lap now.",
    "Not yet — {drv} needs to get closer through the last corner first, then it's on.",
-   "I'd say so. {drv} is quicker; it's just a matter of when, not if."
+   "I'd say so. {drv} is quicker; it's just a matter of when, not if.",
+   "Firm but fair, {comm} — that's a move you make once a race and it has to stick. It stuck.",
+   "In my day we'd call that an invoice with wheels, {comm} — but it worked, so it's officially 'brilliant'."
   ]
  },
  "pitwall": {
   "q": [
    "What would you be telling {drv} on the radio right now, {pundit}?",
    "If you were on {drv}'s pit wall, what's the message?",
-   "What's the call to {drv} from the pit wall here, {pundit}?"
+   "What's the call to {drv} from the pit wall here, {pundit}?",
+   "Play strategist for me, {pundit} — what's the winning call from here?",
+   "You're on the pit wall, {pundit}, headset on — what's the message going out?"
   ],
   "a": [
    "Two words: heads down. {drv} has the pace — just keep banking the laps.",
    "I'd tell {drv} to look after the front-left and stay patient. The chance will come.",
    "Push now. {drv} has a tyre advantage and this is the window to use it.",
-   "Calm and steady. {drv} doesn't need heroics, just clean laps to the flag."
+   "Calm and steady. {drv} doesn't need heroics, just clean laps to the flag.",
+   "Keep it simple, {comm}: clean air is worth more than track position right now. I'd be planning around it.",
+   "The call is patience, {comm}. The race will come to whoever refuses to panic first."
   ]
  },
  "pressure": {
   "q": [
    "Is the pressure starting to tell on {drv}, do you think?",
    "How's {drv} handling the pressure out there, {pundit}?",
-   "Are the nerves getting to {drv} at all from what you can see?"
+   "Are the nerves getting to {drv} at all from what you can see?",
+   "That gap keeps shrinking, {pundit} — when does pressure become panic?",
+   "You've been hunted before, {pundit} — what's going through the leading cockpit right now?"
   ],
   "a": [
    "Not a flicker so far — {drv} is ice-cool, hitting the same marks every lap.",
    "You can see it building. {drv} ran a fraction wide last time through; the cracks may show.",
    "Brilliantly. The closer it gets, the calmer {drv} seems to drive — that's rare.",
-   "It's a real test. {drv} has a car right in the mirrors and absolutely nowhere to hide."
+   "It's a real test. {drv} has a car right in the mirrors and absolutely nowhere to hide.",
+   "Panic starts when you drive the mirrors instead of the road, {comm}. The good ones never make the switch.",
+   "Right now? Arithmetic, {comm} — laps left, tyre life, gap. If the sums work you stay calm. If not, you're already beaten."
   ]
  },
  "prediction": {
   "q": [
    "Where do you see this one finishing up, then, {pundit}?",
    "Give me your prediction, {pundit} — how does this race end?",
-   "Call it for me, {pundit}: how does this one finish?"
+   "Call it for me, {pundit}: how does this one finish?",
+   "Crystal ball time, {pundit} — how does this end?",
+   "Last prediction was a shocker, {pundit} — care to rebuild your reputation?"
   ],
   "a": [
    "I think it goes down to the final lap — far too close to call right now.",
    "The leader holds on, but it'll be by less than a second, mark my words.",
    "Expect late drama. These tyres won't make the finish without a real fight.",
-   "I reckon we see one more big move before the flag. This one is not done yet."
+   "I reckon we see one more big move before the flag. This one is not done yet.",
+   "Someone in the top five hits trouble and this whole race turns on it, {comm}. Watch this space.",
+   "I'll say drama in the final third, {comm} — this field is too closely matched for a quiet ending."
   ]
  },
  "strategy": {
   "q": [
    "Where's this race going to be won, {pundit} — on track or on the pit wall?",
    "If you were calling strategy for the leader right now, what's the play?",
-   "Talk me through the strategy picture from here, {pundit}."
+   "Talk me through the strategy picture from here, {pundit}.",
+   "Strategy nerds want to know, {pundit} — is anyone playing a different game out there?",
+   "Read the race for us, {pundit} — who's actually racing whom right now?"
   ],
   "a": [
    "On track, mate. No strategy in the world saves you if you can't pass the car in front.",
    "Simple: keep it clean, keep the gap, and make the guy behind take all the risks.",
    "The pit wall thinks it decides these things. The drivers know better.",
-   "I'd tell my driver exactly what my old engineer told me: forget the maths, just be faster."
+   "I'd tell my driver exactly what my old engineer told me: forget the maths, just be faster.",
+   "There's always one running a contrary plan, {comm} — and when the timing screens catch up, it'll look like genius or comedy.",
+   "Half this field is racing the car ahead. The smart ones are racing the finish, {comm} — different sport entirely."
   ]
  },
  "era": {
   "q": [
    "Be honest, {pundit} — is this racing better than in our day, or are we just old?",
    "Do these cars ask more of a driver than the ones we raced, {pundit}?",
-   "You watch this lot and think what, exactly — respect, or relief you're retired?"
+   "You watch this lot and think what, exactly — respect, or relief you're retired?",
+   "Would your generation have coped with this level of competition, {pundit}?",
+   "Hand on heart, {pundit} — could peak-you beat this lot?"
   ],
   "a": [
    "Both, mate. It's better AND we're old. Doesn't mean I'd swap my era for anything.",
    "The cars are friendlier, the racing's closer. The bravery required? Exactly the same.",
    "Relief, mostly. Then somebody pulls a move like that and I want my helmet back.",
-   "In our day the cars tried to kill you. Now the competition does. Progress, I suppose."
+   "In our day the cars tried to kill you. Now the competition does. Progress, I suppose.",
+   "Peak me would've loved trying, {comm} — and current me is very glad it's not required.",
+   "We'd cope, mate — we just would've complained more. Standard's never been higher, and that's the truth."
   ]
  },
  "racecraft": {
   "q": [
    "What actually separates the good ones from the great ones, {pundit}?",
    "You raced against genuine greats — what did they have that the rest didn't?",
-   "Talent, bravery, brains — rank them for me, {pundit}."
+   "Talent, bravery, brains — rank them for me, {pundit}.",
+   "Teach us something, {pundit} — what should the casual fan be watching that they're missing?",
+   "Racecraft masterclass, {pundit}: what wins a wheel-to-wheel fight, really?"
   ],
   "a": [
    "Patience. The great ones know which battles to lose. The good ones win every fight except the one that matters.",
    "Brains, bravery, talent — in that order. Speed's common. Judgement is rare.",
    "The greats are boring for fifty laps and untouchable for two. Watch for who's saving something.",
-   "Kristensen never looked fast. He just always, ALWAYS was. That's the difference."
+   "Kristensen never looked fast. He just always, ALWAYS was. That's the difference.",
+   "Watch the exits, not the entries, {comm} — races are won on the way OUT of corners. Always have been.",
+   "The fight's won two corners before the pass, {comm} — position, patience, then pounce. In that order."
   ]
  },
  "nerves": {
   "q": [
    "Do these drivers feel the pressure the way we did, {pundit}?",
    "What's going through the leader's head right now, honestly?",
-   "Can you actually think out there, {pundit}, or is it all instinct at that speed?"
+   "Can you actually think out there, {pundit}, or is it all instinct at that speed?",
+   "Did nerves ever get to you before the big ones, {pundit}, or is that all myth?",
+   "The drivers all say they're calm, {pundit}. On a scale of one to fibbing, how calm are they really?"
   ],
   "a": [
    "The pressure never changes, mate. The helmet just hides it better on some than others.",
    "Honestly? Nothing. The moment you start thinking about leading is the moment you stop.",
    "You think between corners, never in them. The corners belong to your hands.",
-   "Everyone's scared. The fast ones just file it somewhere useful."
+   "Everyone's scared. The fast ones just file it somewhere useful.",
+   "Anyone who says they weren't nervous is lying or wasn't trying, {comm}. The trick is making nerves pay rent.",
+   "Calm on the radio, heart doing 190 in the chest, {comm} — I promise you that from experience."
   ]
  },
  "booth": {
   "q": [
    "Settle something for me, {pundit} — your best lap against my best lap, right here, right now. Who wins?",
    "Remind me, {pundit} — how many world championships did the analysis desk win this year?",
-   "You're very quiet over there, {pundit} — dreaming of a comeback, or just resting your eyes?"
+   "You're very quiet over there, {pundit} — dreaming of a comeback, or just resting your eyes?",
+   "I've seen your old onboards, {pundit} — was the steering wheel scared of you, or were you scared of it?",
+   "Producer says one of us is getting replaced by highlights, {pundit}. I've nominated you.",
+   "{pundit}, viewers are asking if that famous overtake of yours was skill or the other bloke's lunch break."
   ],
   "a": [
    "Right here right now? Me, mate — my licence expired years ago, so I've got nothing to lose.",
    "Same number as the commentary chair, {comm}. Shall we get back to the actual racing?",
    "Resting my eyes was Thursday. This is tactical silence — one of us has to sound intelligent.",
-   "One more crack like that and I'm telling everyone about your karting comeback. The GRAVEL remembers, {comm}."
+   "One more crack like that and I'm telling everyone about your karting comeback. The GRAVEL remembers, {comm}.",
+   "My onboards are art films, {comm} — misunderstood in their time, priceless later.",
+   "Bold words from a man whose greatest lap has a director's commentary of excuses, {comm}.",
+   "Skill, {comm}. The lunch break was YOURS, if I remember the timing screens correctly."
   ]
  }
 }

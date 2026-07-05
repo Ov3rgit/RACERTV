@@ -59,9 +59,13 @@ JOKER, ROOKIE, VILLAIN) live in the PERSONAS dict - add your own lines freely.
 CONTROLS (work even though clicks pass through to the game)
 ----------------------------------------------------------
   Click "● OVERLAY"  hide / show the overlay
-  Ctrl + Shift + O   hide / show the overlay (toggle)
+  Ctrl + Shift + O   UI on / off — commentary-only mode: with the UI hidden
+                     the full broadcast audio (booth, engineer, driver radio)
+                     KEEPS RUNNING, so you can race with voices only
+  Ctrl + Shift + C   booth commentary on / off (Miles & Brett) — your race
+                     engineer and the driver radio stay live
   Ctrl + Shift + E   compact tower (racing) <-> full tower (replay watching)
-  Ctrl + Shift + M   mute / unmute spoken team radio (TTS)
+  Ctrl + Shift + M   mute / unmute ALL spoken audio (TTS)
   Ctrl + Shift + Q   close the overlay
 
 TEAM RADIO VOICE (TTS)

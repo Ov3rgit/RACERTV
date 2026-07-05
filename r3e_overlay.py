@@ -509,6 +509,7 @@ class Overlay:
         self._comm_pit = {}
         self._comm_key = None
         self._comm_caption = None    # {text, until} lower-third caption
+        self._toast_msg = None       # {text, until} transient hotkey feedback
         self._pron = {}              # display name -> TTS pronunciation
         self._dcolor = {}            # driver name -> assigned colour (unique-ish)
         self._dcolor_n = 0           # next colour index to hand out
@@ -742,6 +743,9 @@ class Overlay:
         o = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_O))
         if o and not self._o_prev:
             self.toggle_visible()
+            self._toast("UI ON" if self.visible
+                        else "UI HIDDEN — broadcast audio stays live"
+                             "  (Ctrl+Shift+O to restore)")
         self._o_prev = o
         e = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_E))
         if e and not self._e_prev:
@@ -749,7 +753,8 @@ class Overlay:
         self._e_prev = e
         m = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_M))
         if m and not self._m_prev and self.tts:
-            self.tts.toggle()
+            on = self.tts.toggle()
+            self._toast("ALL VOICES ON" if on else "ALL VOICES MUTED")
         self._m_prev = m
         dk = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_D))
         if dk and not self._d_prev:
@@ -758,6 +763,13 @@ class Overlay:
         ck = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_C))
         if ck and not self._c_prev:
             self.commentary_on = not self.commentary_on
+            if not self.commentary_on and self.tts:
+                # cut queued booth audio NOW (radio/engineer jobs survive) —
+                # without this the booth keeps talking for many seconds after
+                # the player asked it to shut up
+                self.tts.interrupt()
+            self._toast("BOOTH ON — Miles & Brett are back" if self.commentary_on
+                        else "BOOTH OFF — engineer & driver radio stay live")
         self._c_prev = ck
 
         found = self._lock_to_game()
@@ -803,16 +815,21 @@ class Overlay:
         # isolated: a failure in one (e.g. update_radio) must NOT abort the
         # rest of the frame, or panels drawn after it would appear frozen.
         self._used = set()
-        if self.visible and in_action and self._drivers(s):
-            stages = (("stats", self.update_stats), ("radio", self.update_radio),
-                      ("comm", self.update_commentary),
+        if in_action and self._drivers(s):
+            # UPDATE stages always run during action — hiding the UI
+            # (Ctrl+Shift+O) must NOT kill the broadcast: audio-only mode is
+            # "radio on, telly off". Only the DRAW stages are gated on visible.
+            stages = [("stats", self.update_stats), ("radio", self.update_radio),
+                      ("comm", self.update_commentary)]
+            if self.visible:
+                stages += [
                       ("header", self.draw_header), ("flags", self.draw_flags),
                       ("penalty", self.draw_penalty),
                       ("tower", self.draw_tower), ("relative", self.draw_relative),
                       ("fastest", self.draw_fastest_banner),
                       ("sectors", self.draw_sectors), ("map", self.draw_map),
                       ("bubbles", self.draw_radio), ("caption", self.draw_commentary),
-                      ("podium", self.draw_podium))
+                      ("podium", self.draw_podium)]
             for nm, fn in stages:
                 try:
                     fn(s)
@@ -824,6 +841,10 @@ class Overlay:
                 self._no_data_notice()
             except Exception:
                 pass
+        try:
+            self.draw_toast()        # hotkey feedback — shows even with UI off
+        except Exception:
+            pass
         if self.debug and self.visible:
             try:
                 self.draw_debug(s, game_running, in_action)
@@ -907,7 +928,8 @@ class Overlay:
 
     def draw_hint(self):
         self.text(self.sw - 12, self.sh - 8,
-                  "Ctrl+Shift+O hide  ·  Ctrl+Shift+Q close",
+                  "Ctrl+Shift+O UI off (audio stays)  ·  Ctrl+Shift+C booth"
+                  "  ·  Ctrl+Shift+M mute  ·  Ctrl+Shift+Q close",
                   fill=DIM, font=self.f_sub, anchor="se")
 
     def draw_flags(self, s):
@@ -2980,8 +3002,6 @@ class Overlay:
     def update_commentary(self, s):
         """Third-person play-by-play over the WHOLE field. Reuses the per-tick
         stats (places, intervals, fastest lap) the overlay already computes."""
-        if not self.commentary_on:
-            return
         now = time.time()
         if self._comm_key != self._sess_key:           # reset on new session
             self._comm_key = self._sess_key
@@ -3019,6 +3039,12 @@ class Overlay:
             self._filler_until = 0.0    # est. time a colour/filler line finishes
             self._comm_qpole = None     # slot on provisional pole (time-true)
 
+        # booth muted (Ctrl+Shift+C) — AFTER the session reset above, so flags
+        # can't go stale across a session change while the booth is off (the
+        # old early-return woke the booth up still "signed off" from the
+        # previous race). Engineer/driver radio are unaffected.
+        if not self.commentary_on:
+            return
         # once the booth has signed off (after the post-race wrap), the broadcast
         # is OVER — produce no further commentary. The queued wrap still plays out.
         if getattr(self, "_signed_off", False):
@@ -4728,6 +4754,24 @@ class Overlay:
             return "in " + {1: "the opening sector", 2: "the middle sector",
                             3: "the final sector"}[sec]
         return ""
+
+    def _toast(self, text, hold=3.5):
+        """Transient hotkey feedback ('BOOTH OFF', 'UI HIDDEN…'). Drawn every
+        tick regardless of UI visibility, so a toggle is never a leap of
+        faith when the panels are hidden."""
+        self._toast_msg = {"text": text, "until": time.time() + hold}
+
+    def draw_toast(self):
+        t = self._toast_msg
+        if not t or time.time() >= t["until"]:
+            return
+        w = 16 + max(280, self.f_row_b.measure(t["text"]) + 32)
+        x = (self.sw - w) // 2
+        y = 40
+        self._begin_panel("toast", x, y, w, 34)
+        self._card(x, y, w, 34, fill=CARD_BG2, accent=HEADER_ACCENT, side="left")
+        self.text(x + w // 2, y + 17, t["text"], fill=TEXT,
+                  font=self.f_row_b, anchor="center")
 
     def _show_caption(self, text, persona="COMMENTATOR"):
         """Set the lower-third caption (called when audio actually starts, so it

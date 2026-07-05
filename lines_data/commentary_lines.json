@@ -543,7 +543,10 @@
   "Less than a second now — {drv} right on the limit, closing fast on {oth} for P{pos}!",
   "What a run this is from {drv} — systematically pulling {oth} back for P{pos}!",
   "{drv} is making the gap look like a suggestion — closing on {oth} for P{pos}!",
-  "{oth} has to find something extra — {drv} is relentless in pursuit of P{pos}!"
+  "{oth} has to find something extra — {drv} is relentless in pursuit of P{pos}!",
+  "{drv} smells blood — that gap to {oth} is evaporating!",
+  "Lap after lap {drv} takes another bite out of {oth}'s cushion — this is coming to a head!",
+  "The hunt is on — {drv} has {oth} in sight and the pace to do something about it!"
  ],
  "pulling_away": [
   "{drv} is stretching the legs out front — {gap} the lead now.",
@@ -664,7 +667,10 @@
   "A close-fought, hotly contested battle in the midfield — {drv} versus {oth}, P{pos} up for grabs!",
   "They're going to touch if this keeps up — {drv} and {oth} are THAT close for P{pos}!",
   "The midfield is no place for the faint-hearted — {drv} and {oth} proving that for P{pos}!",
-  "Inch-perfect racing in the pack — {drv} on {oth}, P{pos} the only thing that matters!"
+  "Inch-perfect racing in the pack — {drv} on {oth}, P{pos} the only thing that matters!",
+  "There's a proper dust-up for P{pos} — {drv} versus {oth}, no quarter given!",
+  "The battle for P{pos} is the best show on track — {drv} hunting {oth} down!",
+  "Forget the front — {drv} and {oth} are putting on a clinic for P{pos}!"
  ],
  "driverstory_q": [
   "So {pundit}, how's {drv}'s race panned out?",
@@ -730,7 +736,13 @@
   "{pundit}, hand on heart — how many of these corners at {trk} would you still take flat?",
   "What's harder, {pundit} — twenty-four hours of concentration, or twenty minutes of this kind of madness?",
   "{pundit}, you always said endurance racing is chess at three hundred k's. So what's this then?",
-  "Talk to me about fear, {pundit} — where does it live around a place like {trk}?"
+  "Talk to me about fear, {pundit} — where does it live around a place like {trk}?",
+  "You raced everyone from Kristensen to Alonso at La Sarthe, {pundit} — who would've loved {trk}?",
+  "Of all the endurance greats — Biela, Capello, Lotterer — whose style suits {trk} best, {pundit}?",
+  "Give us a Le Mans story, {pundit} — something {trk} brings back.",
+  "Night stints, fog, traffic — after all that, {pundit}, does a sprint round {trk} even scare you?",
+  "You shared podiums with the Audi and Porsche legends, {pundit}. Anyone out there at {trk} built the same way?",
+  "Two decades of prototypes, {pundit} — what's the one habit from Le Mans this {trk} field should steal?"
  ],
  "lore_a": [
   "{trk}? I raced sportscars at places like this in my Le Mans years — wheel to wheel with Tom Kristensen more times than I can count. Endurance teaches patience, and that wins here too.",
@@ -748,7 +760,25 @@
   "Honestly? The me of twenty years ago would've had a go. The me of today is very happy up here with a coffee.",
   "Allan McNish crashed at Le Mans and walked into the garage apologising to the SANDWICHES. Endurance drivers are not normal people, {comm}.",
   "You drive the night stints on instinct and the day stints on ego. A track like {trk} asks for both at once.",
-  "Who'd love this scrap? Lotterer. He'd already be in the middle of it, and he'd be smiling."
+  "Who'd love this scrap? Lotterer. He'd already be in the middle of it, and he'd be smiling.",
+  "Frank Biela was the tidiest driver I ever shared a garage with — every stint identical to the tenth. {trk} rewards exactly that kind of boring brilliance.",
+  "Yannick Dalmas won Le Mans in four different cars. Adaptability, mate. A circuit like {trk} asks the same question every lap and Yannick always had a new answer.",
+  "Dindo Capello in the wet at dusk was the best thing I ever saw from a cockpit. If it rains at {trk} today, watch who keeps their shoulders relaxed — that was Dindo's tell.",
+  "I did a triple stint against Marco Werner once — three hours nose to tail. You learn a man's character like that. {trk} in traffic teaches the same lessons faster.",
+  "Timo Bernhard and I banged wheels at the Nürburgring 24 and shook hands after. Hard but fair — the sportscar way. There's racing at {trk} today that reminds me of it.",
+  "Romain Dumas can drive anything with wheels — prototypes, GTs, up Pikes Peak. Versatility like that shows at a place like {trk}, where the grip never stays the same two laps running.",
+  "Mark Webber came to us from F1 and the first thing he said was 'the traffic is terrifying.' He wasn't wrong. Managing slower cars at {trk} is a skill all of its own.",
+  "Brendon Hartley — relentless. Every lap a qualifying lap. I told him to save something once and he just went faster. Some drivers here at {trk} have that same disease. It's glorious.",
+  "Sébastien Buemi is the most complete endurance driver of his generation, and he'd still find something at {trk} to be unhappy about. The great ones are never satisfied.",
+  "Anthony Davidson could tell you the tyre pressures from the driver's seat to a tenth of a psi. Feel like that is what separates the top three at a place like {trk}.",
+  "Kazuki Nakajima cried on the radio when Toyota finally won Le Mans. Don't let anyone tell you racing drivers don't feel it. Somebody at {trk} today will carry this result for years.",
+  "I raced against Fernando Alonso when he came to Le Mans — two world titles and he still did every debrief like a rookie. Homework wins races, at La Sarthe and at {trk}.",
+  "Kamui Kobayashi's pole lap at Le Mans in twenty-seventeen is the single greatest lap I've ever witnessed. When someone hooks it all up at {trk} today, you'll know the feeling.",
+  "Nick Tandy and Earl Bamber won Le Mans in the third Porsche nobody rated. Never count out the quiet crew at the back of the garage — same applies to this field at {trk}.",
+  "André Lotterer used to race in Japan all week and Le Mans at the weekend. Racing fitness is real fitness — the last ten laps at {trk} will show you who has it.",
+  "Alex Wurz is the tallest man ever to fit in a prototype and still one of the smoothest. Adaptation, mate — {trk} punishes drivers who insist the car come to them.",
+  "Tom Kristensen won Le Mans nine times, and the thing nobody mentions? He was quickest in the WET at four in the morning. Conditions find out everybody eventually — {trk} included.",
+  "Allan McNish crashed at a hundred and fifty at Le Mans and was back in the paddock signing autographs an hour later. Bravery is standard issue in this sport — remember that watching {trk} today."
  ],
  "lore_q_rally": [
   "{comm}, you were World Champion before you ever went rallying — bet you saw a few things at a place like {trk}?",
@@ -761,7 +791,13 @@
   "You raced wheel to wheel with Schumacher, {comm}. Does anything on this grid remind you of him?",
   "{comm}, what did rallying teach you that Formula One never could?",
   "Grand Prix winner, rally podiums — and now you're stuck in a box with me, {comm}. Career going well?",
-  "Honestly {comm}, at a circuit like {trk} — do your hands still twitch when they go through the fast stuff?"
+  "Honestly {comm}, at a circuit like {trk} — do your hands still twitch when they go through the fast stuff?",
+  "You shared circuits with Senna and Prost, {comm}, then forests with McRae and Burns. Which world was harder on the nerves?",
+  "Between an F1 title fight and a rally stage in the dark, {comm} — where does a place like {trk} sit?",
+  "Name-drop time, {comm}: of all the greats you raced, who'd love {trk} the most?",
+  "You've seen Mansell's elbows and Loeb's precision up close, {comm}. Which one wins around {trk}?",
+  "Be honest, {comm} — does anyone out there today remind you of the drivers from your title year?",
+  "From Monaco garages to Finnish forests, {comm} — what's the one lesson that carried over to a track like {trk}?"
  ],
  "lore_a_rally": [
   "{trk}? I won races at places like this in my Formula One days — wheel to wheel with Schumacher and Häkkinen, no lifting, no quarter. Then I went rallying and learned car control all over again!",
@@ -776,7 +812,25 @@
   "Häkkinen was the quickest thing I ever saw in the wet — until I sat next to a rally driver on a night stage. Different sport, different madness.",
   "My old car around {trk}? It'd be sideways, screaming, and probably on fire. And I'd still queue up to do it.",
   "Colin used to say 'if in doubt, flat out'. I tried it exactly once in a Grand Prix car, {pundit}. The marshals were very kind about it.",
-  "The title never changed my driving. Rallying did — it taught me the difference between brave and stupid is about half a metre."
+  "The title never changed my driving. Rallying did — it taught me the difference between brave and stupid is about half a metre.",
+  "You know who taught me about {trk}-style corners? Ayrton Senna, in the wet, in my first season. He went round my outside with two wheels on the paint and I decided I'd better learn quickly.",
+  "I spent a whole year studying Alain Prost's braking points. Never once out-braked him. Places like {trk} are won the way Alain won — by being smooth when everyone else is desperate.",
+  "Nigel Mansell once chopped me so hard at a track like {trk} I could read his tyre pressures. Hardest racer I ever met — and afterwards he bought me a cup of tea like nothing happened.",
+  "Gerhard Berger and I used to slipstream each other for fun in testing. A circuit like {trk} brings it back — you're only ever as fast as the tow you can find.",
+  "Damon Hill beat me to a win once by looking after his brakes for forty laps while I cooked mine in ten. {trk} is exactly that kind of examination.",
+  "Jacques Villeneuve would take a place like {trk} in one big slide and grin about it. I preferred tidy. Both work — that's the beauty of this sport.",
+  "I raced Jean Alesi when his car was on fire — figuratively, mostly. Commitment like that wins you {trk}, or it puts you in the barrier. With Jean you never knew which.",
+  "David Coulthard and I shared a test day once — he did four hundred kilometres without one scrappy lap. That discipline is what {trk} pays out for.",
+  "Eddie Irvine told me at a track like this, 'Second's just first loser.' Then he finished second. Lovely fella. {trk} doesn't care about the talk, only the stopwatch.",
+  "When I went rallying, Colin McRae drove me on a recce. I got out shaking. 'If in doubt, flat out' isn't a slogan, it's how the man actually lived — and a bit of that works round {trk} too.",
+  "Carlos Sainz senior taught me pace notes. The discipline of it — knowing every metre before you arrive — I wish I'd had that in my F1 years at circuits like {trk}.",
+  "Tommi Mäkinen four titles on the trot — I saw the work behind it. Nobody at {trk} today works harder than that man worked, and it shows you what it takes.",
+  "Richard Burns was the most precise driver I ever sat alongside — surgical. A lap of {trk} driven the Burns way would be worth the ticket alone.",
+  "Marcus Grönholm once told me flat in Finnish means something different. Having ridden with him, I believe it. {trk} flat-out is a kindergarten by comparison!",
+  "I did one event against a young Sébastien Loeb and knew immediately the rest of us were racing for second. Greatness is obvious early — watch for it out there at {trk} today.",
+  "Juha Kankkunen said 'the second gear corner is where champions are made.' Every track has one — {trk}'s is coming up more than once this race, mark my words.",
+  "My title year I had Michael Schumacher behind me for thirty laps somewhere like {trk}. Thirty laps of mirrors. I still check them in my road car.",
+  "Mika Häkkinen never said much, but at a circuit like {trk} his car did the talking — one clean move, done, gone. That's the standard I judge these drivers by."
  ],
  "stat": [
   "{p1} leads {p2} by {gap} at the front.",
@@ -793,7 +847,10 @@
   "The numbers tell the story — {gap} between the top two.",
   "{drv} has clawed back to within {gap} of {oth}.",
   "Quickest of all out there: {drv}, with a {time}.",
-  "That gap of {gap} is the difference between P{pos} and the place behind."
+  "That gap of {gap} is the difference between P{pos} and the place behind.",
+  "{drv} has been in P{pos} for most of the race — consistency personified.",
+  "The gap from the lead back to {p2}: {gap}. This race is far from settled.",
+  "Sector times say {drv} is the fastest car on track right now."
  ],
  "praise": [
   "Watch {drv} here — beautifully smooth, looking after the tyres a treat.",
@@ -844,7 +901,13 @@
   "Not a tenth wasted, not a centimetre wasted — {drv} is in the flow.",
   "{drv} making those tyres last an eternity — the softs still alive and well.",
   "What a performance — {drv} is one of the best drivers on this grid and showing it.",
-  "The body language of the car tells you everything — {drv} completely in control."
+  "The body language of the car tells you everything — {drv} completely in control.",
+  "That's a proper lap from {drv} — every apex kissed, nothing wasted.",
+  "{drv} is doing this the old-fashioned way — pace, patience and precision.",
+  "Quietly world-class from {drv} today, the kind of drive purists love.",
+  "Someone show this onboard from {drv} in every academy — that's how it's done.",
+  "{drv} has found a rhythm the rest can only envy right now.",
+  "Barely a wheel out of place all race from {drv} — masterful stuff."
  ],
  "praise_led": [
   "{drv} showing exactly why they led earlier — back in magnificent form.",
@@ -890,7 +953,11 @@
   "Invisible in the best possible way — {drv} getting the most from P{pos}.",
   "{drv} in P{pos} — the kind of drive that gets forgotten but deserves credit.",
   "{drv} at P{pos} — not the star, but not the story either. Solid.",
-  "In the thick of the midfield, {drv} is handling P{pos} with quiet professionalism."
+  "In the thick of the midfield, {drv} is handling P{pos} with quiet professionalism.",
+  "{drv} is winning the race nobody televises — the midfield scrap for P{pos}.",
+  "Solid points pace from {drv} in P{pos} — races are built on days like this.",
+  "{drv} grinding out the laps in P{pos} — unglamorous, invaluable.",
+  "No headlines for {drv} in P{pos}, but the team will love this discipline."
  ],
  "midpack_recovery": [
   "{drv} still fighting back — P{pos} now after the earlier drama, and moving forward.",
