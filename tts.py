@@ -300,6 +300,13 @@ class Tts:
         self._start_sapi()
         self._stings = {}          # (persona, group) -> [cached wav paths]
         self._topics = {}          # topic -> pending count (dedup, see speak())
+        self._answer_due = 0.0     # an exchange ANSWER is mid-render until this:
+                                   # the play loop defers other jobs so nothing
+                                   # (engineer included) wedges between a booth
+                                   # question and its reply
+        self.on_line_end = None    # optional hook(text, persona) fired when a
+                                   # line FINISHES playing — the overlay uses it
+                                   # to drop the caption in sync with the audio
         threading.Thread(target=self._gen_loop, daemon=True).start()
         threading.Thread(target=self._play_loop, daemon=True).start()
         threading.Thread(target=self._build_stings, daemon=True).start()
@@ -318,6 +325,7 @@ class Tts:
         Only booth commentary is play-by-play and stale after a cut; radio
         lines still make sense a few seconds later (their TTL still applies)."""
         self._epoch += 1
+        self._answer_due = 0.0             # purged exchange can't be waited on
         if not keep_engineer:
             self._eng_epoch = self._epoch
         kept = []
@@ -358,7 +366,18 @@ class Tts:
         else. The sequence counter keeps FIFO order within each class."""
         if prio is None:
             prio = 0 if persona == "ENGINEER" else 1
+        if prio < 0 and q is self.play_q:
+            self._answer_due = 0.0     # the awaited answer is ready to air
         q.put((prio, next(self._seq), payload))
+
+    def expect_answer(self, within=8.0):
+        """A booth exchange answer is being rendered: hold every prio>=0 job
+        at the play stage until it lands (or the window expires). Priority
+        alone couldn't do this — the engineer's ALREADY-rendered line was
+        popped the instant the question's audio ended, while the answer was
+        still seconds away in edge-tts ('question -> engineer gap call ->
+        answer' broke the conversation)."""
+        self._answer_due = time.time() + within
 
     def _next_wav(self):
         # plenty of unique names so a force-queued burst can never overwrite a
@@ -493,7 +512,10 @@ class Tts:
         # `force` is only for scripted sequences (finish wrap / crosstalk reply)
         # that must complete intact.
         if not force and persona in CLEAN_PERSONAS:
-            cap = 3 if urgent else 2
+            # one slot more headroom than before ("we need a bit more
+            # commentary") — the stale-number risk this used to carry is now
+            # handled by the short TTL on any line that quotes a figure
+            cap = 4 if urgent else 3
             if self._pending() >= cap:
                 _log(f"speak DROP-busy persona={persona} urgent={urgent} "
                      f"pending={self._pending()}")
@@ -539,6 +561,12 @@ class Tts:
             _prio, _seq, job = self.play_q.get()
             if job is None:
                 break
+            # an exchange answer is still rendering — defer everything else so
+            # the reply airs right after its question (see expect_answer)
+            if _prio >= 0 and time.time() < self._answer_due:
+                self.play_q.put((_prio, _seq, job))
+                time.sleep(0.12)
+                continue
             wav, on_play, text, persona, epoch, deadline, topic, _prio = job
             # stale (an interrupt happened after this was rendered, or the line
             # outlived its TTL waiting in the queue — e.g. "5 minutes remaining"
@@ -573,6 +601,11 @@ class Tts:
                 self._speaking = False
                 self._speaking_persona = None
                 self._topic_done(topic)
+                try:
+                    if self.on_line_end:
+                        self.on_line_end(text, persona)   # caption end-sync
+                except Exception:
+                    pass
                 try:
                     os.remove(wav)
                 except Exception:

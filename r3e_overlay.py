@@ -475,6 +475,10 @@ class Overlay:
         try:
             import tts as _tts
             self.tts = _tts.Tts()
+            # drop the lower-third the moment its audio finishes (plus a short
+            # linger) — the length-estimated hold could outlive the voice by
+            # seconds, which read as "captions out of sync with the audio"
+            self.tts.on_line_end = self._caption_line_end
         except Exception:
             self.tts = None
         self._m_prev = False
@@ -499,7 +503,7 @@ class Overlay:
         # play-by-play commentary (Ctrl+Shift+C toggles it)
         self.commentary_on = True
         self._c_prev = False
-        self.COMMENTARY_CD = 5.0     # min seconds between commentary lines (the
+        self.COMMENTARY_CD = 4.0     # min seconds between commentary lines (the
                                      # "breather" — keeps the booth lively but not
                                      # a wall of noise; incidents bypass this)
         self._comm_prev = {}         # slot -> place (own change tracker)
@@ -849,7 +853,7 @@ class Overlay:
         elif self.visible and in_action:
             try:
                 self.draw_header(s)
-                self._no_data_notice()
+                self._no_data_notice(s)
             except Exception:
                 pass
         try:
@@ -892,13 +896,22 @@ class Overlay:
         return (s.game_in_menus != 1 and s.game_player_in_garage != 1
                 and s.session_phase in (3, 4, 5, 6))
 
-    def _no_data_notice(self):
+    def _no_data_notice(self, s=None):
         w = 470
         x = (self.sw - w) // 2
         y = 96
+        # diagnostic counts so a stuck notice is reportable ("feed 24 / shown
+        # 0" = our filters ate the field; "feed 0" = the game isn't streaming)
+        diag = ""
+        if s is not None:
+            try:
+                raw = sum(1 for d in s.all_drivers_data_1 if d.place > 0)
+                diag = f"   (feed {raw} / shown {len(self._drivers(s))})"
+            except Exception:
+                pass
         self._begin_panel("notice", x, y, w, 50)
         self.panel(x, y, w, 50)
-        self.text(x + 16, y + 14, "Waiting for replay data…",
+        self.text(x + 16, y + 14, "Waiting for replay data…" + diag,
                   fill=ACCENT, font=self.f_hdr, anchor="w")
         self.text(x + 16, y + 36,
                   "Press PLAY — RaceRoom only streams the field while the "
@@ -1129,8 +1142,29 @@ class Overlay:
         # booth/radio stop talking about it. DNF/DQ are handled in _drivers. Scans
         # the RAW array so a car that recovers can un-freeze and return.
         now = time.time()
-        green = (s.session_type == 2 and self._racing)
+        # the freeze rule NEVER applies in replays: pausing/scrubbing freezes
+        # every car at once, they all got flagged 'gone', and the broadcast
+        # went dark ("waiting for replay data" that never cleared)
+        green = (s.session_type == 2 and self._racing
+                 and s.game_in_replay != 1)
         vslot = s.vehicle_info.slot_id
+        # FOCUS CHANGE (replay camera hop / spectate switch): every "player"
+        # telemetry field (lap-valid, cut counter, penalty state) suddenly
+        # describes a DIFFERENT car — reseed the edge trackers without firing,
+        # or each camera hop sprays phantom "track limits" / off-track calls.
+        if getattr(self, "_focus_prev", None) != vslot:
+            self._focus_prev = vslot
+            self._q_off_lv = s.current_lap_valid
+            self._q_off_watch = None
+            self._q_lvs = getattr(s, "lap_valid_state", -1)
+            self._q_cuts = max(0, s.cut_track_warnings)
+            self._eng_cuts = max(0, s.cut_track_warnings)
+            self._eng_plv = s.current_lap_valid
+            self._eng_lvs = getattr(s, "lap_valid_state", -1)
+            self._eng_off_watch = None
+            self._eng_pen = -1
+            self._pen_lvs = getattr(s, "lap_valid_state", -1)
+            self._pen_lvs_at = 0.0
         # learn the track's corner positions from the player's speed trace (all
         # sessions, so practice/quali laps feed the race) — used to place overtakes
         try:
@@ -1289,6 +1323,19 @@ class Overlay:
             self.cum_gap[slot] = g if g >= 0 else 0.0
             self.interval[slot] = ((prog(prev_car) - p) * ref
                                    if prev_car is not None else 0.0)
+            # LIVE sessions: the game computes real inter-car time deltas —
+            # trust them over our track-position estimate. The estimate drifts
+            # with the median-lap conversion (tower said 3.0s while the
+            # engineer's line said 'right behind' — every consumer reads this
+            # map, so the whole broadcast inherited the error). Replays keep
+            # the estimate: the delta fields are garbage there (huge/NaN).
+            if s.game_in_replay != 1 and prev_car is not None:
+                tdf = d.time_delta_front
+                # 0.0 doubles as "no data" (and -1 = N/A) — keep the estimate
+                # then; a real dead-heat gap of 0.005s is indistinguishable
+                # from unset and the estimate handles it fine
+                if 0.005 < tdf < 600.0:
+                    self.interval[slot] = tdf
             prev_car = d
 
             # fastest lap: when a car completes a lap, its last lap = sum of
@@ -1323,6 +1370,17 @@ class Overlay:
                         if first:
                             self._q_events.append((slot, "first", lap))
             self.last_laps[slot] = d.completed_laps
+
+        # rebuild gap-to-leader as the running sum of the (game-authoritative,
+        # where live) intervals so the tower, relative panel and radio all
+        # quote the SAME numbers
+        if s.game_in_replay != 1:
+            run = 0.0
+            for d in order:
+                run += max(0.0, self.interval.get(d.driver_info.slot_id, 0.0))
+                self.cum_gap[d.driver_info.slot_id] = run
+            if order:
+                self.cum_gap[order[0].driver_info.slot_id] = 0.0
 
         # PLAYER off-track in PRACTICE / QUALIFYING — the race off-track call is
         # handled by the incident system in update_commentary, but in non-race
@@ -2950,7 +3008,12 @@ class Overlay:
                 if persona == "ENGINEER" or self.tts._pending() < 2:
                     say_text = (spoken_text if spoken_text is not None
                                 else self._spoken(txt))
-                    self.tts.speak(say_text, persona, seed=nm,
+                    # a line quoting a FIGURE (gap, position, seconds) dates in
+                    # moments — "1.7 seconds behind" aired 15s late reads as
+                    # wrong data, not late radio. Short TTL for those; plain
+                    # colour keeps the relaxed radio TTL.
+                    _ttl = (9.0 if any(c.isdigit() for c in say_text) else None)
+                    self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
                                    on_play=lambda t, p, _m=msg: self._air_bubble(_m))
                     spoke = "spoke"
                 else:
@@ -4247,6 +4310,11 @@ class Overlay:
             if followups:
                 def _onp(t, p, _f=tuple(followups)):
                     self._show_caption(t, p)     # runs on the TTS play thread
+                    # hold the play stage for the reply that's about to render:
+                    # priority alone couldn't stop an already-rendered engineer
+                    # line airing in the gap between question and answer.
+                    # (getattr: the headless test harness's FakeTts predates it)
+                    getattr(self.tts, "expect_answer", lambda: None)()
                     for ftxt, fper, finten, ffor in _f:
                         # exchange=True: the reply outranks even the engineer in
                         # the pipeline, so nothing can wedge between a question
@@ -4260,8 +4328,14 @@ class Overlay:
                                        exchange=ffor)
             else:
                 _onp = self._show_caption
+            # booth lines quoting figures date fastest of all — tighten their
+            # TTL so a "gap is 1.0 seconds" can never air half a race late
+            # (never for signature/scripted lines: those must complete)
+            _ttl = (8.0 if (not signature and any(c.isdigit() for c in spoken))
+                    else None)
             self.tts.speak(spoken, persona, seed=seed, intensity=inten,
-                           on_play=_onp, urgent=urgent, force=signature)
+                           on_play=_onp, urgent=urgent, force=signature,
+                           ttl=_ttl)
             # remember roughly when a colour/filler line will finish, so a live
             # call arriving during it can interrupt (above)
             if not urgent:
@@ -4898,6 +4972,14 @@ class Overlay:
         hold = max(4.5, min(12.0, len(text) * 0.055 + 2.0))
         self._comm_caption = {"text": text, "persona": persona,
                               "until": time.time() + hold}
+
+    def _caption_line_end(self, text, persona):
+        """TTS play thread: a line just finished playing. If the lower-third
+        still shows it, let it linger only briefly — the length-estimated hold
+        was regularly outliving the audio, which looked like caption desync."""
+        cap = self._comm_caption
+        if cap and cap.get("text") == text:
+            cap["until"] = min(cap["until"], time.time() + 1.2)
 
     def _air_bubble(self, msg):
         """Put a team-radio bubble on screen the instant its audio starts, so
