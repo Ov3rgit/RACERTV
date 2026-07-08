@@ -268,6 +268,7 @@ PLACE_CONFIRM_TICKS = 6  # a position must hold this many ticks (~300ms) before
 VK_CONTROL, VK_SHIFT, VK_Q, VK_O, VK_E, VK_M = 0x11, 0x10, 0x51, 0x4F, 0x45, 0x4D
 VK_D = 0x44
 VK_C = 0x43
+VK_R = 0x52
 VK_LBUTTON = 0x01
 
 
@@ -338,12 +339,13 @@ class _Panel:
         except Exception:
             pass
 
-    # fade state: every panel eases its window alpha toward `target` each tick
-    # (animate() below) — panels FADE in on first draw and FADE out when
-    # unused instead of popping. Uses the per-window -alpha, which combines
-    # fine with the chroma key on Windows.
+    # fade state. Only the TRANSIENT cards fade (fade=True, set in _begin_panel):
+    # fading the persistent HUD chrome every frame made the layered/chroma-keyed
+    # windows flicker ("glitchy"), so the tower/header/etc. snap straight to full
+    # opacity and only the caption/radio/toast/podium cards ease in and out.
     alpha = 0.0
     target = 0.0
+    fade = False
 
     def place(self, x, y, w, h):
         w, h = max(1, int(w)), max(1, int(h))
@@ -356,9 +358,11 @@ class _Panel:
         self.cv.delete("all")
         self.target = WIN_ALPHA
         if not self.shown:
-            self.alpha = 0.0
+            # start part-way in (skip the flickery near-zero range) unless this
+            # panel fades; non-fade panels open straight at full opacity
+            self.alpha = 0.55 * WIN_ALPHA if self.fade else WIN_ALPHA
             try:
-                self.win.attributes("-alpha", 0.0)
+                self.win.attributes("-alpha", self.alpha)
             except Exception:
                 pass
             self.win.deiconify()
@@ -369,14 +373,20 @@ class _Panel:
         return self.cv
 
     def hide(self):
-        self.target = 0.0            # fade out; animate() withdraws at ~0
+        self.target = 0.0            # animate() eases (fade) or withdraws now
 
     def animate(self):
         """One easing step per tick. Withdraws the window once faded out."""
         if not self.shown and self.alpha <= 0.0:
             return
-        a = self.alpha + (self.target - self.alpha) * 0.45
-        if abs(a - self.target) < 0.03:
+        if not self.fade:            # HUD chrome: no per-frame alpha churn
+            if self.target <= 0.0 and self.shown:
+                self.win.withdraw()
+                self.shown = False
+            return
+        # fast, smooth ease (~2-3 frames) — slow easing read as sluggish
+        a = self.alpha + (self.target - self.alpha) * 0.55
+        if abs(a - self.target) < 0.08:
             a = self.target
         if a != self.alpha:
             self.alpha = a
@@ -384,7 +394,7 @@ class _Panel:
                 self.win.attributes("-alpha", a)
             except Exception:
                 pass
-        if self.shown and a <= 0.0:
+        if self.shown and a <= 0.02:
             self.win.withdraw()
             self.shown = False
 
@@ -494,6 +504,8 @@ class Overlay:
         self._tts_silenced = False   # audio stopped because the game is gone
 
         # team-radio engine state
+        self.radio_on = True     # engineer + driver radio VOICE on/off (bubbles
+                                 # still show as silent tickers when off)
         self.prev_places = {}    # slot -> place last tick
         self.prev_int_focus = None
         self.radio_msgs = []     # active bubbles [{name,text,color,until}]
@@ -552,6 +564,7 @@ class Overlay:
         # play-by-play commentary (Ctrl+Shift+C toggles it)
         self.commentary_on = True
         self._c_prev = False
+        self._r_prev = False
         self.COMMENTARY_CD = 4.0     # min seconds between commentary lines (the
                                      # "breather" — keeps the booth lively but not
                                      # a wall of noise; incidents bypass this)
@@ -637,6 +650,8 @@ class Overlay:
         p = self.panels.get(name)
         if p is None:
             p = _Panel(self.root)
+            # only the transient cards ease in/out; HUD chrome snaps (no flicker)
+            p.fade = name in ("commentary", "radio", "toast", "podium")
             self.panels[name] = p
         p.place(self.game_x + lx, self.game_y + ly, w, h)
         self._used.add(name)
@@ -828,6 +843,10 @@ class Overlay:
         if ck and not self._c_prev:
             self._do_toggle_booth()
         self._c_prev = ck
+        rk = bool(key_down(VK_CONTROL) and key_down(VK_SHIFT) and key_down(VK_R))
+        if rk and not self._r_prev:
+            self._do_toggle_radio()
+        self._r_prev = rk
         # POLLED mouse click for the settings menu (and the ● OVERLAY chip).
         # The overlay windows are click-through and the game constantly
         # re-asserts itself over the z-order, so tk <Button-1> events never
@@ -1182,11 +1201,21 @@ class Overlay:
         else:
             prog = f"LAP {lead_laps + 1}"
 
-        # size the panel to fit the (truncated) title + progress, never overlap
+        # bottom-row status: a blinking LIVE (red) / REPLAY (cyan) dot + tag,
+        # then the session type. Kept on the LEFT row so it can never collide
+        # with the track name (top-left) or the lap counter (top-right).
+        is_rep = (s.game_in_replay == 1)
+        tag = "REPLAY" if is_rep else "LIVE"
+        tcol = HEADER_ACCENT if is_rep else "#ff3b3b"
+        bottom = tag + (("   " + stype) if stype else "")
+
+        # size the panel to fit BOTH rows: top (title + gap + lap) and the
+        # bottom status row (dot + tag + session), so nothing overlaps
         title = track[:30]
         tw = self.f_hdr.measure(title)
         pw = self.f_hdr.measure(prog)
-        w = max(420, 16 + tw + 40 + pw + 16)
+        bw = 14 + self.f_sub.measure(bottom)
+        w = max(420, 16 + max(tw, bw) + 40 + pw + 16)
         x = (self.sw - w) // 2
         self._begin_panel("header", x, 14, w, 50)
         self._card(x, 14, w, 50, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
@@ -1194,17 +1223,17 @@ class Overlay:
         for sy in range(14 + 8, 14 + 50 - 4, 3):
             self.canvas.create_line(x + 4, sy, x + w - 4, sy, fill="#070b10")
         self.text(x + 16, 29, title, fill=TEXT, font=self.f_hdr, anchor="w")
-        self.text(x + 16, 49, sub, fill=DIM, font=self.f_sub, anchor="w")
-        self.text(x + w - 16, 31, prog, fill=HEADER_ACCENT, font=self.f_hdr, anchor="e")
-        # blinking ● LIVE / ▶ REPLAY tag, retro-camcorder style (1s cycle)
-        blink = (int(time.time() * 2) % 2 == 0)
-        tag = "REPLAY" if s.game_in_replay == 1 else "LIVE"
-        tcol = HEADER_ACCENT if s.game_in_replay == 1 else "#ff3b3b"
-        if blink:
-            self.canvas.create_rectangle(x + w - 16 - self.f_sub.measure(tag) - 12,
-                                         42, x + w - 16 - self.f_sub.measure(tag) - 4,
-                                         50, fill=tcol, outline="")
-        self.text(x + w - 16, 46, tag, fill=tcol, font=self.f_sub, anchor="e")
+        self.text(x + w - 16, 31, prog, fill=HEADER_ACCENT, font=self.f_hdr,
+                  anchor="e")
+        # bottom status row (blink dot leads it), retro-camcorder 1s cycle
+        by = 48
+        if int(time.time() * 2) % 2 == 0:
+            self.canvas.create_rectangle(x + 16, by - 5, x + 23, by + 2,
+                                         fill=tcol, outline="")
+        self.text(x + 28, by, tag, fill=tcol, font=self.f_sub, anchor="w")
+        if stype:
+            self.text(x + 28 + self.f_sub.measure(tag) + 12, by, stype,
+                      fill=DIM, font=self.f_sub, anchor="w")
 
     # ---------- stats engine ----------
     def update_stats(self, s):
@@ -3079,7 +3108,12 @@ class Overlay:
             else:
                 self.driver_radio_cd[sl] = now
             spoke = "no-tts"
-            if self.tts and self.tts.enabled:
+            if self.tts and self.tts.enabled and not getattr(self, "radio_on", True):
+                # team radio muted (Ctrl+Shift+R / menu): show the card as a
+                # silent ticker, no voice — booth commentary is unaffected
+                self._air_bubble(msg)
+                spoke = "radio-muted"
+            elif self.tts and self.tts.enabled:
                 # queue has HEADROOM (at most one line ahead) -> speak it,
                 # showing the bubble when the audio actually starts (on_play)
                 # so screen matches sound. Waiting behind one booth line is
@@ -4946,6 +4980,15 @@ class Overlay:
         self._toast("BOOTH ON — Miles & Brett are back" if self.commentary_on
                     else "BOOTH OFF — engineer & driver radio stay live")
 
+    def _do_toggle_radio(self):
+        self.radio_on = not self.radio_on
+        if not self.radio_on and self.tts:
+            # silence what's queued/playing, but keep booth colour alive: purge
+            # only the non-booth jobs by cutting current radio audio
+            self.tts.interrupt()
+        self._toast("TEAM RADIO ON — engineer & drivers" if self.radio_on
+                    else "TEAM RADIO MUTED — booth stays live")
+
     def _do_toggle_mute(self):
         if not self.tts:
             return self._toast("TTS unavailable — no voices to mute")
@@ -5005,6 +5048,9 @@ class Overlay:
             ("Booth — Miles & Brett",
              "ON" if self.commentary_on else "OFF", self.commentary_on,
              self._do_toggle_booth),
+            ("Team radio — engineer + drivers",
+             "ON" if self.radio_on else "MUTED", self.radio_on,
+             self._do_toggle_radio),
             ("All voices (booth + radio)",
              "ON" if tts_on else "MUTED", tts_on,
              self._do_toggle_mute),

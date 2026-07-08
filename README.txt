@@ -68,6 +68,8 @@ CONTROLS (work even though clicks pass through to the game)
                      KEEPS RUNNING, so you can race with voices only
   Ctrl + Shift + C   booth commentary on / off (Miles & Brett) — your race
                      engineer and the driver radio stay live
+  Ctrl + Shift + R   team radio on / off (race engineer + driver radio) —
+                     the booth commentary stays live; cards still show muted
   Ctrl + Shift + E   compact tower (racing) <-> full tower (replay watching)
   Ctrl + Shift + M   mute / unmute ALL spoken audio (TTS)
   Ctrl + Shift + Q   close the overlay
