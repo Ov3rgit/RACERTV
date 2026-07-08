@@ -3176,11 +3176,10 @@ class Overlay:
         ax = x + 11
         ay = y + (h - av) // 2
         if is_eng:
-            avatars.draw_engineer(self._cv_real, ax - self._ox, ay - self._oy,
-                                  av, emotion)
+            avatars.draw_headset(self._cv_real, ax - self._ox, ay - self._oy, av)
         else:
-            avatars.draw_avatar(self._cv_real, ax - self._ox, ay - self._oy,
-                                av, emotion, col)
+            avatars.draw_helmet(self._cv_real, ax - self._ox, ay - self._oy,
+                                av, col, seed=m["name"])
         tx = ax + av + 12                     # text zone starts after the avatar
         name = m["name"][:14]
         self.text(tx, y + 17, name, fill=accent, font=self.f_row_b, anchor="w")

@@ -1,7 +1,9 @@
 """
-Code-drawn driver avatars (racing helmet + expressive face) for the overlay.
-draw_avatar(canvas, ox, oy, size, emotion, helmet_color) renders one.
-Run this file directly to preview every emotion.
+Flat vector radio icons for the overlay: a per-driver helmet silhouette
+(4 style variants, hash-assigned so it's stable across the race, tinted to
+the driver's own colour) and a white race-engineer headset.
+draw_helmet(canvas, ox, oy, size, color, seed) / draw_headset(canvas, ox, oy, size)
+Run this file directly to preview every variant.
 """
 import tkinter as tk
 
@@ -9,6 +11,8 @@ SKIN = "#e8b98c"
 DARK = "#15191e"
 WHITE = "#ffffff"
 BROW = "#3a2a1f"
+GLASS = "#dbe7f0"      # vent "cutout" ring/fill tint against the dark card bg
+VISOR_TINT = "#0a0f14"  # dark visor glass — reads as a visor, not a slit
 
 EMOTIONS = ["neutral", "happy", "smug", "angry", "worried", "sad", "shock", "fired"]
 
@@ -26,6 +30,84 @@ def _rr(c, x1, y1, x2, y2, fill, r):
     c.create_rectangle(x1, y1 + r, x2, y2 - r, fill=fill, outline=fill)
     for cx, cy in ((x1, y1), (x2 - 2 * r, y1), (x1, y2 - 2 * r), (x2 - 2 * r, y2 - 2 * r)):
         c.create_oval(cx, cy, cx + 2 * r, cy + 2 * r, fill=fill, outline=fill)
+
+
+# traced from the user's reference art (motorcycle-helmet side profile,
+# facing right: rounded dome/crown at back-upper-left, diagonal chin-guard
+# cut at front-lower-right), fractional coords 0..1, normalised to fill the
+# icon box. Visor is a shallow diagonal band; vent sits above it near the
+# crown/chin-guard shoulder.
+_SHELL = [(0.477, 0.060), (0.662, 0.074), (0.847, 0.202), (0.940, 0.372),
+          (0.824, 0.543), (0.627, 0.741), (0.396, 0.912), (0.199, 0.940),
+          (0.083, 0.770), (0.060, 0.486), (0.153, 0.230), (0.315, 0.088)]
+# a shallow LENS curve (bowed top/bottom edges via smooth=1), not a flat
+# parallelogram slit — reads as an actual visor rather than a stripe
+_VISOR = [(0.153, 0.514), (0.390, 0.440), (0.627, 0.401), (0.685, 0.543),
+          (0.454, 0.630), (0.222, 0.656)]
+_VENT = (0.766, 0.230, 0.052)          # cx, cy, r (fractional)
+
+
+def draw_helmet(c, ox, oy, s, color, seed=""):
+    """One driver radio icon: the reference helmet silhouette (rounded dome,
+    diagonal chin-guard cut, facing right) tinted to `color`, with a front
+    visor slit and a small vent. Four style variants (outline+dark-visor /
+    outline+slit / solid+ring-vent / solid+filled-vent — matching the 4
+    reference variants) are hash-picked from `seed` (the driver's name) so
+    each driver keeps the SAME variant all race, but the grid isn't a wall
+    of identical icons."""
+    variant = sum((seed or color).encode("utf-8", "ignore")) % 4
+    dark = _shade(color, 0.55)
+
+    def P(fx, fy):
+        return (ox + s * fx, oy + s * fy)
+
+    def poly(pts, **kw):
+        flat = [v for p in pts for v in P(*p)]
+        return c.create_polygon(*flat, **kw)
+
+    if variant in (0, 1):                  # outline shell
+        poly(_SHELL, fill="", outline=color, width=max(2, s * 0.055), smooth=1)
+    else:                                  # solid shell
+        poly(_SHELL, fill=color, outline=dark, width=max(1, s * 0.02), smooth=1)
+
+    if variant == 1:                       # hollow visor outline only
+        poly(_VISOR, fill="", outline=color, width=max(1, s * 0.04), smooth=1)
+    else:                                  # 0/2/3: proper dark visor glass
+        poly(_VISOR, fill=VISOR_TINT, outline="", smooth=1)
+
+    vx, vy, vr = _VENT
+    cx, cy, r = ox + s * vx, oy + s * vy, s * vr
+    if variant in (0, 1):
+        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill="",
+                      outline=color, width=max(1, s * 0.035))
+    elif variant == 2:
+        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill="",
+                      outline=GLASS, width=max(1, s * 0.035))
+    else:                                   # variant 3: filled vent
+        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill=GLASS, outline="")
+
+
+def draw_headset(c, ox, oy, s):
+    """The race-engineer icon: clean WHITE over-ear headset with a boom mic
+    (facing left, matching the driver helmets' orientation)."""
+    HP = WHITE
+
+    def P(fx, fy):
+        return (ox + s * fx, oy + s * fy)
+
+    # headband arc over the crown
+    c.create_line(*P(.12, .55), *P(.16, .16), *P(.50, .05), *P(.84, .16),
+                  *P(.88, .55), fill=HP, width=max(2, s * 0.09), smooth=1,
+                  capstyle="round")
+    # ear cups (rounded) with a dark inner cushion
+    _rr(c, *P(.02, .46), *P(.24, .82), fill=HP, r=s * 0.08)
+    _rr(c, *P(.76, .46), *P(.98, .82), fill=HP, r=s * 0.08)
+    _rr(c, *P(.06, .52), *P(.18, .76), fill=DARK, r=s * 0.05)
+    _rr(c, *P(.82, .52), *P(.94, .76), fill=DARK, r=s * 0.05)
+    # boom mic arm sweeping down to a small foam tip
+    c.create_line(*P(.10, .70), *P(.05, .86), *P(.30, .90), *P(.42, .80),
+                  fill=HP, width=max(2, s * 0.06), smooth=1, capstyle="round")
+    c.create_oval(*P(.36, .82), *P(.48, .94), fill=HP, outline="")
 
 
 def draw_avatar(c, ox, oy, s, emotion="neutral", helmet="#e23b3b"):
@@ -298,38 +380,29 @@ if __name__ == "__main__":
     root.overrideredirect(True)
     root.attributes("-topmost", True)
     root.configure(bg="#0c1014")
-    W, H = 8 * 96 + 20, 415
+    W, H = 8 * 96 + 20, 300
     sw = root.winfo_screenwidth()
     root.geometry(f"{W}x{H}+{(sw - W) // 2}+120")
     cv = tk.Canvas(root, width=W, height=H, bg="#0c1014", highlightthickness=0)
     cv.pack()
-    helmets = ["#e23b3b", "#36a3ff", "#ffd23f", "#54e36a"]
-    for i, emo in enumerate(EMOTIONS):
-        x = 16 + i * 96
-        draw_avatar(cv, x, 16, 80, emo, helmets[i % len(helmets)])
-        cv.create_text(x + 40, 120, text=emo.upper(), fill="#f2f4f7",
-                       font=("Segoe UI", 11, "bold"))
-    cv.create_text(W // 2, 150, text="Driver avatars", fill="#9aa3ad",
+    colors = ["#e23b3b", "#36a3ff", "#ffd23f", "#54e36a"]
+    cv.create_text(W // 2, 16, text="Helmet variants (large)", fill="#9aa3ad",
                    font=("Segoe UI", 12))
-    for i, emo in enumerate(EMOTIONS):           # RACE ENGINEER row
+    for i in range(4):
         x = 16 + i * 96
-        draw_engineer(cv, x, 175, 80, emo)
-        cv.create_text(x + 40, 279, text=emo.upper(), fill="#f2f4f7",
+        draw_helmet(cv, x, 30, 80, colors[i], seed=f"seed{i}")
+        cv.create_text(x + 40, 130, text=f"variant {i}", fill="#f2f4f7",
                        font=("Segoe UI", 11, "bold"))
-    cv.create_text(W // 2, 305, text="Race engineer", fill="#9aa3ad",
-                   font=("Segoe UI", 12))
-    # actual radio-bubble size (~44px) so we can check small-scale legibility
-    cv.create_text(W // 2, 326, text="At radio-bubble size (engineer vs driver):",
+    draw_headset(cv, 16 + 4 * 96, 30, 80)
+    cv.create_text(16 + 4 * 96 + 40, 130, text="engineer", fill="#f2f4f7",
+                   font=("Segoe UI", 11, "bold"))
+    cv.create_text(W // 2, 165, text="At radio-bubble size (~44px):",
                    fill="#9aa3ad", font=("Segoe UI", 10))
-    labels = ("ENGINEER", "ENGINEER", "ENGINEER", "DRIVER")
-    for i, (emo, lab) in enumerate(zip(("neutral", "happy", "worried", "neutral"),
-                                       labels)):
-        bx = W // 2 - 180 + i * 96
-        if lab == "DRIVER":
-            draw_avatar(cv, bx, 338, 44, emo, "#36a3ff")
-        else:
-            draw_engineer(cv, bx, 338, 44, emo)
-    cv.create_text(W // 2, 398, text="click anywhere to close",
+    for i in range(4):
+        bx = W // 2 - 220 + i * 96
+        draw_helmet(cv, bx, 180, 44, colors[i], seed=f"seed{i}")
+    draw_headset(cv, W // 2 - 220 + 4 * 96, 180, 44)
+    cv.create_text(W // 2, 250, text="click anywhere to close",
                    fill="#9aa3ad", font=("Segoe UI", 11))
     cv.bind("<Button-1>", lambda e: root.destroy())
 
