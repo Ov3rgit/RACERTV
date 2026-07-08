@@ -33,26 +33,29 @@ def _rr(c, x1, y1, x2, y2, fill, r):
 
 
 def draw_helmet(c, ox, oy, s, color, seed=""):
-    """One driver radio icon: a clean rounded helmet tinted to the driver's
-    colour, with a dark pill-shaped visor (a soft highlight line across it
-    reads as glass) — one consistent style per the user's approved mockup,
-    just recoloured per driver. `seed` is accepted for call-site compat but
-    no longer varies the shape (a uniform look read better than 4 variants)."""
-    dark = _shade(color, 0.62)
+    """One driver radio icon: a clean rounded helmet, FLAT-filled with the
+    driver's own assigned colour. Depth comes from a darker same-hue rim
+    outline; the visor is a darker shade of that SAME colour (not a fixed
+    neutral tint — a red car gets a dark maroon visor, a cyan car a dark
+    teal one, etc.), with a thin bright gleam derived from the visor's own
+    tone so it reads as glass. `seed` kept for call-site compat only."""
+    dark = _shade(color, 0.60)          # shell rim — depth, not a fill change
+    visor_c = _shade(color, 0.32)       # visor: darker shade of the SAME hue
+    gleam = _shade(visor_c, 3.0)        # gleam: a lighter pop of the visor's tone
+
     cx, cy = ox + s * 0.50, oy + s * 0.54
     rx, ry = s * 0.44, s * 0.40
     c.create_oval(cx - rx, cy - ry, cx + rx, cy + ry, fill=color,
-                  outline=dark, width=max(1, s * 0.025))
+                  outline=dark, width=max(2, s * 0.035))
 
-    # dark pill-shaped visor across the upper-front of the shell
+    # visor pill across the upper-front of the shell
     vw, vh = s * 0.62, s * 0.20
     vx, vy = ox + s * 0.50 - vw / 2, oy + s * 0.38 - vh / 2
-    _rr(c, vx, vy, vx + vw, vy + vh, fill=VISOR_TINT, r=vh / 2)
-    # thin highlight line so the visor reads as glass, not a flat bar
-    hi = _shade(VISOR_TINT, 3.2)
+    _rr(c, vx, vy, vx + vw, vy + vh, fill=visor_c, r=vh / 2)
+    # thin gleam line so the visor reads as glass, not a flat bar
     hy = vy + vh * 0.34
     c.create_line(vx + vh * 0.45, hy, vx + vw - vh * 0.45, hy,
-                  fill=hi, width=max(1, s * 0.03), capstyle="round")
+                  fill=gleam, width=max(1, s * 0.03), capstyle="round")
 
 
 def draw_headset(c, ox, oy, s):
