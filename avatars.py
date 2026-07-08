@@ -32,30 +32,39 @@ def _rr(c, x1, y1, x2, y2, fill, r):
         c.create_oval(cx, cy, cx + 2 * r, cy + 2 * r, fill=fill, outline=fill)
 
 
+# EXACT front-face full-face helmet, ported from the approved icon_pick mockup
+# SVG (viewBox 0..100, flattened to fractional polygon points). Domed top,
+# widest at ~40% height, tapering to a rounded chin — a real helmet, not an
+# oval. _DOME shades the upper shell, _CHIN darkens under the visor; both give
+# the flat fill some depth (the mockup used opacity, faked here with shades).
+_HELM_SHELL = [(0.5,0.08), (0.5655,0.0855), (0.6262,0.1019), (0.6814,0.1285), (0.73,0.165), (0.7711,0.2109), (0.8037,0.2656), (0.827,0.3288), (0.84,0.4), (0.8428,0.4507), (0.8436,0.4981), (0.8423,0.5427), (0.8387,0.585), (0.8329,0.6254), (0.8245,0.6644), (0.8136,0.7024), (0.8,0.74), (0.7814,0.7826), (0.7559,0.8203), (0.7244,0.8529), (0.6875,0.88), (0.6459,0.9015), (0.6003,0.9172), (0.5514,0.9268), (0.5,0.93), (0.4486,0.9268), (0.3997,0.9172), (0.3541,0.9015), (0.3125,0.88), (0.2756,0.8529), (0.2441,0.8203), (0.2186,0.7826), (0.2,0.74), (0.1864,0.7024), (0.1755,0.6644), (0.1671,0.6254), (0.1613,0.585), (0.1577,0.5427), (0.1564,0.4981), (0.1572,0.4507), (0.16,0.4), (0.173,0.3288), (0.1963,0.2656), (0.2289,0.2109), (0.27,0.165), (0.3186,0.1285), (0.3738,0.1019), (0.4345,0.0855)]
+_HELM_DOME = [(0.5,0.08), (0.5655,0.0855), (0.6262,0.1019), (0.6814,0.1285), (0.73,0.165), (0.7711,0.2109), (0.8037,0.2656), (0.827,0.3288), (0.84,0.4), (0.8431,0.4254), (0.8448,0.4492), (0.8452,0.4719), (0.8444,0.4938), (0.8424,0.5151), (0.8393,0.5364), (0.8351,0.5579), (0.83,0.58), (0.17,0.58), (0.1649,0.5579), (0.1607,0.5364), (0.1576,0.5151), (0.1556,0.4938), (0.1548,0.4719), (0.1552,0.4492), (0.1569,0.4254), (0.16,0.4), (0.173,0.3288), (0.1963,0.2656), (0.2289,0.2109), (0.27,0.165), (0.3186,0.1285), (0.3738,0.1019), (0.4345,0.0855)]
+_HELM_CHIN = [(0.5,0.84), (0.4635,0.8381), (0.4291,0.8327), (0.397,0.8237), (0.3675,0.8113), (0.3408,0.7956), (0.3172,0.7767), (0.2968,0.7548), (0.28,0.73), (0.72,0.73), (0.7032,0.7548), (0.6828,0.7767), (0.6592,0.7956), (0.6325,0.8113), (0.603,0.8237), (0.5709,0.8327), (0.5365,0.8381)]
+
+
 def draw_helmet(c, ox, oy, s, color, seed=""):
-    """One driver radio icon: a clean rounded helmet, FLAT-filled with the
-    driver's own assigned colour. Depth comes from a darker same-hue rim
-    outline; the visor is a darker shade of that SAME colour (not a fixed
-    neutral tint — a red car gets a dark maroon visor, a cyan car a dark
-    teal one, etc.), with a thin bright gleam derived from the visor's own
-    tone so it reads as glass. `seed` kept for call-site compat only."""
-    dark = _shade(color, 0.60)          # shell rim — depth, not a fill change
-    visor_c = _shade(color, 0.32)       # visor: darker shade of the SAME hue
-    gleam = _shade(visor_c, 3.0)        # gleam: a lighter pop of the visor's tone
+    """One driver radio icon: the approved front-face full-face helmet,
+    FLAT-filled with the driver's own assigned colour. A darker same-hue
+    shade gives the visor + shell depth; a lighter tint of the colour is a
+    thin gleam that sells the glass. `seed` kept for call-site compat only."""
+    dark = _shade(color, 0.58)          # visor / rim — darker SAME hue
+    dome = _shade(color, 0.88)          # upper-shell shading (fakes the .28 SVG)
+    chin = _shade(color, 0.80)          # under-visor shading (fakes the .5 SVG)
+    gleam = _shade(color, 1.5)          # lighter pop of the driver colour
 
-    cx, cy = ox + s * 0.50, oy + s * 0.54
-    rx, ry = s * 0.44, s * 0.40
-    c.create_oval(cx - rx, cy - ry, cx + rx, cy + ry, fill=color,
-                  outline=dark, width=max(2, s * 0.035))
+    def poly(pts, **kw):
+        flat = [v for p in pts for v in (ox + s * p[0], oy + s * p[1])]
+        return c.create_polygon(*flat, **kw)
 
-    # visor pill across the upper-front of the shell
-    vw, vh = s * 0.62, s * 0.20
-    vx, vy = ox + s * 0.50 - vw / 2, oy + s * 0.38 - vh / 2
-    _rr(c, vx, vy, vx + vw, vy + vh, fill=visor_c, r=vh / 2)
-    # thin gleam line so the visor reads as glass, not a flat bar
-    hy = vy + vh * 0.34
-    c.create_line(vx + vh * 0.45, hy, vx + vw - vh * 0.45, hy,
-                  fill=gleam, width=max(1, s * 0.03), capstyle="round")
+    poly(_HELM_SHELL, fill=color, outline=dark, width=max(1, s * 0.02))
+    poly(_HELM_DOME, fill=dome, outline="")          # domed top sheen
+    poly(_HELM_CHIN, fill=chin, outline="")          # chin shadow
+    # wide visor band (rounded rect) across the eyes, x23..77 y40..56
+    _rr(c, ox + s * 0.23, oy + s * 0.40, ox + s * 0.77, oy + s * 0.56,
+        fill=dark, r=s * 0.07)
+    # thin gleam bar along the top of the visor
+    _rr(c, ox + s * 0.26, oy + s * 0.425, ox + s * 0.56, oy + s * 0.465,
+        fill=gleam, r=s * 0.02)
 
 
 def draw_headset(c, ox, oy, s):

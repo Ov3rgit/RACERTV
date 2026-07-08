@@ -261,6 +261,13 @@ ROW_H = 22
 MAX_ROWS = 24
 CORNER_NBINS = 180      # lap-fraction bins for learning corner positions (2°)
 UPDATE_MS = 50          # 20 Hz — snappier event detection + tower updates
+FADE_MS = 25            # panel fade runs on its OWN faster timer, decoupled
+                        # from the 20Hz draw tick — tying alpha steps to the
+                        # draw tick meant a fade was only ever 2-3 steps (each
+                        # step a full canvas clear+redraw AND a window-alpha
+                        # change at once), which read as an abrupt snap, not
+                        # a fade. A dedicated ~40Hz timer gives it many more,
+                        # smaller steps so the ease is actually visible.
 # radio_msgs is mutated from BOTH the TTS play thread (_air_bubble) and the tk
 # loop (draw_radio's prune rebuilds the list) — an unguarded append between the
 # prune's read and reassign was silently lost (audio played, no card). Module
@@ -367,9 +374,10 @@ class _Panel:
         self.cv.delete("all")
         self.target = WIN_ALPHA
         if not self.shown:
-            # start part-way in (skip the flickery near-zero range) unless this
-            # panel fades; non-fade panels open straight at full opacity
-            self.alpha = 0.55 * WIN_ALPHA if self.fade else WIN_ALPHA
+            # true fade-in starts from 0 — the dedicated FADE_MS timer (not
+            # the draw tick) is what makes this look smooth rather than a
+            # snap; non-fade panels still open straight at full opacity
+            self.alpha = 0.0 if self.fade else WIN_ALPHA
             try:
                 self.win.attributes("-alpha", self.alpha)
             except Exception:
@@ -385,7 +393,10 @@ class _Panel:
         self.target = 0.0            # animate() eases (fade) or withdraws now
 
     def animate(self):
-        """One easing step per tick. Withdraws the window once faded out."""
+        """One easing step, called from the dedicated fade timer (see
+        Overlay._fade_tick) — NOT the 20Hz draw tick, so a fade gets many
+        small steps instead of 2-3 large ones tied to a full canvas redraw.
+        Withdraws the window once faded fully out."""
         if not self.shown and self.alpha <= 0.0:
             return
         if not self.fade:            # HUD chrome: no per-frame alpha churn
@@ -393,9 +404,8 @@ class _Panel:
                 self.win.withdraw()
                 self.shown = False
             return
-        # fast, smooth ease (~2-3 frames) — slow easing read as sluggish
-        a = self.alpha + (self.target - self.alpha) * 0.55
-        if abs(a - self.target) < 0.08:
+        a = self.alpha + (self.target - self.alpha) * 0.22
+        if abs(a - self.target) < 0.015:
             a = self.target
         if a != self.alpha:
             self.alpha = a
@@ -403,7 +413,7 @@ class _Panel:
                 self.win.attributes("-alpha", a)
             except Exception:
                 pass
-        if self.shown and a <= 0.02:
+        if self.shown and a <= 0.01:
             self.win.withdraw()
             self.shown = False
 
@@ -608,6 +618,7 @@ class Overlay:
         self._build_toggle_button()
         self._build_clock()
         self.tick()
+        self._fade_tick()
 
     def _build_logo(self):
         """Show a broadcast logo (any .png/.gif in the folder) top-left."""
@@ -659,8 +670,11 @@ class Overlay:
         p = self.panels.get(name)
         if p is None:
             p = _Panel(self.root)
-            # only the transient cards ease in/out; HUD chrome snaps (no flicker)
-            p.fade = name in ("commentary", "radio", "toast", "podium")
+            # only the transient NOTIFICATION cards ease in/out; the always-on
+            # HUD chrome (tower, header, relative, sectors, map...) snaps —
+            # fading THAT every frame was what originally read as "glitchy"
+            p.fade = name in ("commentary", "radio", "toast", "podium",
+                              "fastest", "penalty")
             self.panels[name] = p
         p.place(self.game_x + lx, self.game_y + ly, w, h)
         self._used.add(name)
@@ -671,8 +685,16 @@ class Overlay:
     def _hide_unused_panels(self):
         for name, p in self.panels.items():
             if name not in self._used:
-                p.hide()
-            p.animate()              # one fade step per tick, shown or going
+                p.hide()             # fade-out is driven by _fade_tick, not here
+
+    def _fade_tick(self):
+        """Panel alpha easing lives on its OWN timer (FADE_MS), independent
+        of the 20Hz draw tick — so a fade advances in many small, frequent
+        steps instead of 2-3 steps each yoked to a full canvas redraw, which
+        is what made it look like a snap rather than a fade."""
+        for p in self.panels.values():
+            p.animate()
+        self.root.after(FADE_MS, self._fade_tick)
 
     def _build_toggle_button(self):
         """Small always-on-top CLICKABLE window (the main overlay is
