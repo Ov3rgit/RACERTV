@@ -32,59 +32,27 @@ def _rr(c, x1, y1, x2, y2, fill, r):
         c.create_oval(cx, cy, cx + 2 * r, cy + 2 * r, fill=fill, outline=fill)
 
 
-# traced from the user's reference art (motorcycle-helmet side profile,
-# facing right: rounded dome/crown at back-upper-left, diagonal chin-guard
-# cut at front-lower-right), fractional coords 0..1, normalised to fill the
-# icon box. Visor is a shallow diagonal band; vent sits above it near the
-# crown/chin-guard shoulder.
-_SHELL = [(0.477, 0.060), (0.662, 0.074), (0.847, 0.202), (0.940, 0.372),
-          (0.824, 0.543), (0.627, 0.741), (0.396, 0.912), (0.199, 0.940),
-          (0.083, 0.770), (0.060, 0.486), (0.153, 0.230), (0.315, 0.088)]
-# a shallow LENS curve (bowed top/bottom edges via smooth=1), not a flat
-# parallelogram slit — reads as an actual visor rather than a stripe
-_VISOR = [(0.153, 0.514), (0.390, 0.440), (0.627, 0.401), (0.685, 0.543),
-          (0.454, 0.630), (0.222, 0.656)]
-_VENT = (0.766, 0.230, 0.052)          # cx, cy, r (fractional)
-
-
 def draw_helmet(c, ox, oy, s, color, seed=""):
-    """One driver radio icon: the reference helmet silhouette (rounded dome,
-    diagonal chin-guard cut, facing right) tinted to `color`, with a front
-    visor slit and a small vent. Four style variants (outline+dark-visor /
-    outline+slit / solid+ring-vent / solid+filled-vent — matching the 4
-    reference variants) are hash-picked from `seed` (the driver's name) so
-    each driver keeps the SAME variant all race, but the grid isn't a wall
-    of identical icons."""
-    variant = sum((seed or color).encode("utf-8", "ignore")) % 4
-    dark = _shade(color, 0.55)
+    """One driver radio icon: a clean rounded helmet tinted to the driver's
+    colour, with a dark pill-shaped visor (a soft highlight line across it
+    reads as glass) — one consistent style per the user's approved mockup,
+    just recoloured per driver. `seed` is accepted for call-site compat but
+    no longer varies the shape (a uniform look read better than 4 variants)."""
+    dark = _shade(color, 0.62)
+    cx, cy = ox + s * 0.50, oy + s * 0.54
+    rx, ry = s * 0.44, s * 0.40
+    c.create_oval(cx - rx, cy - ry, cx + rx, cy + ry, fill=color,
+                  outline=dark, width=max(1, s * 0.025))
 
-    def P(fx, fy):
-        return (ox + s * fx, oy + s * fy)
-
-    def poly(pts, **kw):
-        flat = [v for p in pts for v in P(*p)]
-        return c.create_polygon(*flat, **kw)
-
-    if variant in (0, 1):                  # outline shell
-        poly(_SHELL, fill="", outline=color, width=max(2, s * 0.055), smooth=1)
-    else:                                  # solid shell
-        poly(_SHELL, fill=color, outline=dark, width=max(1, s * 0.02), smooth=1)
-
-    if variant == 1:                       # hollow visor outline only
-        poly(_VISOR, fill="", outline=color, width=max(1, s * 0.04), smooth=1)
-    else:                                  # 0/2/3: proper dark visor glass
-        poly(_VISOR, fill=VISOR_TINT, outline="", smooth=1)
-
-    vx, vy, vr = _VENT
-    cx, cy, r = ox + s * vx, oy + s * vy, s * vr
-    if variant in (0, 1):
-        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill="",
-                      outline=color, width=max(1, s * 0.035))
-    elif variant == 2:
-        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill="",
-                      outline=GLASS, width=max(1, s * 0.035))
-    else:                                   # variant 3: filled vent
-        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill=GLASS, outline="")
+    # dark pill-shaped visor across the upper-front of the shell
+    vw, vh = s * 0.62, s * 0.20
+    vx, vy = ox + s * 0.50 - vw / 2, oy + s * 0.38 - vh / 2
+    _rr(c, vx, vy, vx + vw, vy + vh, fill=VISOR_TINT, r=vh / 2)
+    # thin highlight line so the visor reads as glass, not a flat bar
+    hi = _shade(VISOR_TINT, 3.2)
+    hy = vy + vh * 0.34
+    c.create_line(vx + vh * 0.45, hy, vx + vw - vh * 0.45, hy,
+                  fill=hi, width=max(1, s * 0.03), capstyle="round")
 
 
 def draw_headset(c, ox, oy, s):
