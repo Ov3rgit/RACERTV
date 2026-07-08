@@ -210,6 +210,15 @@ PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",
                   5: "disqualification"}
 # which events earn a co-commentator follow-up (and how often) — keep the booth
 # chatting back and forth on the big moments
+# RECAP categories describe something still true seconds later (a driver's
+# race arc, a lore anecdote) — unlike a live gap/lap call, they tolerate
+# airing a little late, so they're exempt from the numeric-content TTL AND
+# from the "queue busy" gate (both in update_commentary / _emit_commentary).
+# Without this, driverstory (rare — its own 30s+ gate — and number-heavy,
+# quoting grid/finish positions) got dropped almost every time it was picked.
+RECAP_CATS = {"driverstory_q", "lore_q", "lore_q_rally", "lore_a",
+              "lore_a_rally", "storyarc"}
+
 PUNDIT_AFTER = {"overtake": 0.7, "overtake_long": 0.8, "spin": 0.75,
                 "leadchange": 0.7, "win": 0.0, "battle": 0.5, "battle_mid": 0.4,
                 "battle_sustained": 0.6,
@@ -4324,7 +4333,14 @@ class Overlay:
         # too (just with a touch more headroom), so a busy race can't bury the
         # booth seconds behind the action with stale "takes the lead" calls.
         urgent = _prio <= 2
-        busy = self.tts is not None and self.tts._pending() >= 2
+        # RECAP categories bypass the busy gate too: they're already rare
+        # (their own 30s+ selection cooldown was spent the moment they were
+        # PICKED, win or lose) — without this exemption a recap chosen while
+        # the queue had any backlog at all was silently discarded, and the
+        # next attempt was 30+ seconds away, making them air far less often
+        # than the cooldown alone would suggest.
+        busy = (self.tts is not None and self.tts._pending() >= 2
+                and cat not in RECAP_CATS)
         # the booth is RELAXED in practice/qualifying — a much longer gap between
         # colour lines, so it isn't chattering away over a quiet session
         cd = self.COMMENTARY_CD if is_race else self.COMMENTARY_CD * 4.0
@@ -4446,10 +4462,16 @@ class Overlay:
                                        exchange=ffor)
             else:
                 _onp = self._show_caption
-            # booth lines quoting figures date fastest of all — tighten their
-            # TTL so a "gap is 1.0 seconds" can never air half a race late
-            # (never for signature/scripted lines: those must complete)
-            _ttl = (8.0 if (not signature and any(c.isdigit() for c in spoken))
+            # booth lines quoting a LIVE figure (gap/lap/standing) date fastest
+            # of all — tighten their TTL so "gap is 1.0 seconds" can never air
+            # half a race late. RECAPS (driver-story arc, lore anecdotes) also
+            # contain numbers (grid/finish positions) but describe something
+            # still true 15s later — TTL-dropping those is why driverstory
+            # recaps had gone quiet: they're rare (own 30s+ gate) AND
+            # number-heavy, so the tight TTL was killing almost every one
+            # that got picked while the queue had any backlog at all.
+            _ttl = (8.0 if (not signature and cat not in RECAP_CATS
+                            and any(c.isdigit() for c in spoken))
                     else None)
             self.tts.speak(spoken, persona, seed=seed, intensity=inten,
                            on_play=_onp, urgent=urgent, force=signature,

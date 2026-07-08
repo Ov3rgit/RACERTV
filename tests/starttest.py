@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R
 from r3e_overlay import Overlay
-src = open(r"C:\Users\ADMINI~1\AppData\Local\Temp\claude\D--R3EOverlay\a551edbd-1416-4192-af37-f06169b0707c\scratchpad\smoke.py").read()
+src = open(r"D:\R3EOverlay\tests\smoke.py").read()
 exec(src.split('run_session("RACE"')[0])
 
 print("===== LIGHTS-OUT vs GRID SORT =====")
