@@ -72,6 +72,17 @@ CONTROLS (work even though clicks pass through to the game)
   Ctrl + Shift + M   mute / unmute ALL spoken audio (TTS)
   Ctrl + Shift + Q   close the overlay
 
+LOOK & FONTS
+------------
+RacerTV uses a broadcast-graphics identity: the wide "Michroma" display face
+on the chyron/header and "Chakra Petch" on all timing data and captions (both
+SIL Open Font License, bundled next to the exe as Michroma-Regular.ttf +
+ChakraPetch-*.ttf and loaded privately at runtime - no install needed). If the
+ttf files are missing it falls back to Bahnschrift so the UI never blanks.
+Panels fade in/out, the commentary lower-third slides up, radio cards pop in,
+the header shows a blinking LIVE/REPLAY tag over CRT scanlines, and tower rows
+flash green/red on a position change.
+
 TEAM RADIO VOICE (TTS)
 ----------------------
 Radio messages are spoken aloud through a "team radio" effect (band-pass +

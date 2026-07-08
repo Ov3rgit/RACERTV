@@ -338,6 +338,13 @@ class _Panel:
         except Exception:
             pass
 
+    # fade state: every panel eases its window alpha toward `target` each tick
+    # (animate() below) — panels FADE in on first draw and FADE out when
+    # unused instead of popping. Uses the per-window -alpha, which combines
+    # fine with the chroma key on Windows.
+    alpha = 0.0
+    target = 0.0
+
     def place(self, x, y, w, h):
         w, h = max(1, int(w)), max(1, int(h))
         x, y = int(x), int(y)
@@ -347,7 +354,13 @@ class _Panel:
             self.cv.config(width=w, height=h)
             self._geo = geo
         self.cv.delete("all")
+        self.target = WIN_ALPHA
         if not self.shown:
+            self.alpha = 0.0
+            try:
+                self.win.attributes("-alpha", 0.0)
+            except Exception:
+                pass
             self.win.deiconify()
             self.shown = True
         if self.hwnd:
@@ -356,7 +369,22 @@ class _Panel:
         return self.cv
 
     def hide(self):
-        if self.shown:
+        self.target = 0.0            # fade out; animate() withdraws at ~0
+
+    def animate(self):
+        """One easing step per tick. Withdraws the window once faded out."""
+        if not self.shown and self.alpha <= 0.0:
+            return
+        a = self.alpha + (self.target - self.alpha) * 0.45
+        if abs(a - self.target) < 0.03:
+            a = self.target
+        if a != self.alpha:
+            self.alpha = a
+            try:
+                self.win.attributes("-alpha", a)
+            except Exception:
+                pass
+        if self.shown and a <= 0.0:
             self.win.withdraw()
             self.shown = False
 
@@ -382,15 +410,37 @@ class Overlay:
         self._ox = self._oy = 0          # current panel origin (game-relative)
         self._car_names = self._load_car_names()   # model_id -> car name
 
-        # Broadcast-TV look: Bahnschrift (ships with Win11) — condensed, with
-        # TABULAR (fixed-width) digits so the timing tower columns stay aligned.
-        # SemiBold SemiCondensed on headers reads like an F1 graphics package.
-        _BC = "Bahnschrift SemiCondensed"
-        _BCB = "Bahnschrift SemiBold SemiConden"
-        self.f_row = tkfont.Font(family=_BC, size=12)
-        self.f_row_b = tkfont.Font(family=_BCB, size=12)
-        self.f_hdr = tkfont.Font(family=_BCB, size=15)
-        self.f_sub = tkfont.Font(family=_BC, size=11)
+        # BROADCAST-GRAPHICS look: a wide engineered DISPLAY face on the chyron
+        # (Michroma — motorsport-livery feel) paired with a crisp technical
+        # BODY face on the data (Chakra Petch, with a SemiBold for emphasis).
+        # Both are SIL Open Font License (shippable) and loaded PRIVATELY at
+        # runtime next to the exe (no install; FR_PRIVATE=0x10). Falls back to
+        # Bahnschrift if a ttf is missing so a bad copy never blanks the UI.
+        _DISP = "Bahnschrift SemiBold SemiConden"   # header / display
+        _BC = "Bahnschrift SemiCondensed"           # body / data
+        _BCB = "Bahnschrift SemiBold SemiConden"    # body emphasis
+        try:
+            loaded = 0
+            for _ttf in ("Michroma-Regular.ttf", "ChakraPetch-Regular.ttf",
+                         "ChakraPetch-SemiBold.ttf", "ChakraPetch-Bold.ttf"):
+                _fp = os.path.join(_DIR, _ttf)
+                if os.path.exists(_fp):
+                    loaded += bool(ctypes.windll.gdi32.AddFontResourceExW(
+                        _fp, 0x10, 0))
+            if loaded >= 4:
+                _DISP = "Michroma"
+                _BC = "Chakra Petch"
+                _BCB = "Chakra Petch SemiBold"
+        except Exception:
+            pass
+        self._DISP, self._BC, self._BCB = _DISP, _BC, _BCB
+        self.f_row = tkfont.Font(family=_BC, size=11)
+        self.f_row_b = tkfont.Font(family=_BCB, size=11)
+        # Michroma is wide + tall — the chyron title uses it a size smaller so
+        # a long track name still fits the header
+        self.f_hdr = tkfont.Font(family=_DISP,
+                                 size=12 if _DISP == "Michroma" else 14)
+        self.f_sub = tkfont.Font(family=_BC, size=10)
 
         # track-map: accumulating bounds + sampled track outline (quantized
         # car positions over time trace the circuit shape)
@@ -407,13 +457,12 @@ class Overlay:
         self.last_live = None    # last good snapshot, kept when focus is lost
         self._was_in_action = False
         self._pending_handshakes = []  # timestamps to hide/show the window at
-        self.f_small = tkfont.Font(family="Bahnschrift SemiCondensed", size=10)
-        self.f_small_b = tkfont.Font(family="Bahnschrift SemiBold SemiConden",
-                                     size=10)
+        self.f_small = tkfont.Font(family=_BC, size=9)
+        self.f_small_b = tkfont.Font(family=_BCB, size=9)
         # slightly larger fonts dedicated to the timing tower (so it can grow
         # without enlarging the other panels)
-        self.f_tow = tkfont.Font(family="Bahnschrift SemiCondensed", size=12)
-        self.f_tow_b = tkfont.Font(family="Bahnschrift SemiBold SemiConden", size=12)
+        self.f_tow = tkfont.Font(family=_BC, size=11)
+        self.f_tow_b = tkfont.Font(family=_BCB, size=11)
 
         # broadcast stats (reset per session). Initialised here too — not just in
         # update_stats' per-session reset — so the radio/commentary stages can
@@ -599,6 +648,7 @@ class Overlay:
         for name, p in self.panels.items():
             if name not in self._used:
                 p.hide()
+            p.animate()              # one fade step per tick, shown or going
 
     def _build_toggle_button(self):
         """Small always-on-top CLICKABLE window (the main overlay is
@@ -722,22 +772,32 @@ class Overlay:
                                      outline=PANEL_OUTLINE, width=1)
 
     def _card(self, x, y, w, h, fill=CARD_BG, accent=None, side="top", r=7):
-        """A broadcast 'card': rounded dark box + thin border + optional coloured
-        accent (a top strip or a left bar). Rounded corners are see-through to
-        the game via the panel's transparent-colour key — looks clean."""
-        r = int(min(r, w / 2, h / 2))
-        pts = [x + r, y, x + w - r, y, x + w, y, x + w, y + r,
-               x + w, y + h - r, x + w, y + h, x + w - r, y + h, x + r, y + h,
-               x, y + h, x, y + h - r, x, y + r, x, y]
-        self.canvas.create_polygon(*pts, smooth=True, splinesteps=14,
-                                   fill=fill, outline=CARD_BORDER, width=1)
+        """A retro PIXEL card: hard dark box with stepped (notched) corners and
+        a chunky 2px border — the whole graphics package's signature frame.
+        The notched corners read through to the game via the chroma key.
+        (`r` kept for call-site compatibility; it just sets the notch size.)"""
+        n = max(2, min(4, int(r / 2)))          # corner notch, in pixels
+        c = self.canvas
+        # body as a notched-corner cross (two overlapping rects)
+        c.create_rectangle(x + n, y, x + w - n, y + h, fill=fill, outline="")
+        c.create_rectangle(x, y + n, x + w, y + h - n, fill=fill, outline="")
+        # chunky 2px pixel border traced around the notched outline
+        bd = CARD_BORDER
+        c.create_rectangle(x + n, y, x + w - n, y + 2, fill=bd, outline="")
+        c.create_rectangle(x + n, y + h - 2, x + w - n, y + h, fill=bd, outline="")
+        c.create_rectangle(x, y + n, x + 2, y + h - n, fill=bd, outline="")
+        c.create_rectangle(x + w - 2, y + n, x + w, y + h - n, fill=bd, outline="")
+        # corner steps (the single pixel that sells the notch)
+        for cx, cy in ((x + n - 2, y + 2), (x + w - n, y + 2),
+                       (x + n - 2, y + h - 4), (x + w - n, y + h - 4)):
+            c.create_rectangle(cx, cy, cx + 2, cy + 2, fill=bd, outline="")
         if accent:
             if side == "left":
-                self.canvas.create_rectangle(x + 1, y + r, x + 4, y + h - r,
-                                             fill=accent, outline="")
+                c.create_rectangle(x + 2, y + n, x + 6, y + h - n,
+                                   fill=accent, outline="")
             else:                                   # top strip
-                self.canvas.create_rectangle(x + r, y + 1, x + w - r, y + 4,
-                                             fill=accent, outline="")
+                c.create_rectangle(x + n, y + 2, x + w - n, y + 6,
+                                   fill=accent, outline="")
 
     def text(self, x, y, s, fill=TEXT, font=None, anchor="nw"):
         self.canvas.create_text(x, y, text=s, fill=fill,
@@ -1130,9 +1190,21 @@ class Overlay:
         x = (self.sw - w) // 2
         self._begin_panel("header", x, 14, w, 50)
         self._card(x, 14, w, 50, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
+        # CRT scanlines over the chyron (every 3rd row, barely-there dark line)
+        for sy in range(14 + 8, 14 + 50 - 4, 3):
+            self.canvas.create_line(x + 4, sy, x + w - 4, sy, fill="#070b10")
         self.text(x + 16, 29, title, fill=TEXT, font=self.f_hdr, anchor="w")
         self.text(x + 16, 49, sub, fill=DIM, font=self.f_sub, anchor="w")
         self.text(x + w - 16, 31, prog, fill=HEADER_ACCENT, font=self.f_hdr, anchor="e")
+        # blinking ● LIVE / ▶ REPLAY tag, retro-camcorder style (1s cycle)
+        blink = (int(time.time() * 2) % 2 == 0)
+        tag = "REPLAY" if s.game_in_replay == 1 else "LIVE"
+        tcol = HEADER_ACCENT if s.game_in_replay == 1 else "#ff3b3b"
+        if blink:
+            self.canvas.create_rectangle(x + w - 16 - self.f_sub.measure(tag) - 12,
+                                         42, x + w - 16 - self.f_sub.measure(tag) - 4,
+                                         50, fill=tcol, outline="")
+        self.text(x + w - 16, 46, tag, fill=tcol, font=self.f_sub, anchor="e")
 
     # ---------- stats engine ----------
     def update_stats(self, s):
@@ -1248,6 +1320,13 @@ class Overlay:
             held = cand[1] + 1 if (cand and cand[0] == raw) else 1
             self._cpend[sl] = (raw, held)
             if sl not in self.cplace or held >= PLACE_CONFIRM_TICKS:
+                old = self.cplace.get(sl)
+                if old is not None and old != raw:
+                    # tower row flash: green = gained, red = lost (~1s)
+                    if not hasattr(self, "_row_flash"):
+                        self._row_flash = {}
+                    self._row_flash[sl] = ("#123a1c" if raw < old else "#3a1414",
+                                           time.time() + 1.1)
                 self.cplace[sl] = raw          # seed immediately, else confirm
 
         # HAS THE RACE GONE GREEN? On the standing grid the cars are stationary
@@ -1543,8 +1622,14 @@ class Overlay:
             is_leader = (pos == 1)
             holds_fl = (self.fastest["slot"] is not None and slot == self.fastest["slot"])
 
+            # position-change flash: the row glows green (gained) / red (lost)
+            # for ~1s after a confirmed place change, then settles back
+            fl = getattr(self, "_row_flash", {}).get(slot)
+            row_bg = "#1b222b" if is_viewed else "#0e1217"
+            if fl and time.time() < fl[1]:
+                row_bg = fl[0]
             c.create_rectangle(x, ry, x + w, ry + rh,
-                               fill=("#1b222b" if is_viewed else "#0e1217"),
+                               fill=row_bg,
                                outline=PANEL_OUTLINE, stipple=PANEL_STIPPLE)
             if holds_fl:
                 c.create_rectangle(x, ry, x + 5, ry + rh, fill=PURPLE, outline="")
@@ -4914,7 +4999,7 @@ class Overlay:
             return
         tts_on = bool(self.tts and getattr(self.tts, "enabled", False))
         rows = [
-            ("Overlay UI  (audio keeps running)",
+            ("Overlay UI (audio stays on)",
              "ON" if self.visible else "OFF", self.visible,
              self._do_toggle_ui),
             ("Booth — Miles & Brett",
@@ -4931,7 +5016,9 @@ class Overlay:
              self._do_toggle_debug),
             ("Close RacerTV", "✕", False, self.quit),
         ]
-        w, rh = 330, 28
+        # sized for the mono pixel font: longest label + state column
+        w = max(360, max(self.f_row.measure(r[0]) for r in rows) + 96)
+        rh = 28
         h = 14 + rh * len(rows)
         x, y = gx, gy + gh + 6
         self._begin_panel("menu", x, y, w, h)
@@ -4971,6 +5058,7 @@ class Overlay:
         # long lines captionless while still being spoken (looked out of sync)
         hold = max(4.5, min(12.0, len(text) * 0.055 + 2.0))
         self._comm_caption = {"text": text, "persona": persona,
+                              "at": time.time(),
                               "until": time.time() + hold}
 
     def _caption_line_end(self, text, persona):
@@ -4989,27 +5077,38 @@ class Overlay:
         # which read as the captions being out of sync with the voice
         hold = max(self.RADIO_HOLD, min(14.0, len(msg["text"]) * 0.055 + 2.5))
         msg["until"] = time.time() + hold
+        msg["at"] = time.time()               # entrance animation reference
         with _RADIO_LOCK:
             self.radio_msgs.append(msg)
             self.radio_msgs = self.radio_msgs[-6:]
 
     def draw_commentary(self, s):
-        """Lower-third broadcast caption for the latest commentary line."""
+        """Lower-third broadcast caption for the latest commentary line —
+        slides up a few pixels as its panel fades in (retro chyron entrance)."""
         cap = self._comm_caption
-        if not cap or time.time() >= cap["until"]:
+        now = time.time()
+        if not cap or now >= cap["until"]:
             return
-        lines = self._wrap(cap["text"], width=64, maxlines=2)
+        lines = self._wrap(cap["text"], width=58, maxlines=2)
         pundit = cap.get("persona") == "PUNDIT"
-        label = "● ANALYSIS" if pundit else "● COMMENTARY"
+        who = PUNDIT_NAME.upper() if pundit else COMMENTATOR_NAME.upper()
+        label = f"{who} · ANALYSIS" if pundit else f"{who} · COMMENTARY"
         lcol = "#7fd1ff" if pundit else COMMENTATOR_COLOR
-        w = 760
+        w = 780
         x = (self.sw - w) // 2
-        h = 30 + 20 * len(lines)
-        y = self.sh - 118 - h
+        h = 32 + 20 * len(lines)
+        # entrance: rise 10px over the first quarter second (with the fade)
+        age = now - cap.get("at", now)
+        rise = int(max(0.0, 1.0 - age * 4.0) * 10)
+        y = self.sh - 118 - h + rise
         self._begin_panel("commentary", x, y, w, h)
         self._card(x, y, w, h, fill=CARD_BG2, accent=lcol, side="left")
-        self.text(x + 16, y + 13, label, fill=lcol, font=self.f_row_b, anchor="w")
-        ly = y + 32
+        # pixel name chip on the label row
+        self.canvas.create_rectangle(x + 12, y + 8, x + 18, y + 14,
+                                     fill=lcol, outline="")
+        self.text(x + 24, y + 13, label, fill=lcol, font=self.f_small_b,
+                  anchor="w")
+        ly = y + 33
         for ln in lines:
             self.text(x + 16, ly, ln, fill=TEXT, font=self.f_hdr, anchor="w")
             ly += 20
@@ -5032,7 +5131,11 @@ class Overlay:
         self._begin_panel("radio", x, top, w, total)
         y = top
         for m, h in zip(show, heights):    # oldest at top, newest at bottom
-            self._draw_bubble(x, y, w, m)
+            # pop-in: the newest card slides in from the right edge over its
+            # first fifth of a second
+            age = now - m.get("at", now)
+            slide = int(max(0.0, 1.0 - age * 5.0) * 18)
+            self._draw_bubble(x + slide, y, w, m)   # clips at the panel edge
             y += h + gap
 
     def draw_debug(self, s, game_running, in_action):
