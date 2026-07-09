@@ -531,7 +531,13 @@ class Tts:
         deadline = (time.time() + ttl) if ttl else None
         if topic:
             self._topics[topic] = self._topics.get(topic, 0) + 1
-        prio = -1 if exchange else (0 if persona == "ENGINEER" else 1)
+        # priority: -1 = atomic booth exchange reply; 0 = ALL TEAM RADIO
+        # (engineer AND rival drivers — the immersive "on the radio" layer that
+        # should be heard, so it jumps ahead of loose booth colour); 1 = booth
+        # play-by-play/colour. Team radio is rate-limited upstream, so giving
+        # it priority can't flood the booth — it just stops driver voices from
+        # being perpetually starved behind commentary.
+        prio = -1 if exchange else (1 if persona in CLEAN_PERSONAS else 0)
         self._qput(self.gen_q, persona,
                    (text, persona, self._voice_for(persona, seed), intensity,
                     on_play, self._epoch, deadline, topic, prio), prio=prio)

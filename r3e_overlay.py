@@ -261,13 +261,6 @@ ROW_H = 22
 MAX_ROWS = 24
 CORNER_NBINS = 180      # lap-fraction bins for learning corner positions (2°)
 UPDATE_MS = 50          # 20 Hz — snappier event detection + tower updates
-FADE_MS = 16            # panel fade runs on its OWN ~60Hz timer, decoupled
-                        # from the 20Hz draw tick. The fade is TIME-BASED
-                        # (advances by elapsed wall-clock, see _Panel.animate),
-                        # so even when this timer is starved unevenly by the
-                        # heavy draw tick it still moves the right amount per
-                        # real gap — smooth, not the jerky frame-by-frame steps
-                        # a fixed-increment ease produced.
 # radio_msgs is mutated from BOTH the TTS play thread (_air_bubble) and the tk
 # loop (draw_radio's prune rebuilds the list) — an unguarded append between the
 # prune's read and reassign was silently lost (audio played, no card). Module
@@ -355,14 +348,6 @@ class _Panel:
         except Exception:
             pass
 
-    # fade state. Only the TRANSIENT cards fade (fade=True, set in _begin_panel):
-    # fading the persistent HUD chrome every frame made the layered/chroma-keyed
-    # windows flicker ("glitchy"), so the tower/header/etc. snap straight to full
-    # opacity and only the caption/radio/toast/podium cards ease in and out.
-    alpha = 0.0
-    target = 0.0
-    fade = False
-
     def place(self, x, y, w, h):
         w, h = max(1, int(w)), max(1, int(h))
         x, y = int(x), int(y)
@@ -372,17 +357,8 @@ class _Panel:
             self.cv.config(width=w, height=h)
             self._geo = geo
         self.cv.delete("all")
-        self.target = WIN_ALPHA
         if not self.shown:
-            # true fade-in starts from 0; the time-based FADE_MS timer eases it
-            # up smoothly. Non-fade panels open straight at full opacity.
-            self.alpha = 0.0 if self.fade else WIN_ALPHA
-            self._anim_t = None      # reset elapsed-time base for a clean fade
-            try:
-                self.win.attributes("-alpha", self.alpha)
-            except Exception:
-                pass
-            self.win.deiconify()
+            self.win.deiconify()          # show INSTANTLY (no fade)
             self.shown = True
         if self.hwnd:
             user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
@@ -390,43 +366,9 @@ class _Panel:
         return self.cv
 
     def hide(self):
-        self.target = 0.0            # animate() eases (fade) or withdraws now
-
-    _anim_t = None
-
-    def animate(self, now):
-        """TIME-BASED easing step (called from Overlay._fade_tick with a
-        perf_counter timestamp). Advancing alpha by ELAPSED TIME rather than a
-        fixed per-call increment is what makes it smooth: the fade timer gets
-        starved unevenly by the 20Hz draw tick, so a fixed step arrives in
-        jerky bursts, but a time-based step always covers the right distance
-        for the real gap — smooth regardless of timer jitter, and fast."""
-        if not self.shown and self.alpha <= 0.0:
-            self._anim_t = None
-            return
-        if not self.fade:            # HUD chrome: no per-frame alpha churn
-            if self.target <= 0.0 and self.shown:
-                self.win.withdraw()
-                self.shown = False
-            return
-        dt = 0.0 if self._anim_t is None else (now - self._anim_t)
-        self._anim_t = now
-        if dt <= 0.0 or dt > 0.2:    # first step / a stall: take one small step
-            dt = 1.0 / 60.0
-        # RATE = full 0..WIN_ALPHA sweep in ~1/7 s (~140ms) — quick but eased
-        step = 7.0 * dt
-        if self.alpha < self.target:
-            self.alpha = min(self.target, self.alpha + step)
-        elif self.alpha > self.target:
-            self.alpha = max(self.target, self.alpha - step)
-        try:
-            self.win.attributes("-alpha", self.alpha)
-        except Exception:
-            pass
-        if self.shown and self.alpha <= 0.01:
-            self.win.withdraw()
+        if self.shown:
+            self.win.withdraw()           # hide INSTANTLY (no fade)
             self.shown = False
-            self._anim_t = None
 
 
 class Overlay:
@@ -629,7 +571,6 @@ class Overlay:
         self._build_toggle_button()
         self._build_clock()
         self.tick()
-        self._fade_tick()
 
     def _build_logo(self):
         """Show a broadcast logo (any .png/.gif in the folder) top-left."""
@@ -681,11 +622,6 @@ class Overlay:
         p = self.panels.get(name)
         if p is None:
             p = _Panel(self.root)
-            # only the transient NOTIFICATION cards ease in/out; the always-on
-            # HUD chrome (tower, header, relative, sectors, map...) snaps —
-            # fading THAT every frame was what originally read as "glitchy"
-            p.fade = name in ("commentary", "radio", "toast", "podium",
-                              "fastest", "penalty")
             self.panels[name] = p
         p.place(self.game_x + lx, self.game_y + ly, w, h)
         self._used.add(name)
@@ -696,22 +632,7 @@ class Overlay:
     def _hide_unused_panels(self):
         for name, p in self.panels.items():
             if name not in self._used:
-                p.hide()             # fade-out is driven by _fade_tick, not here
-
-    def _fade_tick(self):
-        """Panel alpha easing on its OWN fast timer, independent of the 20Hz
-        draw tick. BULLETPROOF: a single panel raising in animate() must never
-        kill this loop — if it did, every later card would be stuck at alpha 0
-        (invisible) for the rest of the session, which is exactly why radio
-        cards had stopped appearing. Each panel is isolated and the reschedule
-        always runs."""
-        now = time.perf_counter()
-        for p in list(self.panels.values()):
-            try:
-                p.animate(now)
-            except Exception:
-                pass
-        self.root.after(FADE_MS, self._fade_tick)
+                p.hide()
 
     def _build_toggle_button(self):
         """Small always-on-top CLICKABLE window (the main overlay is
@@ -3155,40 +3076,28 @@ class Overlay:
                 self._eng_cd = now
             else:
                 self.driver_radio_cd[sl] = now
-            spoke = "no-tts"
-            if self.tts and self.tts.enabled and not getattr(self, "radio_on", True):
-                # team radio muted (Ctrl+Shift+R / menu): show the card as a
-                # silent ticker, no voice — booth commentary is unaffected
-                self._air_bubble(msg)
-                spoke = "radio-muted"
-            elif self.tts and self.tts.enabled:
-                # queue has HEADROOM (at most one line ahead) -> speak it,
-                # showing the bubble when the audio actually starts (on_play)
-                # so screen matches sound. Waiting behind one booth line is
-                # ~6s, well inside TTL_RADIO, so the audio still airs.
-                # queue BACKLOGGED -> the audio would only be TTL-dropped
-                # later, killing the bubble with it; air the bubble NOW
-                # without voice instead, like a broadcast running team-radio
-                # tickers under the commentary. Radio stays visible even when
-                # the booth never shuts up. The ENGINEER is exempt — he's
-                # talking to YOU and always gets his audio queued.
-                if persona == "ENGINEER" or self.tts._pending() < 2:
-                    say_text = (spoken_text if spoken_text is not None
-                                else self._spoken(txt))
-                    # a line quoting a FIGURE (gap, position, seconds) dates in
-                    # moments — "1.7 seconds behind" aired 15s late reads as
-                    # wrong data, not late radio. Short TTL for those; plain
-                    # colour keeps the relaxed radio TTL.
-                    _ttl = (9.0 if any(c.isdigit() for c in say_text) else None)
-                    self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
-                                   on_play=lambda t, p, _m=msg: self._air_bubble(_m))
-                    spoke = "spoke"
+            # ALWAYS put the card on screen NOW — the bubble is DECOUPLED from
+            # the audio. The old code only showed a driver card when its voice
+            # actually played (on_play), and demoted it to a silent ticker when
+            # the booth queue was busy — so in a chatty race driver cards (and
+            # voices) vanished entirely. Now the card shows unconditionally and
+            # the voice is queued best-effort on top.
+            self._air_bubble(msg)
+            spoke = "card"
+            muted = not getattr(self, "radio_on", True)
+            if self.tts and self.tts.enabled and not muted:
+                say_text = (spoken_text if spoken_text is not None
+                            else self._spoken(txt))
+                # TTL matched to how long the card stays up, so the voice plays
+                # WHILE its card is visible or drops cleanly (no orphan audio
+                # over a card that's already gone). The engineer keeps the
+                # longer radio TTL — he's talking to YOU and must be heard.
+                if persona == "ENGINEER":
+                    _ttl = 9.0 if any(c.isdigit() for c in say_text) else None
                 else:
-                    self._air_bubble(msg)
-                    spoke = "ticker"
-            else:
-                self._air_bubble(msg)                 # muted / no TTS -> show now
-                spoke = "muted" if self.tts else "no-tts"
+                    _ttl = self.RADIO_HOLD + 2.0
+                self.tts.speak(say_text, persona, seed=nm, ttl=_ttl)
+                spoke = "spoke"
             self._radio_recent.append(f"{time.strftime('%H:%M:%S')} {persona[:4]}"
                                       f"/{emotion[:4]} [{spoke}] {txt[:40]}")
             self._radio_recent = self._radio_recent[-7:]
