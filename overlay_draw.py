@@ -71,7 +71,8 @@ class DrawMixin:
         self.canvas.create_rectangle(x, y, x + w, y + h, fill="",
                                      outline=PANEL_OUTLINE, width=1)
 
-    def _card(self, x, y, w, h, fill=CARD_BG, accent=None, side="top", r=7):
+    def _card(self, x, y, w, h, fill=CARD_BG, accent=None, side="top", r=7,
+              glass=True):
         """A retro PIXEL card: hard dark box with stepped (notched) corners and
         a chunky 2px border — the whole graphics package's signature frame.
         The notched corners read through to the game via the chroma key.
@@ -85,7 +86,10 @@ class DrawMixin:
         # Draw the BODY on the glass layer when there is one, offset into that
         # canvas's own coordinates. The border, accent and text below all stay
         # on `c` (the solid layer), which is what keeps them crisp.
-        bg = getattr(self, "_bg_real", None)
+        # glass=False forces the body SOLID on this card — the radio bubbles
+        # need it, because their icons carry an opaque CARD_BG square and a
+        # translucent body would make that square visible as an image border.
+        bg = getattr(self, "_bg_real", None) if glass else None
         if bg is not None:
             bx, by = x - self._ox, y - self._oy
             bg.create_rectangle(bx + n, by, bx + w - n, by + h,
