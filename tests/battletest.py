@@ -49,14 +49,28 @@ o._battle[1] = (tslot, t0 - 20.0, lap0 - 3)
 o._battle_cd = 0.0
 o._battle_called = {}
 
+# chunk-match against the ACTUAL battle_sustained pool (placeholder-
+# insensitive) — keyword lists flaked whenever a variant used novel wording
+import re
+from lines import COMMENTARY_LINES as _CL
+
+def _chunk(tpl):
+    parts = [p.strip() for p in re.split(r"\{[^}]*\}", tpl)]
+    return max(parts, key=len)
+
+_BC = [_chunk(t) for t in _CL["battle_sustained"] if len(_chunk(t)) >= 10]
+# the sustained call yields the tick to any LIVE candidate (`not cands` gate),
+# so a plain 'battle' line can legitimately win the first tick — tick a few
+# times until the sustained call gets a quiet tick to land in
 before = len(o.tts.spoken)
-tick_battle()
-new = [t for p, t in o.tts.spoken[before:]]
-sust = [t for t in new if t.startswith(("Credit to", "This battle", "For ")) or
-        "for three laps" in t or "nose-to-tail" in t or "glued to the back" in t or
-        "war of attrition" in t or "raged for" in t or "pure pressure" in t or
-        "filling the mirrors" in t or "thrown everything" in t or
-        "Relentless" in t or "defining battle" in t or "probing" in t]
+sust = []
+for _ in range(8):
+    tick_battle()
+    o._battle_cd = 0.0                       # re-open the global 18s gate
+    new = [t for p, t in o.tts.spoken[before:]]
+    sust = [t for t in new if any(c in t for c in _BC)]
+    if sust:
+        break
 assert sust, "no sustained-battle line! new=%r" % (new,)
 print("  sustained-battle line aired:")
 print("     ", sust[0])
@@ -68,9 +82,7 @@ print("  no unformatted placeholders: OK")
 before2 = len(o.tts.spoken)
 tick_battle()
 new2 = [t for t in [t for p, t in o.tts.spoken[before2:]]
-        if any(k in t for k in ("raged for", "nose-to-tail", "glued to the back",
-                                "war of attrition", "pure pressure", "Relentless",
-                                "filling the mirrors", "thrown everything"))]
+        if any(c in t for c in _BC)]
 assert not new2, "sustained battle repeated immediately (not rate-limited): %r" % new2
 print("  rate-limited (no immediate repeat): OK")
 

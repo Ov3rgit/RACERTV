@@ -280,11 +280,11 @@ def quali_scenario(o, s, emitted):
     o._eng_cd -= 20.0
     you.car_speed = 8.0            # pace collapses -> genuine off confirmed
     drive(o, s, 2)
-    assert any("offtrack" in t.lower() or "island" in t.lower() or "off the"
-               in t.lower() or "excursion" in t.lower() or "lost it" in t.lower()
-               or "ran out of road" in t.lower() or "bin it" in t.lower()
-               or "off the road" in t.lower() or "off the track" in t.lower()
-               for p, t in emitted if p == "ENGINEER"), \
+    # robust check: the warning must be a line FROM the quali off-track pool
+    # (phrase-grepping flaked whenever the random pick had novel wording)
+    from lines import ENGINEER_QUALI
+    offpool = ENGINEER_QUALI["offtrack"]
+    assert any(t in offpool for p, t in emitted if p == "ENGINEER"), \
         "no engineer off-track warning fired in quali!"
     print("  [offtrack] engineer warned of quali excursion: OK")
 

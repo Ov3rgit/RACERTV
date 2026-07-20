@@ -184,6 +184,9 @@ CAT_INTENSITY = {
     "start": 1, "overtake": 2, "overtake_long": 2, "leadchange": 2, "fastlap": 1,
     "spin": 2, "battle": 2, "battle_mid": 1, "battle_sustained": 2,
     "pit": 0, "lastlap": 2, "win": 2,
+    "win_charge": 2, "win_comeback": 2, "win_wire": 2,
+    "leadchange_charge": 2, "leadchange_comeback": 2,
+    "overtake_charge": 2, "overtake_comeback": 2,
     "second": 1, "third": 1, "summary": 1, "closing": 1, "pulling_away": 0,
     "recovery": 1, "podium_lock": 0, "penalty": 1, "yellow": 1, "analysis": 0,
     "analysis_strategy": 0,
@@ -222,6 +225,8 @@ RECAP_CATS = {"driverstory_q", "lore_q", "lore_q_rally", "lore_a",
 
 PUNDIT_AFTER = {"overtake": 0.7, "overtake_long": 0.8, "spin": 0.75,
                 "leadchange": 0.7, "win": 0.0, "battle": 0.5, "battle_mid": 0.4,
+                "overtake_charge": 0.7, "overtake_comeback": 0.7,
+                "leadchange_charge": 0.7, "leadchange_comeback": 0.7,
                 "battle_sustained": 0.6,
                 "penalty": 0.7, "yellow": 0.6, "closing": 0.3, "recovery": 0.5,
                 "fastlap": 0.4, "analysis": 0.45, "standings": 0.3,
@@ -3411,11 +3416,19 @@ class Overlay:
             if done_race:
                 self._comm_flags["winannounced"] = True
                 self._finish_at = now
+                # NARRATIVE win call: tie the flag to the winner's race story
+                # (comeback / charge from deep / flag-to-flag) when there is one
+                # — 'It is redemption day!' beats 'X wins' every single time.
+                arc, akw = self._narrative_arc(leader.driver_info.slot_id,
+                                               place=1)
+                wcat = {"comeback": "win_comeback", "charge": "win_charge",
+                        "wire": "win_wire"}.get(arc, "win")
                 wtxt = _safe_format(
-                    self._pick(COMMENTARY_LINES["win"], ("FIN", "win")),
+                    self._pick(COMMENTARY_LINES[wcat], ("FIN", wcat)),
                     {"drv": self._dname(leader), "trk": trk,
                      "comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME,
-                     "comm_full": COMMENTATOR_FULL, "pundit_full": PUNDIT_FULL})
+                     "comm_full": COMMENTATOR_FULL, "pundit_full": PUNDIT_FULL,
+                     **akw})
                 if self.tts:
                     # INSTANT pre-rendered VICTORY sting on the flag (zero render
                     # latency on the signature moment); the named win call is
@@ -3456,7 +3469,12 @@ class Overlay:
         if leader is not None:
             lslot = leader.driver_info.slot_id
             if is_race and self._comm_lead is not None and lslot != self._comm_lead:
-                L("leadchange", 0, drv=self._dname(leader))
+                # narrative lead call: name the arc when the new leader climbed
+                # from deep or fought back from a disaster
+                arc, akw = self._narrative_arc(lslot, place=1)
+                lcat = {"comeback": "leadchange_comeback",
+                        "charge": "leadchange_charge"}.get(arc, "leadchange")
+                L(lcat, 0, drv=self._dname(leader), **akw)
                 self._story.setdefault(lslot, [])
                 if "led" not in self._story[lslot]:
                     self._story[lslot].append("led")
@@ -3749,8 +3767,20 @@ class Overlay:
                         if self.tts:
                             self.tts.interrupt()
                     if cat:
+                        akw = {}
+                        if cat in ("overtake", "overtake_long", "pass_clean"):
+                            # narrative pass call: a driver on a charge or a
+                            # comeback gets the story woven into the call —
+                            # but only ~half the time, so a recovery drive
+                            # isn't narrated identically pass after pass
+                            arc, akw2 = self._narrative_arc(sl, place=cpd)
+                            ncat = {"comeback": "overtake_comeback",
+                                    "charge": "overtake_charge"}.get(arc)
+                            if ncat and random.random() < 0.5:
+                                cat, akw = ncat, akw2
                         L(cat, 1 if cat == "retake" else 2,
-                          drv=self._dname(d), oth=self._dname(victim), pos=cpd)
+                          drv=self._dname(d), oth=self._dname(victim), pos=cpd,
+                          **akw)
                         self._last_pass = (sl, vsl, cpd, now)
                     self._battle.pop(sl, None)
 
@@ -4628,6 +4658,27 @@ class Overlay:
             return None
         elig.sort(key=lambda e: -e[1])
         return random.choice(elig[:4])[0]   # one of the most eventful
+
+    def _narrative_arc(self, sl, place=None):
+        """Classify a driver's race-so-far for the BIG-moment calls, so the
+        booth ties the call to the story ('wins from P14 on the grid!') instead
+        of just stating the event. Returns (tag, kwargs):
+          'comeback' — fell way below the grid slot and has climbed right back
+          'charge'   — started deep and has carved up through the field
+          'wire'     — front all the way (only meaningful for the leader)
+          None       — no special arc; use the generic call."""
+        st = self._race_story.get(sl)
+        grid = self.grid_place.get(sl)
+        if not st or grid is None:
+            return None, {}
+        now_p = place if place is not None else st["now"]
+        if st["worst"] >= grid + 3 and st["worst"] - now_p >= 4:
+            return "comeback", {"worst": st["worst"], "grid": grid}
+        if grid - now_p >= 4:
+            return "charge", {"grid": grid}
+        if grid == 1 and st["worst"] <= 2 and now_p == 1:
+            return "wire", {"grid": grid}
+        return None, {}
 
     def _story_report(self, d):
         """A spoken summary of a driver's race so far, built from their RACE

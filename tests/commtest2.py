@@ -88,18 +88,30 @@ for lap in range(1, 40):
         for k in list(o._filler_cd): o._filler_cd[k] -= 80
         drive(o, s, 1)
 allt = [t for p, t in o.tts.spoken]
-# lore Q&A — NEW backstory (Miles: F1 champ -> rally; Brett: Le Mans/WEC champ)
-_LQ = ("won le mans", "endurance greats", "kristensen and mcnish", "le mans crown",
-       "wec legends", "world champion before", "schumacher and häkkinen",
-       "rally man", "forests", "endurance era", "racing past")
-lore_q = [t for t in allt if any(k in t.lower() for k in _LQ)]
-_LA = (  # Brett's WEC answers / Miles's F1-then-rally answers (generic + track)
-    "kristensen", "mcnish", "pirro", "lotterer", "capello", "endurance teaches",
-    "prototype", "le mans years", "mulsanne", "porsche curves", "green hell",
-    "schumacher", "häkkinen", "hakkinen", "barrichello", "rubens", "mika",
-    "world champion", "formula one", "f1 days", "car control", "eau rouge",
-    "parabolica", "becketts", "tamburello", "the forests")
-lore_a = [t for t in allt if any(k in t.lower() for k in _LA)]
+# lore Q&A — match emitted text against the ACTUAL topic pools, placeholder-
+# insensitively (keyword grepping broke every time a new topic was added).
+# A template matches if its longest literal chunk (between {placeholders})
+# appears in the emitted line.
+import re
+from lines import (LORE_TOPICS, LORE_COMM_BY_TRACK, LORE_PUNDIT_BY_TRACK,
+                   COMMENTARY_LINES as _CL)
+
+def _chunk(tpl):
+    parts = [p.strip() for p in re.split(r"\{[^}]*\}", tpl)]
+    return max(parts, key=len)
+
+_q_tpl, _a_tpl = [], []
+for who in LORE_TOPICS.values():
+    for tdef in who.values():
+        _q_tpl += tdef["q"]
+        _a_tpl += tdef["a"]
+for pool in list(LORE_PUNDIT_BY_TRACK.values()) + list(LORE_COMM_BY_TRACK.values()):
+    _a_tpl += pool
+_a_tpl += _CL.get("lore_a", []) + _CL.get("lore_a_rally", [])
+_QC = [_chunk(t) for t in _q_tpl if len(_chunk(t)) >= 12]
+_AC = [_chunk(t) for t in _a_tpl if len(_chunk(t)) >= 12]
+lore_q = [t for t in allt if any(c in t for c in _QC)]
+lore_a = [t for t in allt if any(c in t for c in _AC)]
 print(f"  lore questions: {len(lore_q)}   lore answers: {len(lore_a)}")
 # an answer proves a full Q&A exchange fired (the answer is force-queued only
 # in response to a lore question)
@@ -139,11 +151,10 @@ o.tts._pend = 9
 for i in range(s.num_cars):
     s.all_drivers_data_1[i].car_speed = 60.0   # lights out -> racing edge
 drive(o, s, 3); age_intro(o)
-_ST = ("lights out", "lights go", "away we go", "and away", "they're away",
-       "we are racing", "green flag", "flag drops", "off they go",
-       "leads them", "into turn one", "first corner", "lights and away",
-       "we're racing", "into the lead", "grabs the early")
-start = [t for p, t in o.tts.spoken if any(k in t.lower() for k in _ST)]
+# match against the ACTUAL start pool (chunk-match, placeholder-insensitive)
+# — a keyword list broke whenever a start variant used novel wording
+_SC = [_chunk(t) for t in _CL["start"] if len(_chunk(t)) >= 10]
+start = [t for p, t in o.tts.spoken if any(c in t for c in _SC)]
 assert start, f"START call was dropped! booth={[t for p,t in o.tts.spoken if p=='COMMENTATOR'][:6]}"
 print(f"  lights-out call landed despite busy queue: {start[0][:58]}")
 

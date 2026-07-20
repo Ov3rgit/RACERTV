@@ -102,11 +102,13 @@ for lap in range(1, 6):
     for _ in range(6):
         o._comm_cd = 0.0
         drive(o, s, 1)
-_SOLO = ("out there", "solo", "to themselves", "only car", "private session",
-         "place to themselves", "out on track today", "the place to themselves",
-         "alone", "no one else", "all the clear track", "clear air", "no traffic",
-         "no rivals", "playground", "private playground", "lonely", "belongs to")
-solo = [t for p, t in booth(o) if any(k in t.lower() for k in _SOLO)]
+# chunk-match against the ACTUAL quali_solo pool (see mileage check below)
+import re as _re0
+from lines import COMMENTARY_LINES as _CL0
+_SC0 = [max((p.strip() for p in _re0.split(r"\{[^}]*\}", t)), key=len)
+        for t in _CL0["quali_solo"]]
+_SC0 = [c for c in _SC0 if len(c) >= 10]
+solo = [t for p, t in booth(o) if any(c in t for c in _SC0)]
 assert solo, f"no solo-session awareness lines! booth={booth(o)}"
 print(f"  solo-awareness lines aired: {len(solo)}")
 print(f"   e.g. {solo[0][:70]}")
@@ -124,10 +126,16 @@ for lap in range(1, 9):
     for _ in range(5):
         o._comm_cd = 0.0
         drive(o, s, 1)
-mileage = [t for p, t in booth(o) if "mileage" in t.lower()
-           or "completed" in t.lower() and "laps" in t.lower()
-           or "no clock" in t.lower() or "no time limit" in t.lower()
-           or "all the time in the world" in t.lower() or "reps" in t.lower()]
+# chunk-match against the ACTUAL quali_open_laps pool (placeholder-
+# insensitive) — the old keyword list missed pool variants and flaked
+import re as _re
+from lines import COMMENTARY_LINES as _CL
+
+def _chunk(tpl):
+    return max((p.strip() for p in _re.split(r"\{[^}]*\}", tpl)), key=len)
+
+_MC = [_chunk(t) for t in _CL["quali_open_laps"] if len(_chunk(t)) >= 10]
+mileage = [t for p, t in booth(o) if any(c in t for c in _MC)]
 assert mileage, f"no open-session mileage lines! booth={booth(o)}"
 print(f"  open-session mileage lines aired: {len(mileage)}")
 print(f"   e.g. {mileage[0][:70]}")
