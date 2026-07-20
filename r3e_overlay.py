@@ -34,6 +34,7 @@ from overlay_common import (CORNER_NBINS, DIM, DRIVER_COLORS, GREEN,
     VK_C, VK_CONTROL, VK_E, VK_LBUTTON, VK_M, VK_O, VK_Q, VK_SHIFT, VK_D,
     VK_R, YELLOWT, _LEET)
 from overlay_booth import BoothMixin
+from overlay_objective import ObjectiveMixin
 from overlay_draw import DrawMixin
 from overlay_radio import RadioMixin
 from lines import (PERSONA_KEYS, SHORT_TRACK, CORNER_NAMES)
@@ -187,7 +188,7 @@ def key_down(vk):
 
 
 
-class Overlay(BoothMixin, RadioMixin, DrawMixin):
+class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
     def __init__(self):
         self.reader = R.R3EReader()
         self.root = tk.Tk()
@@ -269,6 +270,8 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin):
         self.grid_place = {}     # slot -> first-seen place (for ▲▼ arrows)
         self.last_laps = {}      # slot -> completed_laps (detect lap done)
         self.best_lap = {}       # slot -> best lap time (quali/practice tower)
+        self.recent_laps = {}    # slot -> last few lap times (rolling race pace)
+        self._obj_damaged = False
         self.fastest = {"time": None, "slot": None, "car": 0, "name": "", "at": 0.0}
         self.cum_gap = {}        # slot -> seconds to leader (track-position based)
         self.interval = {}       # slot -> seconds to car directly ahead
@@ -678,6 +681,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin):
                       ("penalty", self.draw_penalty),
                       ("tower", self.draw_tower), ("relative", self.draw_relative),
                       ("fastest", self.draw_fastest_banner),
+                      ("objective", self.draw_objective),
                       ("sectors", self.draw_sectors), ("map", self.draw_map),
                       ("bubbles", self.draw_radio), ("caption", self.draw_commentary),
                       ("podium", self.draw_podium)]
@@ -848,6 +852,9 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin):
             self.grid_place = {}
             self.last_laps = {}
             self.best_lap = {}       # slot -> best lap time (for quali/practice tower)
+            self.recent_laps = {}    # slot -> last few lap times (rolling pace)
+            self._obj_damaged = False  # severe damage -> objectives switch to salvage
+            self._obj_reset()          # race-objective state (overlay_objective)
             self.fastest = {"time": None, "slot": None, "car": 0, "name": "", "at": 0.0}
             self.cplace = {}         # slot -> DEBOUNCED ('confirmed') place
             self._cpend = {}         # slot -> (candidate place, ticks held)
@@ -1000,6 +1007,12 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin):
                     improved = (pb is None or lap < pb)
                     if improved:                   # per-driver best (quali tower)
                         self.best_lap[slot] = lap
+                    # ROLLING PACE: the last few laps, which is what a race
+                    # objective must be judged on. A best lap is a one-off and
+                    # would promise catches that current pace can't deliver.
+                    rl = self.recent_laps.setdefault(slot, [])
+                    rl.append(lap)
+                    del rl[:-4]                    # keep the last 4
                     was_fastest = (self.fastest["time"] is None
                                    or lap < self.fastest["time"])
                     if was_fastest:

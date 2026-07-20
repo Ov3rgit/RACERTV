@@ -1,0 +1,176 @@
+"""Race objectives: the engineer setting a target, tracking it, resolving it.
+
+The assertions that matter most are the NEGATIVE ones. An objective that was
+never achievable is worse than no objective at all — it instantly exposes the
+engineer as fake — so most of this file is about proving he stays quiet when a
+target isn't realistically on.
+"""
+import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"
+
+import sys
+
+sys.path.insert(0, r"D:\R3EOverlay")
+src = open(r"D:\R3EOverlay\tests\smoke.py").read()
+exec(src.split('run_session("RACE"')[0])
+from lines import ENGINEER_LINES                        # noqa: E402
+from poolmatch import from_pool                         # noqa: E402
+from overlay_common import _safe_format                 # noqa: E402
+
+SET_POOLS = (ENGINEER_LINES["obj_set_chase"] + ENGINEER_LINES["obj_set_position"]
+             + ENGINEER_LINES["obj_set_defend"] + ENGINEER_LINES["obj_set_damage"])
+
+
+def race(ncars=8, laps=20, my_place=5):
+    o = headless_overlay(fake_tts=True)
+    s = make_shared(2, ncars=ncars)
+    s.number_of_laps = laps
+    o._show_caption = lambda *a, **k: None
+    o.radio_msgs = []
+    o._obj_reset()
+    o._obj_damaged = False
+    you = s.all_drivers_data_1[0]
+    for i, d in enumerate(s.all_drivers_data_1[:ncars]):
+        d.car_speed = 60.0
+        d.place = i + 1
+        d.completed_laps = 4
+    you.place = my_place
+    s.all_drivers_data_1[my_place - 1].place = 1
+    o._racing = True
+    return o, s, you
+
+
+def pace(o, slot, t):
+    o.recent_laps[slot] = [t, t, t]
+
+
+def offer(o, s):
+    """Ask the objective system directly for its decision this tick."""
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    pm = {d.place: d for d in order}
+    o._obj_last_t = 0.0
+    return o.objective_event(s, order, pm, time.time())
+
+
+print("===== STAYS SILENT WHEN A TARGET ISN'T ON =====")
+
+# 1. no pace edge — we are no quicker than the car ahead
+o, s, you = race()
+pace(o, you.driver_info.slot_id, 90.0)
+pace(o, s.all_drivers_data_1[1].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 3.0}
+assert offer(o, s) is None, "offered a chase with NO pace advantage"
+print("  no pace edge -> silent: OK")
+
+# 2. plenty of pace, but the gap is absurd
+o, s, you = race()
+pace(o, you.driver_info.slot_id, 88.0)
+pace(o, s.all_drivers_data_1[1].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 45.0}
+assert offer(o, s) is None, "offered a chase across a 45s gap"
+print("  gap far too large -> silent: OK")
+
+# 3. good pace, small gap, but the race is nearly over
+o, s, you = race(laps=20)
+for d in s.all_drivers_data_1[:s.num_cars]:
+    d.completed_laps = 19            # 1 lap to go
+pace(o, you.driver_info.slot_id, 89.0)
+pace(o, s.all_drivers_data_1[1].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 4.0}
+assert offer(o, s) is None, "offered a target with a single lap left"
+print("  not enough laps left -> silent: OK")
+
+# 4. no pace data at all yet (opening laps)
+o, s, you = race()
+o.recent_laps = {}
+o.interval = {you.driver_info.slot_id: 2.0}
+assert offer(o, s) is None, "offered a target with no pace read"
+print("  no pace data -> silent: OK")
+
+# 5. marginal edge: 0.02s/lap is noise, not a catch
+o, s, you = race()
+pace(o, you.driver_info.slot_id, 89.98)
+pace(o, s.all_drivers_data_1[1].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 5.0}
+assert offer(o, s) is None, "offered a chase on a 0.02s/lap edge"
+print("  edge below noise floor -> silent: OK")
+
+
+print("\n===== OFFERS WHEN IT GENUINELY IS ON =====")
+o, s, you = race(my_place=5)
+pace(o, you.driver_info.slot_id, 89.0)          # 1s/lap quicker
+pace(o, s.all_drivers_data_1[3].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 4.0}     # 4s back, 16 laps left
+got = offer(o, s)
+assert got, "did NOT offer a target that was clearly achievable"
+cat, kw = got
+assert cat.startswith("obj_set_"), cat
+line = ENGINEER_LINES[cat][0]
+print(f"  offered {cat}: {line[:66]}")
+assert o._obj, "objective was not stored"
+assert o._obj["laps"] >= 2, "deadline is too tight to be meaningful"
+print(f"  deadline {o._obj['laps']} laps, hud={o._obj['hud']!r}: OK")
+
+
+print("\n===== RESOLVES, AND ONLY ONCE =====")
+# meet it: take the position
+you.place = 4
+s.all_drivers_data_1[3].place = 5
+res = offer(o, s)
+assert res and res[0] == "obj_met_pass", f"pass not detected as met: {res}"
+assert o._obj is None, "objective still active after being met"
+assert o._obj_result and o._obj_result["ok"], "HUD result not latched as met"
+print(f"  target met -> {res[0]}, HUD latched: OK")
+assert offer(o, s) is None or o._obj, "resolved objective fired twice"
+
+# miss it: run out of laps
+o, s, you = race(my_place=5)
+pace(o, you.driver_info.slot_id, 89.0)
+pace(o, s.all_drivers_data_1[3].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 4.0}
+assert offer(o, s), "setup: no objective offered"
+lap0 = o._obj["lap0"]
+dl = o._obj["laps"]
+for d in s.all_drivers_data_1[:s.num_cars]:
+    d.completed_laps = lap0 + dl                 # deadline reached, no progress
+res = offer(o, s)
+assert res and res[0].startswith("obj_miss"), f"deadline miss not resolved: {res}"
+assert o._obj is None, "missed objective still active"
+assert o._obj_result and not o._obj_result["ok"], "HUD result not latched as missed"
+print(f"  target missed -> {res[0]}, HUD latched: OK")
+
+
+print("\n===== WITHDRAWN WHEN THE RACE CHANGES =====")
+o, s, you = race(my_place=5)
+pace(o, you.driver_info.slot_id, 89.0)
+pace(o, s.all_drivers_data_1[3].driver_info.slot_id, 90.0)
+o.interval = {you.driver_info.slot_id: 4.0}
+assert offer(o, s), "setup: no objective offered"
+o._obj_damaged = True                            # car breaks mid-objective
+res = offer(o, s)
+assert res and res[0] == "obj_withdraw_damage", f"not withdrawn on damage: {res}"
+assert o._obj is None, "withdrawn objective still active"
+print(f"  damage withdraws the target -> {res[0]}: OK")
+
+# a damaged car still gets a salvage objective
+o.interval = {s.all_drivers_data_1[5].driver_info.slot_id: 3.0}
+o._obj_last_t = 0.0
+got = offer(o, s)
+if got:
+    print(f"  damaged car still gets a target: {got[0]}")
+    assert got[0] == "obj_set_damage", got[0]
+
+
+print("\n===== EVERY LINE FORMATS =====")
+bad = []
+for cat in [k for k in ENGINEER_LINES if k.startswith("obj_")]:
+    for tpl in ENGINEER_LINES[cat]:
+        out = _safe_format(tpl, {"drv": "Kowalski", "laps": 5, "pos": 3,
+                                 "gap": "1s"})
+        if "{" in out:
+            bad.append((cat, out))
+assert not bad, f"objective lines failed to format: {bad[:3]}"
+n = sum(len(ENGINEER_LINES[k]) for k in ENGINEER_LINES if k.startswith("obj_"))
+print(f"  all {n} objective lines format cleanly: OK")
+
+print("\nALL OBJECTIVE CHECKS PASSED")

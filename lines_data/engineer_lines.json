@@ -575,5 +575,87 @@
     "That's {count}. Nothing's broken, but let's tidy the race up from here.",
     "{count} moments so far. Settle in, build a rhythm, stop chasing it.",
     "Running tally is {count} incidents. Let's make the rest of this one boring, yeah?"
+  ],
+  "obj_set_chase": [
+    "Right, target for you: get within {gap} of {drv} in the next {laps} laps. That's the job.",
+    "New target — close onto {drv}, within {gap}, {laps} laps to do it. Build it up, don't force it.",
+    "Let's give ourselves something to aim at: {drv}, within {gap}, inside {laps} laps.",
+    "{drv} is the one we're hunting. Get within {gap} in {laps} laps and we're in business.",
+    "Here's the plan — reel {drv} in to {gap} over the next {laps} laps. Steady laps, no heroics.",
+    "Target on the board: {gap} to {drv}, {laps} laps. The pace is there, just deliver it.",
+    "We're quicker than {drv} right now. Use it — within {gap}, {laps} laps."
+  ],
+  "obj_set_position": [
+    "P{pos} is on the table, mate. {drv} is the one in your way — {laps} laps to make it happen.",
+    "Right, we're going for P{pos}. Get past {drv} inside {laps} laps and it's ours.",
+    "This is a real chance — P{pos} if you can clear {drv} in the next {laps} laps.",
+    "{drv} for P{pos}. You've got {laps} laps and you've got the pace. Go and take it.",
+    "Big one, this: P{pos} is live. Clear {drv} within {laps} laps.",
+    "Target P{pos}. {drv} ahead, {laps} laps to get it done. Pick your moment."
+  ],
+  "obj_set_defend": [
+    "{drv} is coming. Hold P{pos} for the next {laps} laps — that's all I want.",
+    "Job's changed: keep {drv} behind you. P{pos} is worth defending, {laps} laps.",
+    "{drv} has pace on us. Defend P{pos} for {laps} laps, be firm but fair.",
+    "Eyes in the mirrors — {drv} closing. Hold P{pos} through the next {laps} laps.",
+    "Don't let {drv} through. P{pos} for the next {laps} laps, that's the target."
+  ],
+  "obj_set_damage": [
+    "Car's hurt, so the goal changes: keep {drv} behind us for {laps} laps. Damage limitation now.",
+    "Forget attacking — with this damage the job is holding {drv} off for {laps} laps.",
+    "New reality, mate. We're wounded. Keep {drv} behind for {laps} laps and we salvage this.",
+    "The car's not right. Target is simple: stay ahead of {drv}, next {laps} laps.",
+    "We're managing a problem now. {drv} behind you — keep it that way for {laps} laps."
+  ],
+  "obj_met_pass": [
+    "YES! That's P{pos} — target smashed. Brilliant work, mate.",
+    "Got him! P{pos} secured. That's exactly what we asked for.",
+    "Beautiful. P{pos} is ours — now let's hold it to the flag.",
+    "That's the one! P{pos}. Superb driving, now settle in and defend it.",
+    "Target complete — P{pos}. Outstanding. Head down, bring it home.",
+    "P{pos}! You made that look easy. Consolidate now, no need to overdrive."
+  ],
+  "obj_met_close": [
+    "That's it — {gap} to {drv}. Target hit. Now you're in his mirrors, apply the pressure.",
+    "Perfect, you're within {gap} of {drv}. Job done. Stay there and make him nervous.",
+    "Target achieved, {gap} to {drv}. Great pace. Now pick your moment.",
+    "You're on him — {gap}. Exactly what we wanted. Be patient for the move.",
+    "{gap} to {drv}, that's the target done. Brilliant. Now the hard part."
+  ],
+  "obj_met_defend": [
+    "Held it! P{pos} is yours — {drv} couldn't find a way past. Superb defending.",
+    "That's the job done, P{pos} defended. Rock solid, mate.",
+    "You kept {drv} at bay and P{pos} is safe. Excellent work under pressure.",
+    "Target complete — P{pos} held. That was proper racecraft."
+  ],
+  "obj_met_damage": [
+    "Well salvaged, mate. Still P{pos} with a damaged car — that's a real result.",
+    "Target met — {drv} never got past despite the damage. Superb management.",
+    "P{pos} held with a broken car. That's the best we could have asked for.",
+    "Damage limitation complete. Still ahead of {drv}. Excellent head on you."
+  ],
+  "obj_miss_pass": [
+    "We didn't quite have the pace for that one. No drama — drive your own race from here.",
+    "That target's gone, and honestly it was a stretch. Forget it, focus on clean laps.",
+    "Couldn't make it stick on {drv}. It happens. Reset, keep pushing, the race isn't done.",
+    "We came up short on that one. Not for lack of effort — the pace just wasn't there today.",
+    "Target missed. Don't dwell on it, mate. Keep the rhythm and see what comes to us.",
+    "{drv} had a bit more than us. That's racing. Heads up, drive your own race."
+  ],
+  "obj_miss_defend": [
+    "He's through. Nothing you could do there — he had the pace. Now let's get him back.",
+    "Lost the place. Don't chase it in anger, mate — build a lap, then think about it.",
+    "{drv} got by. Frustrating, but the race is long. Stay calm and keep your pace up.",
+    "That one's gone. Reset your head, drive your own race, opportunities will come."
+  ],
+  "obj_withdraw_damage": [
+    "Scrub that target — the car's damaged. New priority is getting this thing home.",
+    "Forget {drv} for now, we've got damage. Manage the car, that's the job.",
+    "Cancel that one. Damage changes everything — bring it home in one piece."
+  ],
+  "obj_withdraw_gone": [
+    "{drv} is out of the picture, so forget that target. New plan shortly.",
+    "Scratch that — {drv} is gone. I'll give you a new target in a moment.",
+    "That target's void, {drv} is out. Just drive your race for now."
   ]
 }

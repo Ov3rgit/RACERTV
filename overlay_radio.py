@@ -807,6 +807,20 @@ class RadioMixin:
             if where.startswith("into ") and random.random() < 0.7:
                 return add("gained_where", 1, bypass=True, where=where)
             return add("gained", 1, bypass=True)
+        # RACE OBJECTIVE — the engineer setting you a target, tracking it and
+        # resolving it out loud. Sits BELOW the emergencies above (damage,
+        # penalties, limits, pit calls all still come first) but ABOVE routine
+        # chatter, because a target being met or missed is the most meaningful
+        # thing he can tell you. The system stays silent whenever no credible
+        # objective exists — see overlay_objective.py.
+        _order = sorted((d for d in placemap.values() if d.place > 0),
+                        key=lambda d: d.place)
+        obj = self.objective_event(s, _order, placemap, now)
+        if obj:
+            ocat, okw = obj
+            if ocat in ENGINEER_LINES:
+                return add(ocat, 1, **okw)
+
         # directional gap calls (only when the gap is actually moving)
         if ahead and gap and pgap is not None:
             if gap < 2.0 and gap < pgap - 0.05:        # you're closing on car ahead
@@ -874,6 +888,9 @@ class RadioMixin:
             # materially worse so a second big hit still gets a fresh call.
             sev = self._eng_dmg_sev.get(part)
             if (drop > 0.22 or val < 0.55) and (sev is None or sev - val > 0.10):
+                # flag SEVERE damage for the objective system: it withdraws any
+                # attacking target and switches to damage limitation
+                self._obj_damaged = True
                 self._eng_dmg_sev[part] = val
                 self._eng_dmg[part] = val
                 self._eng_dmg_cd[part] = now

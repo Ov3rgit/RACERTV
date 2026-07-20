@@ -546,6 +546,45 @@ class DrawMixin:
                   f"#{fl['car']} {fl['name'][:12]}  {R.fmt_time(fl['time'])}",
                   fill=fg, font=self.f_row_b, anchor="e")
 
+    def draw_objective(self, s):
+        """The active race objective, as a broadcast-style target chip with a
+        progress bar. Only ever shows while an objective is live, and shows
+        the RESULT briefly when one resolves — so the screen always agrees
+        with what the engineer just said on the radio."""
+        now = time.time()
+        res = getattr(self, "_obj_result", None)
+        obj = getattr(self, "_obj", None)
+        if not obj and not (res and now < res.get("until", 0)):
+            return
+        w, h = 300, 34
+        x = (self.sw - w) // 2
+        y = self.sh - 148                       # sits above the fastest-lap slot
+        self._begin_panel("objective", x, y, w, h)
+        if obj:
+            label, col = "TARGET", HEADER_ACCENT
+            txt = obj.get("hud", "")
+            prog = obj.get("_prog")
+        else:                                   # briefly show met/missed
+            ok = res.get("ok")
+            label = "TARGET MET" if ok else "TARGET MISSED"
+            col = GREEN if ok else "#ff6b6b"
+            txt = res.get("hud", "")
+            prog = 1.0 if ok else None
+        self.canvas.create_rectangle(x, y, x + w, y + h,
+                                     fill=CARD_BG, outline=col)
+        self.text(x + 10, y + 11, label, fill=col, font=self.f_small_b,
+                  anchor="w")
+        self.text(x + w - 10, y + 11, txt[:34], fill=TEXT, font=self.f_row,
+                  anchor="e")
+        # progress bar along the bottom edge of the chip
+        by, bh = y + h - 6, 3
+        self.canvas.create_rectangle(x + 10, by, x + w - 10, by + bh,
+                                     fill="#1c2530", outline="")
+        if prog:
+            fw = (w - 20) * max(0.0, min(1.0, prog))
+            self.canvas.create_rectangle(x + 10, by, x + 10 + fw, by + bh,
+                                         fill=col, outline="")
+
     def draw_settings(self):
         """Clickable '≡ SETTINGS' chip pinned to the game's top-left (under
         the clock) + a toggle menu, so testers never need the hotkeys. Clicks

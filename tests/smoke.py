@@ -145,6 +145,9 @@ def headless_overlay(fake_tts=False):
     o._intro_aired = False
     o._q_off_lv = 1
     o._q_off_watch = None
+    o.recent_laps = {}               # slot -> recent lap times (objective pace)
+    o._obj_damaged = False           # severe damage -> objectives go to salvage
+    o._obj_reset()                   # race-objective state (overlay_objective)
     o._pending_bubbles = []          # card/audio sync (FakeTts airs instantly)
     o._bubble_lock = threading.Lock()
     o._dvariant = {}                 # driver -> helmet PNG variant index
