@@ -330,6 +330,50 @@ def _click(rate, ms=80):
     return out
 
 
+# ---- OBJECTIVE CHIMES ---------------------------------------------------
+# UI sound for the objective card: one motif when a target is given, one when
+# it is met, one when it is missed. NOT the "stings" above — those are
+# pre-rendered VOICE clips. These are synthesised tones.
+#
+# Brief was "smooth but distinct", so: sine partials only (no square/saw edge),
+# a soft attack so nothing clicks, and a long decay tail that ducks under the
+# engineer's line rather than talking over it. The three are told apart by
+# SHAPE, not by volume or brightness — you should know which one fired without
+# looking at the screen:
+#   set    two rising notes, open and unresolved  -> "here's a job"
+#   met    three notes resolving up to the octave -> arrival
+#   miss   two falling notes, minor third         -> deflation, not a buzzer
+# Deliberately NOT a harsh failure buzzer: missing a target is already a
+# disappointment, and punishing the player with an ugly noise is cheap.
+CHIME_NOTES = {
+    "set":  [(587.33, 0.00, 0.16), (880.00, 0.13, 0.34)],
+    "met":  [(587.33, 0.00, 0.14), (783.99, 0.12, 0.14),
+             (1174.66, 0.24, 0.52)],
+    "miss": [(587.33, 0.00, 0.20), (493.88, 0.17, 0.46)],
+}
+
+
+def _chime(rate, kind):
+    """Render one objective chime as float samples."""
+    notes = CHIME_NOTES.get(kind) or CHIME_NOTES["set"]
+    total = max(st + dur for _f, st, dur in notes) + 0.05
+    out = [0.0] * int(rate * total)
+    for freq, start, dur in notes:
+        n = int(rate * dur)
+        off = int(rate * start)
+        for i in range(n):
+            t = i / n
+            # smooth attack, exponential-ish decay: no click at either end
+            env = min(1.0, t / 0.06) * (1.0 - t) ** 1.8
+            j = off + i
+            if j >= len(out):
+                break
+            ph = 2 * math.pi * freq * i / rate
+            # a touch of second harmonic gives it body without making it buzzy
+            out[j] += (math.sin(ph) + 0.22 * math.sin(2 * ph)) * env * 0.32
+    return [_soft(v) for v in out]
+
+
 def _radioize(samples, rate, drive=None, noise=None, lo=220.0, hi=5200.0,
               shimmer=0.05):
     """Band-pass to the radio band + light distortion + static baked in. Kept
@@ -414,6 +458,7 @@ class Tts:
         self.names = [v[0] for v in self.voices]
         self._start_sapi()
         self._stings = {}          # (persona, group) -> [cached wav paths]
+        self._chime_cache = {}     # kind -> rendered objective-chime samples
         self._topics = {}          # topic -> pending count (dedup, see speak())
         self._answer_due = 0.0     # an exchange ANSWER is mid-render until this:
                                    # the play loop defers other jobs so nothing
@@ -603,6 +648,35 @@ class Tts:
         self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
                    (dst, _Cue(on_play), text, persona, self._epoch, None,
                     None, -1), prio=-1)
+        return True
+
+    def chime(self, kind):
+        """Play the objective chime for `kind` ("set" / "met" / "miss").
+
+        Jumps the queue (prio -1) like a sting, but does NOT purge: cutting the
+        booth mid-word to play a UI sound would be worse than waiting a beat,
+        and the engineer's line is queued right behind this — chime then
+        verdict is the order you want anyway. Rendered once on first use and
+        cached; the file is rewritten per call only so the user's current
+        volume applies. Silent (and harmless) if audio is off."""
+        if not self.enabled:
+            return False
+        try:
+            samples = self._chime_cache.get(kind)
+            if samples is None:
+                samples = _chime(24000, kind)
+                self._chime_cache[kind] = samples
+            dst = self._next_wav()
+            _write_wav(dst, 24000, samples, gain=self.volume)
+        except Exception as ex:
+            _log(f"chime ERR {type(ex).__name__}: {ex}")
+            return False
+        # persona ENGINEER so _purge spares it: the chime belongs to the same
+        # private conversation as the line it introduces
+        self._qput(self.play_q, "ENGINEER",
+                   (dst, _Cue(None), "", "CHIME", self._epoch, None, None, -1),
+                   prio=-1)
+        _log(f"chime {kind}")
         return True
 
     # ---- voice selection ----

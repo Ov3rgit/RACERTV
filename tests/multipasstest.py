@@ -123,3 +123,28 @@ assert any(w in said for w in ("job done", "just hit it", "delighted",
 print("  booth calls a met objective: OK")
 
 print("\nMULTI-PASS + OBJECTIVE AWARENESS CHECKS PASSED")
+
+# ---- 5. the objective CHIME fires for each lifecycle event -----------------
+# Wired inside _obj_notice, which is the one place all three events pass
+# through. The call is wrapped in try/except (audio must never break the
+# objective), so FakeTts records chimes rather than no-opping -- otherwise an
+# AttributeError would be swallowed and this would pass with the sound dead.
+o, s = build()
+settle(o, s)
+o.tts.chimed = []
+o._obj = {"kind": "position", "target_name": "Hans Gruber", "hud": "P3"}
+o._obj_notice("set", time.time())
+assert o.tts.chimed == ["set"], f"no 'set' chime: {o.tts.chimed}"
+
+o._obj = {"kind": "position", "target_name": "Hans Gruber", "hud": "P3"}
+o._obj_done(time.time(), "obj_met_pass", {"drv": "Hans Gruber", "pos": 3})
+assert "met" in o.tts.chimed, f"no 'met' chime on success: {o.tts.chimed}"
+
+o._obj = {"kind": "position", "target_name": "Hans Gruber", "hud": "P3"}
+o._obj_fail(time.time(), "obj_miss_pass", {"drv": "Hans Gruber", "pos": 5})
+assert "miss" in o.tts.chimed, f"no 'miss' chime on failure: {o.tts.chimed}"
+assert o.tts.chimed == ["set", "met", "miss"], (
+    f"the three events must chime DIFFERENTLY, in order: {o.tts.chimed}")
+print("  objective chimes fire for set/met/miss: OK")
+
+print("\nMULTI-PASS + OBJECTIVE + CHIME CHECKS PASSED")

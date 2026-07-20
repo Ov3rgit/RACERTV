@@ -192,3 +192,24 @@ assert not _missing, (
     "raise and the bare except in _render silently falls back to SAPI")
 print("  _gen_edge references no undefined globals: OK")
 print("\nALL DRAW + CUE + VOICE CHECKS PASSED")
+
+# ---- OBJECTIVE CHIMES -----------------------------------------------------
+# The card's UI sound: given / met / missed. Distinct MOTIFS, not just three
+# copies of one beep -- the point is knowing which fired without looking.
+print("\n===== OBJECTIVE CHIMES =====")
+_rates = {}
+for _k in ("set", "met", "miss"):
+    _smp = _tts._chime(24000, _k)
+    assert _smp, f"chime {_k} rendered nothing"
+    _peak = max(abs(v) for v in _smp)
+    assert 0.05 < _peak < 0.95, f"chime {_k} peak out of range: {_peak:.2f}"
+    # no click at either end: a chime that starts or ends on a non-zero sample
+    # pops, which is exactly what "smooth" rules out
+    assert abs(_smp[0]) < 0.02 and abs(_smp[-1]) < 0.02, (
+        f"chime {_k} starts/ends on a step -- that clicks")
+    _rates[_k] = (len(_smp), _peak)
+    print(f"  {_k}: {len(_smp)/24000:.2f}s peak {_peak:.2f}: OK")
+assert len({v[0] for v in _rates.values()}) == 3, (
+    "the three chimes are the same length -- they need to be tellable apart "
+    f"by shape, not volume: {_rates}")
+print("  three distinct motifs: OK")

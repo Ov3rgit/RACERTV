@@ -76,6 +76,7 @@ class FakeTts:
     enabled = True
     def __init__(self):
         self.spoken = []
+        self.chimed = []
         self._busy = False
         self._pend = 0
     def speaking(self):
@@ -93,6 +94,13 @@ class FakeTts:
             on_play(text, persona)
     def sting(self, group="alert", persona="PUNDIT", on_play=None):
         return False
+    def chime(self, kind):
+        # RECORD it, don't just no-op. The caller wraps chime() in a
+        # try/except (audio must never break the objective), so a fake without
+        # this method would swallow an AttributeError and every test would
+        # still pass with the chimes silently dead.
+        self.chimed.append(kind)
+        return True
     def stop(self): pass
     def flush(self): pass
     def interrupt(self): pass

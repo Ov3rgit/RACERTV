@@ -342,6 +342,16 @@ class ObjectiveMixin:
         o = self._obj or {}
         self._obj_booth = (event, o.get("kind", ""),
                            o.get("target_name", ""), now)
+        # UI chime for the objective card: given / met / missed, each a
+        # distinct motif. Queued ahead of the engineer's line, so you hear the
+        # chime and then what it means. Never let audio trouble break the
+        # objective itself — this is decoration, the target is the feature.
+        tts = getattr(self, "tts", None)
+        if tts is not None:
+            try:
+                tts.chime(event)
+            except Exception:
+                pass
 
     def _obj_done(self, now, cat, kw):
         self._obj_notice("met", now)
