@@ -7,6 +7,7 @@ Separate from overlay_common because these need tk and the win32 API, and
 overlay_common has to stay dependency-free so every mixin can import it.
 """
 import ctypes
+import time
 from ctypes import wintypes
 
 import tkinter as tk
@@ -44,6 +45,32 @@ class _TC:
         return self.cv.create_polygon(*pts, **kw)
 
 
+class _GlassBuf:
+    """Collects glass-layer draw ops instead of painting them immediately.
+
+    The backing window's content (a panel body) is identical from frame to
+    frame, but it was being cleared and repainted at 20Hz across every panel.
+    Two independently-composited windows repainting that often drift out of
+    step, and that mismatch is what shows up as FLICKER. Buffering lets the
+    panel skip the repaint entirely when nothing changed, which is almost
+    always."""
+
+    def __init__(self):
+        self.ops = []
+
+    def reset(self):
+        self.ops = []
+
+    def create_rectangle(self, *a, **k):
+        self.ops.append(("rect", a, tuple(sorted(k.items()))))
+
+    def create_polygon(self, *a, **k):
+        self.ops.append(("poly", a, tuple(sorted(k.items()))))
+
+    def create_oval(self, *a, **k):
+        self.ops.append(("oval", a, tuple(sorted(k.items()))))
+
+
 class _Panel:
     """One small always-on-top window (like the toggle, which composites
     reliably over the borderless game — a single big window does not)."""
@@ -71,6 +98,9 @@ class _Panel:
         self.bg_win = None
         self.bg_cv = None
         self.bg_hwnd = None
+        self.glass = _GlassBuf()      # this frame's glass ops
+        self._glass_drawn = None      # what the glass window currently shows
+        self._raise_t = 0.0           # last z-order assertion
         if GLASS:
             try:
                 bw = tk.Toplevel(root)
@@ -113,28 +143,55 @@ class _Panel:
                 self.bg_cv.config(width=w, height=h)
             self._geo = geo
         self.cv.delete("all")
-        if self.bg_cv is not None:
-            self.bg_cv.delete("all")
+        self.glass.reset()            # glass is repainted only in flush_glass
+        moved = (geo != self._geo)
         if not self.shown:
             if self.bg_win is not None:
                 self.bg_win.deiconify()   # glass first, so it never flashes
             self.win.deiconify()          # show INSTANTLY (no fade)
             self.shown = True
-        # Raise the glass first, then the content directly above it. Doing it
-        # in this order every frame keeps the pair together in the z-order —
-        # if the content ever slipped behind its own glass the panel would
-        # look washed out.
-        if self.bg_hwnd:
-            user32.SetWindowPos(self.bg_hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                                SWP_NOMOVE_NOSIZE_NOACT)
-        if self.hwnd:
-            user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                                SWP_NOMOVE_NOSIZE_NOACT)
+            moved = True
+        # Z-ORDER: assert it on a slow cadence, not every frame. Re-raising
+        # ~30 windows at 20Hz was ~600 z-order changes a second, each one a
+        # repaint — a large part of the flicker. The game only steals topmost
+        # occasionally, so twice a second is ample.
+        now = time.time()
+        if moved or now - self._raise_t > 0.5:
+            self._raise_t = now
+            # glass first, content directly above it: if the content ever
+            # slipped behind its own glass the panel would look washed out
+            if self.bg_hwnd:
+                user32.SetWindowPos(self.bg_hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                                    SWP_NOMOVE_NOSIZE_NOACT)
+            if self.hwnd:
+                user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                                    SWP_NOMOVE_NOSIZE_NOACT)
         return self.cv
+
+    def flush_glass(self):
+        """Repaint the backing window ONLY if its content changed since the
+        last frame. This is the flicker fix: the glass is static almost every
+        frame, so almost every frame does nothing here."""
+        if self.bg_cv is None:
+            return
+        ops = self.glass.ops
+        if ops == self._glass_drawn:
+            return                     # unchanged — leave the window alone
+        self._glass_drawn = list(ops)
+        self.bg_cv.delete("all")
+        for kind, a, kw in ops:
+            k = dict(kw)
+            if kind == "rect":
+                self.bg_cv.create_rectangle(*a, **k)
+            elif kind == "poly":
+                self.bg_cv.create_polygon(*a, **k)
+            else:
+                self.bg_cv.create_oval(*a, **k)
 
     def hide(self):
         if self.shown:
             self.win.withdraw()           # hide INSTANTLY (no fade)
             if self.bg_win is not None:
                 self.bg_win.withdraw()
+            self._glass_drawn = None   # force a repaint when it comes back
             self.shown = False

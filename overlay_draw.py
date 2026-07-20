@@ -28,17 +28,28 @@ class DrawMixin:
         if p is None:
             p = _Panel(self.root)
             self.panels[name] = p
+        # finish the PREVIOUS panel's glass before switching away from it
+        prev = getattr(self, "_cur_panel", None)
+        if prev is not None and prev is not p:
+            prev.flush_glass()
         p.place(self.game_x + lx, self.game_y + ly, w, h)
         self._used.add(name)
+        self._cur_panel = p
         self._cv_real = p.cv
-        # the GLASS layer for this panel (None when glass is disabled) — panel
-        # BODIES are drawn here so they can be translucent while everything on
-        # _cv_real above stays fully solid
-        self._bg_real = p.bg_cv
+        # Panel BODIES are drawn into the glass BUFFER (not straight onto the
+        # backing canvas) so the backing window is only repainted when its
+        # content actually changes — see _Panel.flush_glass. Everything else
+        # goes on _cv_real above it and stays fully solid.
+        self._bg_real = p.glass if p.bg_cv is not None else None
         self._ox, self._oy = lx, ly
         return self.canvas
 
     def _hide_unused_panels(self):
+        # end of frame: flush the last panel's glass, then hide the unused
+        cur = getattr(self, "_cur_panel", None)
+        if cur is not None:
+            cur.flush_glass()
+            self._cur_panel = None
         for name, p in self.panels.items():
             if name not in self._used:
                 p.hide()
