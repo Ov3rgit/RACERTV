@@ -76,6 +76,8 @@ class FakeTts:
     enabled = True
     def __init__(self):
         self.spoken = []
+        self.dropped = []
+        self.drop_all = False        # see speak(): exercises the on_drop path
         self.chimed = []
         self._busy = False
         self._pend = 0
@@ -88,7 +90,17 @@ class FakeTts:
     def native_lang(self, persona, seed):
         return None
     def speak(self, text, persona="ENGINEER", seed="", intensity=0,
-              on_play=None, **kw):
+              on_play=None, on_drop=None, **kw):
+        # DROP MODE. The real pipeline discards lines constantly -- queue full,
+        # TTL expired, interrupted -- and fires on_drop instead of on_play.
+        # This fake used to swallow on_drop in **kw and ALWAYS call on_play, so
+        # the entire drop path was untested and a card-without-audio bug could
+        # never show up here. Set `drop_all` to exercise it.
+        if getattr(self, "drop_all", False):
+            self.dropped.append((persona, text))
+            if on_drop:
+                on_drop()
+            return
         self.spoken.append((persona, text))
         if on_play:
             on_play(text, persona)

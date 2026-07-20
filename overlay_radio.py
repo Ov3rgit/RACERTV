@@ -460,12 +460,24 @@ class RadioMixin:
                 def _onp(_t, _p):
                     _air()                     # audio STARTED — card lands with it
 
-                def _ondrop():
-                    # the line will never sound (queue full, TTL expired,
-                    # interrupted, render failed). Show the card NOW rather
-                    # than leaving the driver staring at nothing while a
-                    # timeout runs down.
-                    _air()
+                def _ondrop(_st=st):
+                    # THE LINE WILL NEVER SOUND (queue full, TTL expired,
+                    # interrupted, render failed) — so DON'T put the card up.
+                    #
+                    # This used to air the bubble anyway, reasoning that a card
+                    # beat leaving the driver staring at nothing. In practice
+                    # it produced the opposite of a broadcast: a team-radio
+                    # message from your engineer appearing on screen while the
+                    # commentators are still mid-sentence, with no voice behind
+                    # it, ever. Reported as "I see a message from the race
+                    # engineer but no audio plays".
+                    #
+                    # A radio bubble IS the visual of a transmission. If the
+                    # transmission never happened, the honest thing is silence:
+                    # nothing was said, so nothing is shown. Mark it consumed
+                    # so the safety net below doesn't resurrect it.
+                    with self._bubble_lock:
+                        _st["aired"] = True
                 self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
                                on_play=_onp, on_drop=_ondrop)
                 if not st["aired"]:
