@@ -1193,8 +1193,6 @@ class Overlay:
             return
         stype = {0: "PRACTICE", 1: "QUALIFY", 2: "RACE", 3: "WARMUP"}.get(
             s.session_type, "")
-        replay = "▶ REPLAY" if s.game_in_replay == 1 else ""
-        sub = "   ".join(t for t in (stype, replay) if t)
 
         # progress: prefer lap counter; in replays/time sessions fall back to
         # the leader's actual lap (RaceRoom's time-remaining is unreliable here)
@@ -3212,7 +3210,6 @@ class Overlay:
         col = m.get("color", ACCENT)
         is_eng = bool(m.get("engineer"))
         accent = HEADER_ACCENT if is_eng else col
-        emotion = m.get("emotion", "neutral")
         lines = self._wrap(m["text"], width=30)
         h = _BUBBLE_H(len(lines))
         # broadcast card: dark rounded box, thin border, accent strip in the
@@ -3288,7 +3285,6 @@ class Overlay:
             self._last_off = None     # (name, t) most recent off — for naming yellows
             self._filler_cd = {}
             self._story = {}          # slot -> list of notable tags ("spun","led","recovered")
-            self._comm_best = {}      # slot -> best lap seen (quali/practice reports)
             self._comm_lap_cd = 0.0   # throttle for lap-report events
             self._crosstalk_t = 0.0   # last commentator->pundit question
             self._crosstalk_topic = None  # paired Q/A topic for the current crosstalk
