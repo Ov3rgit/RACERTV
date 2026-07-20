@@ -371,6 +371,13 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.commentary_on = True
         self._c_prev = False
         self._r_prev = False
+        # Minimum spacing between URGENT booth calls (overtakes, lead changes,
+        # incidents). They skip COMMENTARY_CD so reactions land promptly, but
+        # without a floor they retried every tick — 20Hz — and the queue cap
+        # discarded the overflow, making it luck rather than importance which
+        # call actually aired. A strictly more important call still pre-empts
+        # this immediately; see _emit_commentary.
+        self.COMMENTARY_URGENT_CD = 1.2
         self.COMMENTARY_CD = 4.0     # min seconds between commentary lines (the
                                      # "breather" — keeps the booth lively but not
                                      # a wall of noise; incidents bypass this)

@@ -335,42 +335,53 @@ def _click(rate, ms=80):
 # it is met, one when it is missed. NOT the "stings" above — those are
 # pre-rendered VOICE clips. These are synthesised tones.
 #
-# Brief was "smooth but distinct", so: sine partials only (no square/saw edge),
-# a soft attack so nothing clicks, and a long decay tail that ducks under the
-# engineer's line rather than talking over it. The three are told apart by
-# SHAPE, not by volume or brightness — you should know which one fired without
-# looking at the screen:
-#   set    two rising notes, open and unresolved  -> "here's a job"
-#   met    three notes resolving up to the octave -> arrival
-#   miss   two falling notes, minor third         -> deflation, not a buzzer
-# Deliberately NOT a harsh failure buzzer: missing a target is already a
-# disappointment, and punishing the player with an ugly noise is cheap.
+# TELEMETRY-BLIP style, not a melody. The first attempt used long pure sines
+# and was rightly called "a clown car hoot": slow attack + long decay + a
+# single sine partial IS a toy horn, whatever notes you play. What reads as
+# race/sim UI instead is percussive and dry —
+#   * SHORT notes (~60ms), not a third of a second each
+#   * an instant attack with a tiny noise transient, so it TICKS rather than
+#     swells — that's the "clickable" quality
+#   * fast exponential decay and no tail
+#   * odd harmonics (3rd/5th) for a squarer, more digital edge
+# Told apart by contour, in the "duudup" shape asked for:
+#   set   du-dup   two quick, low then high, unresolved  -> here's a job
+#   met   du-du-dip three rising, last one bright        -> arrival
+#   miss  dup-du   two falling, duller                   -> deflation
+# Still deliberately not a harsh buzzer on miss: missing a target already
+# stings, and an ugly noise on top is cheap.
 CHIME_NOTES = {
-    "set":  [(587.33, 0.00, 0.16), (880.00, 0.13, 0.34)],
-    "met":  [(587.33, 0.00, 0.14), (783.99, 0.12, 0.14),
-             (1174.66, 0.24, 0.52)],
-    "miss": [(587.33, 0.00, 0.20), (493.88, 0.17, 0.46)],
+    "set":  [(784.00, 0.000, 0.055), (1174.66, 0.075, 0.075)],
+    "met":  [(784.00, 0.000, 0.050), (1046.50, 0.068, 0.050),
+             (1567.98, 0.136, 0.110)],
+    "miss": [(698.46, 0.000, 0.060), (523.25, 0.080, 0.100)],
 }
 
 
 def _chime(rate, kind):
     """Render one objective chime as float samples."""
     notes = CHIME_NOTES.get(kind) or CHIME_NOTES["set"]
-    total = max(st + dur for _f, st, dur in notes) + 0.05
+    total = max(st + dur for _f, st, dur in notes) + 0.02
     out = [0.0] * int(rate * total)
     for freq, start, dur in notes:
         n = int(rate * dur)
         off = int(rate * start)
         for i in range(n):
             t = i / n
-            # smooth attack, exponential-ish decay: no click at either end
-            env = min(1.0, t / 0.06) * (1.0 - t) ** 1.8
             j = off + i
             if j >= len(out):
                 break
+            # near-instant attack (~1.5ms, just enough not to pop) then a fast
+            # exponential decay — this is what makes it a blip, not a note
+            atk = min(1.0, (i / rate) / 0.0015)
+            env = atk * math.exp(-5.5 * t)
             ph = 2 * math.pi * freq * i / rate
-            # a touch of second harmonic gives it body without making it buzzy
-            out[j] += (math.sin(ph) + 0.22 * math.sin(2 * ph)) * env * 0.32
+            v = (math.sin(ph) + 0.30 * math.sin(3 * ph)
+                 + 0.12 * math.sin(5 * ph))
+            # tiny filtered noise tick on the leading edge = the "click"
+            if i < rate * 0.004:
+                v += random.uniform(-1, 1) * 0.35 * (1 - i / (rate * 0.004))
+            out[j] += v * env * 0.30
     return [_soft(v) for v in out]
 
 

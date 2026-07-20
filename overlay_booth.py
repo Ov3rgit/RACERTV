@@ -964,6 +964,27 @@ class BoothMixin:
         cd = self.COMMENTARY_CD if is_race else self.COMMENTARY_CD * 4.0
         if not urgent and (busy or (now - self._comm_cd) < cd):
             return
+        signature = cat in ("start", "final_lap", "pregrid")
+        if urgent and not signature and cat not in RECAP_CATS:
+            # DON'T HAND A LINE TO A QUEUE THAT IS ALREADY FULL. speak() would
+            # discard it on arrival (`DROP-busy`), so returning here loses
+            # nothing — but it stops the booth churning through candidates and
+            # synthesising audio that is certain to be binned. A real debug log
+            # showed 200+ consecutive `DROP-busy urgent=True` with the queue
+            # pegged at its cap: urgent lines skip COMMENTARY_CD, and the tick
+            # loop runs at 20Hz, so it attempted a call every 50ms.
+            #
+            # NOTE THIS IS NOT THE WHOLE PROBLEM. Under saturation, WHICH line
+            # airs is still arbitrary — whichever candidate happens to arrive
+            # when a slot frees wins, so a midfield scrap can beat a lead
+            # change. Fixing that properly needs the best pending candidate to
+            # be HELD and retried, not dropped. An earlier attempt here added a
+            # minimum spacing between urgent calls instead, which silently
+            # threw away real overtake and crosstalk calls: a booth line is
+            # generated once, at the moment it happens, so blocking it loses it
+            # for good. Any real fix must defer, never discard.
+            if self.tts is not None and self.tts._pending() >= 4:
+                return
         self._comm_cd = now
         if is_race and cat == "track_fact":
             # the one-shot race track intro made it to air — latch it now
@@ -987,7 +1008,6 @@ class BoothMixin:
             # exempt from the TTL/busy-drop. The welcome can still be cut by the
             # lights-out sting if the race goes green mid-sentence — that's the
             # one thing allowed to talk over it.
-            signature = cat in ("start", "final_lap", "pregrid")
             if urgent:
                 sp = self.tts.speaking_persona()
                 if signature:

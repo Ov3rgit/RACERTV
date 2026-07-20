@@ -146,6 +146,7 @@ def headless_overlay(fake_tts=False):
     o.RADIO_MAX_BUBBLES = 3
     o.RADIO_MAX_BURST = 3
     o.COMMENTARY_CD = 5.0
+    o.COMMENTARY_URGENT_CD = 1.2
     # init-level new attrs (also set in init, mirror here for the bare object)
     o._sec_laps = {}
     o._eng_sec_cd = 0.0
