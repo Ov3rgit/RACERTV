@@ -819,32 +819,29 @@ class Tts:
                 rate=f"{2 + random.randint(-1, 1):+d}%",
                 volume="+12%")
         else:
-            # RADIO VOICES. A fixed rate per persona meant every driver on a
-            # given voice delivered every line identically — the flat, sampled
-            # quality that reads as "robotic". Two layers of variation:
-            #   * a STABLE per-driver offset (hashed off the seed) so two
-            #     drivers sharing a voice still sound like different people,
-            #     and each one sounds the same all race
-            #   * a small per-LINE jitter so nobody delivers two lines in
-            #     exactly the same cadence
-            # Both are deliberately small: enough to sound human, not enough
-            # to sound like a different character each time.
+            # RIVAL DRIVERS. Two hard lessons are baked in here:
+            #   * NO PITCH SHIFT. Moving a neural voice off its natural pitch
+            #     adds artefacts and strips the accent — that is what made the
+            #     engineer AND the drivers sound robotic.
+            #   * DON'T STACK RATE. PERSONA_RATE already sits at +16/+18% for
+            #     the excitable ones, and this file's own notes say rushing a
+            #     voice past its natural cadence is exactly what breaks the
+            #     delivery. Piling another +5% on top did precisely that.
+            # So the approved persona rate stands, with a SMALL stable
+            # per-driver offset (so a driver still sounds like themselves) and
+            # a tiny per-line jitter — clamped so it can never rush further
+            # than the tuned values already do.
             base = PERSONA_RATE.get(persona, "+0%")
             try:
                 b = int(base.rstrip("%"))
             except ValueError:
                 b = 0
-            # mix the hash before splitting it: the raw byte-sum correlates
-            # across small moduli, so two drivers could land on the SAME voice
-            # AND the same offsets and still sound like one person
+            # mix the hash first: the raw byte-sum correlates across small
+            # moduli, so two drivers could share a voice AND an offset
             h = (_seed_hash(seed or persona) * 2654435761) & 0xFFFFFFFF
-            drv_rate = (h % 7) - 3            # -3..+3 %
-            drv_pitch = ((h >> 8) % 5) - 2    # -2..+2 Hz (small:
-                                              # bigger shifts add
-                                              # synthetic artefacts)
-            rate = f"{b + drv_rate + random.randint(-2, 2):+d}%"
-            pitch = f"{drv_pitch + random.randint(-1, 1):+d}Hz"
-            com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+            rate_v = b + ((h % 5) - 2) + random.randint(-1, 1)
+            rate_v = max(-10, min(18, rate_v))
+            com = edge_tts.Communicate(text, voice, rate=f"{rate_v:+d}%")
         asyncio.run(com.save(_MP3))
         return _decode_mp3(_MP3)
 

@@ -400,10 +400,21 @@ class BoothMixin:
         # 'how's their race going'. Gated only on a little queue headroom.
         if (is_race and self._racing and order
                 and now - self._crosstalk_t > 35.0
+                # NOT on the final lap. The win is the only story then, and a
+                # "talk us through P6's afternoon" recap while the flag is
+                # about to fall is the most jarring thing the booth can do.
+                and phase != "closing"
+                # in the closing laps, only when nothing close is happening —
+                # a live fight outranks conversation
+                and not (phase == "late" and self._tight_battle(order))
                 and (self.tts is None or self.tts._pending() < 2)):
             self._crosstalk_t = now
-            story_d = self._story_pick(order)
-            if story_d is None and random.random() < 0.3:
+            # A "how has his race gone" recap on lap one is nonsense — nothing
+            # has happened yet. Stories need a race behind them: four laps, or
+            # a quarter of the distance, whichever comes first.
+            _story_ok = (ll >= 4 or (total and total > 0 and ll >= total * 0.25))
+            story_d = self._story_pick(order) if _story_ok else None
+            if story_d is None and _story_ok and random.random() < 0.3:
                 # quiet race, nobody's swung much — a "steady afternoon" recap
                 # of a front-runner still beats never mentioning anyone's race.
                 told = getattr(self, "_story_told", set())
@@ -751,7 +762,36 @@ class BoothMixin:
             self._comm_close_t = now
             sec = placemap.get(2)
             g2 = self.interval.get(sec.driver_info.slot_id) if sec is not None else None
-            if sec is not None and g2 is not None and 0.05 < g2 < 1.5:
+            # FINAL LAP: the win is the only story. Either it's a fight, or the
+            # leader is cruising it home — say which, and say nothing else.
+            if phase == "closing":
+                if sec is not None and g2 is not None and g2 < 2.0:
+                    L("battle", 2, drv=self._dname(sec),
+                      oth=self._dname(leader), pos=1)
+                else:
+                    L("pulling_away", 2, drv=self._dname(leader),
+                      oth=self._dname(sec) if sec is not None else n2, pos=1)
+            # LATE: follow the closest fight that actually matters — the
+            # HIGHEST-PLACED close battle, not automatically P1/P2. If the
+            # leaders are strung out and P4/P5 are scrapping, that scrap is
+            # the race, and the booth should be on it.
+            elif phase == "late":
+                best = None
+                for d in order[:10]:
+                    if d.place <= 1:
+                        continue
+                    g = self.interval.get(d.driver_info.slot_id)
+                    if g is not None and 0.05 < g < 1.5:
+                        best = d          # first match = highest placed
+                        break
+                if best is not None:
+                    ahead = placemap.get(best.place - 1)
+                    if ahead is not None:
+                        L("battle", 2, drv=self._dname(best),
+                          oth=self._dname(ahead), pos=ahead.place)
+                elif n3:
+                    L("standings", 3, p1=n1, p2=n2, p3=n3)
+            elif sec is not None and g2 is not None and 0.05 < g2 < 1.5:
                 L("battle", 2, drv=self._dname(sec), oth=self._dname(leader), pos=1)
             elif n3:
                 L("standings", 3, p1=n1, p2=n2, p3=n3)
@@ -997,6 +1037,19 @@ class BoothMixin:
             f"{time.strftime('%H:%M:%S')} {persona[:4]}[{inten}] {text[:40]}")
         self._radio_recent = self._radio_recent[-7:]
 
+    def _tight_battle(self, order, within=1.5, top=10):
+        """True when a genuinely close fight is running near the front.
+
+        Used to keep the booth ON the racing in the closing laps: while cars
+        are that close, conversation and recaps wait."""
+        for d in order[:top]:
+            if d.place <= 1:
+                continue
+            g = self.interval.get(d.driver_info.slot_id)
+            if g is not None and 0.05 < g < within:
+                return True
+        return False
+
     def _colour_race(self, c):
         """MID-RACE colour rotation (extracted verbatim from update_commentary)."""
         # once the win is announced the race is OVER for the booth: no more
@@ -1057,7 +1110,12 @@ class BoothMixin:
             # RACE STORY conversation — the lead asks the pundit to recap an
             # eventful driver's whole race (grid -> now), pundit answers from the
             # recorded data. Rare-ish; it's a proper bit of analysis.
-            story_d = self._story_pick(order)
+            # only once there IS a story to tell (same gate as the cadence
+            # block above) — otherwise the booth recaps a race that hasn't
+            # happened yet
+            _ll = leader.completed_laps if leader is not None else 0
+            _sok = (_ll >= 4 or (total and total > 0 and _ll >= total * 0.25))
+            story_d = self._story_pick(order) if _sok else None
             if story_d is not None and rdy("driverstory", 30):
                 types.append("driverstory")
             # colour-padding types only in mid (not late — urgency wins)

@@ -345,13 +345,16 @@ class RadioMixin:
             # the event killed the bubble too, which is why radio "vanished" in
             # busy races. Voiced-vs-ticker is decided at the speak site below;
             # a backlogged queue just means the line airs as a silent ticker.
-            # PIPELINE GATE: if speech is already backed up, don't add more.
-            # A queued line that outlives its TTL is dropped, and the card then
-            # airs with nothing to hear ("the card showed up, the audio never
-            # played"). Skipping is free — the conditions that produced this
-            # event are still true next tick, so it simply airs a moment later.
-            if (not bypass and self.tts is not None
-                    and self.tts._pending() >= 2):
+            # PIPELINE GATE — deliberately gentle. Its job is to stop a deep
+            # backlog forming (a queued line that outlives its TTL is dropped
+            # while its card still airs). At >=2 pending it was far too tight:
+            # the booth sits at 2 for most of a race, so every non-bypass
+            # engineer and driver line was starved and the radio cards stopped
+            # appearing altogether. Only a genuinely deep queue blocks now, and
+            # the ENGINEER is never gated — he is talking to YOU, and rival
+            # chatter is the thing worth thinning out.
+            if (not bypass and persona != "ENGINEER" and self.tts is not None
+                    and self.tts._pending() >= 4):
                 continue
             if persona == "ENGINEER":
                 # bypass lines (overtake acks, severe damage, incident points,
