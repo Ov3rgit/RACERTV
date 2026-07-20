@@ -44,12 +44,32 @@ you get the offline Windows voices.
 ## Building the exe
 
 ```
-pip install pyinstaller edge-tts miniaudio
-pyinstaller --noconfirm --windowed --name RacerTV --hidden-import _cffi_backend r3e_overlay.py
+pip install pyinstaller edge-tts miniaudio pillow
+pyinstaller --noconfirm RacerTV.spec
 ```
 
-Then copy `r3e-data.json`, `racer-tv.png`, `tts_worker.ps1`, `README.txt`,
-`setup_voices.ps1`, `stings/` and `lines_data/` into `dist/RacerTV/`.
+Build from **`RacerTV.spec`**, not from `r3e_overlay.py` directly — the spec
+collects every asset (`r3e-data.json`, `racer-tv.png`, the fonts, `stings/`,
+`lines_data/`, the scripts and the radio-card art) into `dist/RacerTV/`
+automatically, so there's no manual copy step to forget.
+
+Pillow is required for the custom PNG radio-card icons; without it the app
+still runs and falls back to the built-in vector helmets.
+
+### Custom radio-card art (optional)
+
+Drop these next to the exe (or next to `r3e_overlay.py` when running from
+source) and they replace the built-in vector icons:
+
+| File | Used for |
+|---|---|
+| `icon_helmet_1.png` … `icon_helmet_N.png` | Driver helmets — used **as drawn**; each driver is assigned one on first sighting and their overlay colour is sampled from it |
+| `icon_helmet.png` (single file instead) | One helmet **tinted** per driver — draw it white/grey |
+| `icon_engineer.png` | The race engineer |
+
+Square, transparent background. An all-black silhouette is recoloured
+automatically so it stays visible on the dark card. Any file named `icon_*`
+is skipped by the broadcast-logo loader.
 
 ## Layout
 
