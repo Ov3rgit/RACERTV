@@ -819,14 +819,20 @@ class Tts:
         else:
             # team radio: the band-pass FX drops the level, so peak-normalise the
             # VOICE first then drive it harder — otherwise it's too quiet to hear
-            # NO band-pass for ANY radio voice. This fix was applied to the
-            # engineer and demonstrably solved his "too robotic" problem — the
-            # intercom chain flattens neural prosody and, worse, takes the
-            # ACCENT with it, which is the whole point of the foreign-voice
-            # cast. The drivers were left on the old chain and so kept
-            # sounding synthetic. The radio-click bookends below still carry
-            # the intercom character; the voice itself is untouched.
-            vs = list(samples)
+            # RIVALS get the intercom band-pass, the ENGINEER stays clean.
+            # Settled by ear in a direct A/B once the voices were actually
+            # rendering: the rivals sound better ON the radio chain, your
+            # engineer sounds better off it (it flattened his prosody).
+            #
+            # NB the older "removing the band-pass made the drivers robotic"
+            # report was a misattribution — rivals were failing to render at
+            # all (see the seed/NameError note in _gen_edge) and falling back
+            # to offline SAPI. The FX was never what anyone was hearing, so
+            # don't re-litigate this from that comment.
+            if persona == "ENGINEER":
+                vs = list(samples)
+            else:
+                vs = _radioize(samples, srate)
             vpk = max((abs(x) for x in vs), default=0.0) or 1.0
             vs = [x * (0.95 / vpk) for x in vs]
             # softer radio beep: the click sat much louder than the voice and was
@@ -911,7 +917,11 @@ class Tts:
                 b = 0
             # mix the hash first: the raw byte-sum correlates across small
             # moduli, so two drivers could share a voice AND an offset
-            h = (_seed_hash(seed or persona) * 2654435761) & 0xFFFFFFFF
+            # key off the VOICE: _gen_edge never had a `seed` parameter, so
+            # this line raised NameError on every rival read — swallowed by the
+            # bare except in _render, which then fell back to offline SAPI.
+            # That, not the band-pass, is why the drivers sounded robotic.
+            h = (_seed_hash(voice or persona) * 2654435761) & 0xFFFFFFFF
             rate_v = b + ((h % 5) - 2) + random.randint(-1, 1)
             rate_v = max(-10, min(18, rate_v))
             com = edge_tts.Communicate(text, voice, rate=f"{rate_v:+d}%")

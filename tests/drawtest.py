@@ -157,11 +157,31 @@ _bad = [v for v in (_tts.NEURAL_VOICES
 assert not _bad, f"malformed voice names: {_bad}"
 print(f"  {len(_tts.NEURAL_VOICES)} rival + 3 named voices, all well-formed: OK")
 
-# and the radio path must not band-pass the voice — it eats the accents
+# the two radio paths stay SPLIT — settled by ear in a direct A/B: rivals on
+# the intercom band-pass, the engineer clean (it flattened his prosody)
 import inspect as _inspect                                # noqa: E402
 _src = _inspect.getsource(_tts.Tts._render)
-assert "_radioize(samples" not in _src, (
-    "the band-pass is back on the radio voices — it flattens neural prosody "
-    "and strips the accents the foreign-voice cast exists for")
-print("  no band-pass on radio voices (accents preserved): OK")
+assert 'persona == "ENGINEER"' in _src and "vs = list(samples)" in _src, (
+    "the engineer lost his clean path — the band-pass flattens his prosody")
+assert "_radioize(samples" in _src, "the rivals lost the intercom band-pass"
+print("  radio split: rivals band-passed, engineer clean: OK")
+
+# every rival read must actually reach edge-tts. This line referenced an
+# undefined `seed`, and the bare `except Exception` in _render turned that
+# NameError into a silent fallback to offline SAPI for EVERY driver — the real
+# cause of the "robotic drivers" report. Compilers don't catch it; this does.
+# Any name _gen_edge loads as a GLOBAL must actually exist in the module. A
+# name that is neither a local nor a real global (`seed` was a leftover of a
+# removed parameter) compiles fine and only explodes at render time.
+# (read LOAD_GLOBAL from the bytecode, not co_names — co_names also holds
+# attribute names like .save/.rstrip, which are not globals at all)
+import dis as _dis                                        # noqa: E402
+import builtins as _bi                                    # noqa: E402
+_missing = sorted({i.argval for i in _dis.get_instructions(_tts.Tts._gen_edge)
+                   if i.opname == "LOAD_GLOBAL"}
+                  - set(_tts.__dict__) - set(vars(_bi)))
+assert not _missing, (
+    f"_gen_edge loads undefined global name(s) {_missing} — rival renders "
+    "raise and the bare except in _render silently falls back to SAPI")
+print("  _gen_edge references no undefined globals: OK")
 print("\nALL DRAW + CUE + VOICE CHECKS PASSED")
