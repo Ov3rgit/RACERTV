@@ -1009,7 +1009,15 @@ class RadioMixin:
                 self._eng_dmg[part] = val
                 self._eng_dmg_cd[part] = now
                 self._eng_flags[f"dmg_{part}"] = True
-                return add("damage", 1, part=part)
+                # bypass=True, like the box call above. THIS BLOCK HAS ALREADY
+                # RE-BASELINED by the time the line is emitted, so if the
+                # RADIO_ENG_CD spacing drops it (a silent `continue` in the
+                # emit loop) the damage counts as reported and can NEVER fire
+                # again — the car is visibly broken and the engineer never
+                # mentions it for the rest of the race. Any state mutated
+                # before an add() must not depend on that add() surviving.
+                # Its own 25s per-part cooldown above stops it machine-gunning.
+                return add("damage", 1, bypass=True, part=part)
 
         # ---- TYRE & BRAKE TEMPERATURES — read the live tread/brake telemetry
         # against the car's OWN optimal/cold/hot references. Centre-tread (index

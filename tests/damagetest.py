@@ -92,4 +92,68 @@ quiet = dmg_lines(o.tts.spoken, before)
 assert not quiet, f"engineer invented damage with model OFF (-1): {quiet}"
 print("  [n/a] damage model off -> silent: OK")
 
+# E) THE REAL CRASH: damage does NOT arrive on a quiet car in a stable field.
+# It arrives with places lost and every gap swinging — and those calls sit
+# above damage in the ladder and return first. Cases A-D all passed while a
+# real crash went unmentioned, because they change ONE thing at a time.
+# Reported from an actual race: "lost my bumper, the engineer said nothing."
+o = headless_overlay(fake_tts=True)
+o._show_caption = lambda *a, **k: None
+o.radio_msgs = []
+s = make_shared(2)
+for f in ("engine", "transmission", "aerodynamics", "suspension"):
+    setattr(s.car_damage, f, 1.0)
+you = s.all_drivers_data_1[0]
+you.place = 3
+green_running(o, s)
+drive(o, s, 1)                        # baseline at full health
+before = len(o.tts.spoken)
+s.car_damage.aerodynamics = 0.45      # big hit: bodywork gone
+you.place = 6                         # and it cost three places
+for d in s.all_drivers_data_1[:s.num_cars]:
+    if d is not you and d.place in (4, 5, 6):
+        d.place -= 1
+vs = you.driver_info.slot_id
+for i in range(12):                   # gaps moving, as they do after a shunt
+    o.interval[vs] = 1.2 + 0.35 * i
+    o._eng_cd -= 40.0
+    drive(o, s, 1)
+crash = dmg_lines(o.tts.spoken, before)
+assert crash, (
+    "THE STARVATION CASE: the player lost bodywork AND three places, and the "
+    "engineer never mentioned the damage — the place/gap calls above it in "
+    "the ladder ate every tick. He said: "
+    + " || ".join(t for p, t in o.tts.spoken[before:] if p == "ENGINEER"))
+assert any("box" in t.lower() or "repair" in t.lower() or "pit" in t.lower()
+           for t in crash), (
+    f"damage was called but with no instruction on what to do: {crash}")
+print(f"  [crash] damage called amid place loss + moving gaps: OK -> {crash[0]}")
+
+# F) THE THROTTLE MUST NOT EAT IT. Cases A-E all cheat with `o._eng_cd -= 40`
+# every tick, which disables the RADIO_ENG_CD spacing entirely — so none of
+# them could see the actual bug: the damage block re-baselines _eng_dmg BEFORE
+# the line is emitted, so when the spacing dropped that line (a silent
+# `continue` in the emit loop) the damage was marked reported and never fired
+# again. A visibly broken car, and an engineer who never mentions it.
+# NO _eng_cd relaxation here. That is the entire point of this case.
+o = headless_overlay(fake_tts=True)
+o._show_caption = lambda *a, **k: None
+o.radio_msgs = []
+s = make_shared(2)
+for f in ("engine", "transmission", "aerodynamics", "suspension"):
+    setattr(s.car_damage, f, 1.0)
+green_running(o, s)
+drive(o, s, 1)
+o._eng_cd = time.time()               # he has JUST spoken: spacing is active
+before = len(o.tts.spoken)
+s.car_damage.aerodynamics = 0.90      # contact, while he is still cooling down
+for _ in range(10):
+    drive(o, s, 1)                    # no cooldown relaxation
+throttled = dmg_lines(o.tts.spoken, before)
+assert throttled, (
+    "damage landed while the engineer was inside RADIO_ENG_CD and was dropped "
+    "by the spacing — and the block had already re-baselined, so it can never "
+    "fire again. The car is broken and he never says a word.")
+print(f"  [throttle] damage survives the spacing: OK -> {throttled[0]}")
+
 print("\nALL DAMAGE CHECKS PASSED")
