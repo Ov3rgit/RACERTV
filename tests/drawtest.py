@@ -107,10 +107,26 @@ o._obj["_new_until"] = 9e18
 check("draw_objective (new-target blink)",
       lambda: [o.draw_objective(None) for _ in range(4)])
 o._obj.pop("_new_until")
+# EVERY objective kind draws its own glyph. Each is a separate branch of
+# vector primitives, and an unexercised branch is exactly how the _card(glass=)
+# TypeError shipped -- so drive them all, plus an unknown kind for the
+# text-badge fallback.
+for _kind, _goal in (("position", 2), ("chase", 3), ("recover", 5),
+                     ("defend", 4), ("damage", 6), ("clean", None),
+                     ("tyres", None), ("leadhome", 1), ("pb", None),
+                     ("pole", None), ("nonsense_kind", 9)):
+    o._obj = {"hud": f"{_kind} target", "_prog": 0.4, "_badge": "P2",
+              "_laps_left": 2, "_gap": 0.9, "_trend": -1, "kind": _kind,
+              "goal_pos": _goal, "laps": 4, "lap0": 2}
+    check(f"draw_objective (icon: {_kind})", lambda: o.draw_objective(None))
 o._obj = None
 o._obj_result = {"ok": True, "hud": "Pass Pierre Dubois",
                  "until": 9e18}
-check("draw_objective (result chip)", lambda: o.draw_objective(None))
+check("draw_objective (result chip / tick glyph)",
+      lambda: o.draw_objective(None))
+o._obj_result = {"ok": False, "hud": "Pass Pierre Dubois", "until": 9e18}
+check("draw_objective (result chip / cross glyph)",
+      lambda: o.draw_objective(None))
 
 assert not fails, "draw stages raised:\n  " + "\n  ".join(fails)
 print("\nALL DRAW CHECKS PASSED")

@@ -591,6 +591,108 @@ class DrawMixin:
                   f"#{fl['car']} {fl['name'][:12]}  {R.fmt_time(fl['time'])}",
                   fill=fg, font=self.f_row_b, anchor="e")
 
+    # ink used for every objective glyph — these are drawn ON the solid accent
+    # block, so they are always dark-on-colour whatever the accent is
+    OBJ_INK = "#080c11"
+
+    def _obj_icon(self, obj, res, cx, cy, badge, accent="#4fd6e0"):
+        """Draw the objective's glyph, centred on (cx, cy).
+
+        VECTOR PRIMITIVES, NOT AN SVG FILE. tk has no SVG rasteriser, and
+        adding one (cairosvg/PIL) would mean a new dependency inside the
+        PyInstaller bundle for something that is a dozen rectangles. Drawing
+        it here is transparent by nature (no image background to key out),
+        scales with the card, ships no assets, and matches the pixel styling
+        of the rest of the HUD.
+
+        Each objective KIND gets its own shape so it is recognisable without
+        reading the card; where a position is involved the number goes on the
+        glyph, which is what makes "podium with a 2 on it" read as one idea.
+        """
+        c = self.canvas
+        ink = self.OBJ_INK
+
+        def box(x1, y1, x2, y2):
+            c.create_rectangle(cx + x1, cy + y1, cx + x2, cy + y2,
+                               fill=ink, outline="")
+
+        def num(txt, dx=0, dy=0):
+            self.text(cx + dx, cy + dy, str(txt)[:2], fill=ink,
+                      font=self.f_small_b, anchor="center")
+
+        # ---- RESOLVED: a tick or a cross, drawn rather than typed so it is
+        # the same weight as the other glyphs
+        if res is not None and not obj:
+            if res.get("ok"):
+                c.create_line(cx - 8, cy, cx - 2, cy + 6, cx + 9, cy - 7,
+                              fill=ink, width=4, capstyle="round",
+                              joinstyle="round")
+            else:
+                c.create_line(cx - 7, cy - 7, cx + 7, cy + 7, fill=ink,
+                              width=4, capstyle="round")
+                c.create_line(cx + 7, cy - 7, cx - 7, cy + 7, fill=ink,
+                              width=4, capstyle="round")
+            return
+
+        kind = (obj or {}).get("kind", "")
+        goal = (obj or {}).get("goal_pos")
+
+        if kind in ("position", "chase", "recover"):
+            # PODIUM: three steps, centre tallest, with the target position on
+            # the step it refers to. The whole point of the objective is which
+            # place you are racing for, so the number belongs here.
+            box(-13, 0, -4, 9)             # left step
+            box(-3, -8, 6, 9)              # centre step (tallest)
+            box(7, -3, 16, 9)              # right step
+            if goal:
+                # KNOCKED OUT of the centre step in the accent colour. Drawing
+                # it in ink put dark text on the dark filled step and the
+                # number simply vanished — the number is the whole point of a
+                # "podium with a 2 on it", so it has to contrast.
+                self.text(cx + 1, cy - 1, str(goal)[:2], fill=accent,
+                          font=self.f_small_b, anchor="center")
+        elif kind in ("defend", "damage"):
+            # SHIELD: holding what you have
+            # outlined, not filled, so the position number sits INSIDE it in
+            # the same ink as every other glyph
+            c.create_polygon(cx - 11, cy - 10, cx + 11, cy - 10, cx + 11, cy - 1,
+                             cx, cy + 11, cx - 11, cy - 1,
+                             fill="", outline=ink, width=3)
+            if goal:
+                num(goal, dy=-2)
+        elif kind == "clean":
+            # KERB + WARNING: track limits. Slanted stripes read as a kerb.
+            for i in range(3):
+                c.create_polygon(cx - 13 + i * 9, cy + 8, cx - 8 + i * 9, cy - 2,
+                                 cx - 4 + i * 9, cy - 2, cx - 9 + i * 9, cy + 8,
+                                 fill=ink, outline="")
+            box(4, -11, 8, -4)             # exclamation stroke
+            box(4, -2, 8, 2)               # exclamation dot
+        elif kind == "tyres":
+            # TYRE: ring with tread ticks
+            c.create_oval(cx - 12, cy - 12, cx + 12, cy + 12, outline=ink,
+                          width=4)
+            for dx, dy in ((0, -12), (0, 12), (-12, 0), (12, 0)):
+                box(dx - 2, dy - 2, dx + 2, dy + 2)
+        elif kind == "leadhome":
+            # CHEQUERED FLAG: the finish, which is the whole job
+            box(-13, -12, -10, 12)         # pole
+            for r in range(3):
+                for q in range(4):
+                    if (r + q) % 2 == 0:
+                        box(-9 + q * 6, -11 + r * 6, -3 + q * 6, -5 + r * 6)
+        elif kind in ("pb", "pole"):
+            # STOPWATCH: a lap-time target
+            c.create_oval(cx - 11, cy - 8, cx + 11, cy + 12, outline=ink,
+                          width=3)
+            box(-3, -13, 3, -9)            # crown
+            c.create_line(cx, cy + 2, cx, cy - 4, fill=ink, width=3)
+            c.create_line(cx, cy + 2, cx + 6, cy + 2, fill=ink, width=3)
+        else:
+            # fallback: the old text badge, so an unknown kind still shows
+            self.text(cx, cy - 1, str(badge)[:3], fill=ink,
+                      font=self.f_row_b, anchor="center")
+
     def draw_objective(self, s):
         """The active race objective as a COMPETITIVE broadcast target chip.
 
@@ -662,12 +764,14 @@ class DrawMixin:
             c.create_rectangle(x + w - 2, y + n, x + w, y + h - n,
                                fill=col, outline="")
         # goal badge in a solid accent block — the "what am I racing for".
-        # Sits inboard of the accent rail so the two read as one unit.
+        # Sits inboard of the accent rail so the two read as one unit. The
+        # glyph says WHAT KIND of job it is at a glance; the number on it says
+        # which position, so "podium with a 2 on it" reads as one thing.
         bxw = 44
         self.canvas.create_rectangle(x + 8, y + n + 6, x + 8 + bxw, y + h - n - 6,
                                      fill=col, outline="")
-        self.text(x + 8 + bxw // 2, y + h // 2 - 1, str(badge)[:3],
-                  fill="#080c11", font=self.f_row_b, anchor="center")
+        self._obj_icon(obj, res, x + 8 + bxw // 2, y + h // 2, badge,
+                       accent=col)
 
         # --- label + live status on the top line
         tx = x + 8 + bxw + 12
