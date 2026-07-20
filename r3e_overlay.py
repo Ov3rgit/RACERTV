@@ -587,7 +587,11 @@ class Overlay:
         """Show a broadcast logo (any .png/.gif in the folder) top-left."""
         import glob
         cands = [os.path.join(_DIR, n) for n in ("logo.png", "logo.gif", "logo.ppm")]
-        cands += sorted(glob.glob(os.path.join(_DIR, "*.png")))
+        # EXCLUDE the radio-card art: this glob takes the first *.png in the
+        # folder, so a user's helmet/engineer icons would otherwise be picked
+        # up as the broadcast logo (they sort before racer-tv.png)
+        cands += [p for p in sorted(glob.glob(os.path.join(_DIR, "*.png")))
+                  if not os.path.basename(p).startswith("icon_")]
         cands += sorted(glob.glob(os.path.join(_DIR, "*.gif")))
         for p in cands:
             if not os.path.exists(p):

@@ -50,6 +50,18 @@ _PNG_SRC = {}      # kind -> PIL.Image | None (miss)
 _PNG_CACHE = {}    # (kind, color, size) -> ImageTk.PhotoImage (also GC anchor)
 
 
+def _is_dark_silhouette(img):
+    """True when the artwork is essentially a BLACK silhouette — every
+    visible pixel is dark. Such an icon is invisible on the dark radio card,
+    so custom_icon() recolours it instead of drawing it as-is."""
+    small = img.copy()
+    small.thumbnail((32, 32))
+    vis = [p for p in small.getdata() if p[3] > 128]
+    if not vis:
+        return False
+    return sum(1 for r, g, b, _ in vis if max(r, g, b) < 70) > len(vis) * 0.9
+
+
 def helmet_variants():
     """Paths of the user's pre-coloured helmet PNGs — `icon_helmet_*.png`
     next to the app, natural-sorted (so _10 follows _9). Empty when none.
@@ -144,7 +156,17 @@ def custom_icon(kind, size, color=None):
     if src is None:
         return None
     img = src.resize((int(size), int(size)), Image.LANCZOS)
-    if color:                                # multiply by the driver colour
+    # A near-BLACK silhouette would vanish against the dark radio card, so
+    # recolour it to `color` (or white) keeping the alpha — this is what
+    # makes a plain black-on-transparent icon usable as-is.
+    if _is_dark_silhouette(src):
+        h = (color or "#ffffff").lstrip("#")
+        cr, cg, cb = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+        a = img.split()[3]
+        img = Image.merge("RGBA", (Image.new("L", img.size, cr),
+                                   Image.new("L", img.size, cg),
+                                   Image.new("L", img.size, cb), a))
+    elif color:                              # multiply by the driver colour
         h = color.lstrip("#")
         cr, cg, cb = (int(h[i:i + 2], 16) for i in (0, 2, 4))
         r, g, b, a = img.split()

@@ -147,6 +147,7 @@ def headless_overlay(fake_tts=False):
     o._q_off_watch = None
     o._pending_bubbles = []          # card/audio sync (FakeTts airs instantly)
     o._bubble_lock = threading.Lock()
+    o._dvariant = {}                 # driver -> helmet PNG variant index
     return o
 
 
