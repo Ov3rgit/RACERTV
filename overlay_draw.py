@@ -31,6 +31,10 @@ class DrawMixin:
         p.place(self.game_x + lx, self.game_y + ly, w, h)
         self._used.add(name)
         self._cv_real = p.cv
+        # the GLASS layer for this panel (None when glass is disabled) — panel
+        # BODIES are drawn here so they can be translucent while everything on
+        # _cv_real above stays fully solid
+        self._bg_real = p.bg_cv
         self._ox, self._oy = lx, ly
         return self.canvas
 
@@ -43,10 +47,16 @@ class DrawMixin:
         pass  # no longer used (each panel is its own window)
 
     def panel(self, x, y, w, h, fill=PANEL_BG, stipple=PANEL_STIPPLE):
-        # stippled fill (screen-door transparency to the game) + a crisp solid
-        # outline drawn separately so the border stays sharp
-        self.canvas.create_rectangle(x, y, x + w, y + h, fill=fill,
-                                     outline="", stipple=stipple or "")
+        # fill goes on the GLASS layer (translucent), outline on the solid
+        # layer above it so the border stays sharp
+        bg = getattr(self, "_bg_real", None)
+        if bg is not None:
+            bg.create_rectangle(x - self._ox, y - self._oy,
+                                x - self._ox + w, y - self._oy + h,
+                                fill=fill, outline="", stipple=stipple or "")
+        else:
+            self.canvas.create_rectangle(x, y, x + w, y + h, fill=fill,
+                                         outline="", stipple=stipple or "")
         self.canvas.create_rectangle(x, y, x + w, y + h, fill="",
                                      outline=PANEL_OUTLINE, width=1)
 
@@ -61,10 +71,21 @@ class DrawMixin:
         # makes the BODY only semi-opaque — the border, accent and every bit
         # of text stay fully solid, which whole-window alpha could not do.
         _st = {"stipple": BG_STIPPLE} if BG_STIPPLE else {}
-        c.create_rectangle(x + n, y, x + w - n, y + h, fill=fill, outline="",
-                           **_st)
-        c.create_rectangle(x, y + n, x + w, y + h - n, fill=fill, outline="",
-                           **_st)
+        # Draw the BODY on the glass layer when there is one, offset into that
+        # canvas's own coordinates. The border, accent and text below all stay
+        # on `c` (the solid layer), which is what keeps them crisp.
+        bg = getattr(self, "_bg_real", None)
+        if bg is not None:
+            bx, by = x - self._ox, y - self._oy
+            bg.create_rectangle(bx + n, by, bx + w - n, by + h,
+                                fill=fill, outline="", **_st)
+            bg.create_rectangle(bx, by + n, bx + w, by + h - n,
+                                fill=fill, outline="", **_st)
+        else:
+            c.create_rectangle(x + n, y, x + w - n, y + h, fill=fill,
+                               outline="", **_st)
+            c.create_rectangle(x, y + n, x + w, y + h - n, fill=fill,
+                               outline="", **_st)
         # chunky 2px pixel border traced around the notched outline
         bd = CARD_BORDER
         c.create_rectangle(x + n, y, x + w - n, y + 2, fill=bd, outline="")

@@ -11,7 +11,7 @@ from ctypes import wintypes
 
 import tkinter as tk
 
-from overlay_common import CHROMA, WIN_ALPHA
+from overlay_common import CHROMA, GLASS, GLASS_ALPHA, WIN_ALPHA
 
 user32 = ctypes.windll.user32
 HWND_TOPMOST = wintypes.HWND(-1)
@@ -64,6 +64,32 @@ class _Panel:
         self.cv.pack(fill="both", expand=True)
         self.win.withdraw()
         self.shown = False
+        # GLASS: a second window BEHIND this one holding just the panel body,
+        # at a lower alpha. Because alpha is per-window, the body can be
+        # translucent while the text on the window above stays fully solid —
+        # which no amount of per-item trickery in one window can do.
+        self.bg_win = None
+        self.bg_cv = None
+        self.bg_hwnd = None
+        if GLASS:
+            try:
+                bw = tk.Toplevel(root)
+                bw.overrideredirect(True)
+                bw.attributes("-topmost", True)
+                bw.attributes("-alpha", GLASS_ALPHA)
+                bw.attributes("-transparentcolor", CHROMA)
+                bw.configure(bg=CHROMA)
+                self.bg_cv = tk.Canvas(bw, highlightthickness=0, bd=0,
+                                       bg=CHROMA)
+                self.bg_cv.pack(fill="both", expand=True)
+                bw.withdraw()
+                bw.update_idletasks()
+                bh = user32.GetAncestor(bw.winfo_id(), 2)
+                bex = user32.GetWindowLongW(bh, -20)
+                user32.SetWindowLongW(bh, -20, bex | 0x80 | 0x8000000)
+                self.bg_win, self.bg_hwnd = bw, bh
+            except Exception:
+                self.bg_win = self.bg_cv = self.bg_hwnd = None
         self._geo = None
         self.hwnd = None
         try:
@@ -82,11 +108,25 @@ class _Panel:
         if geo != self._geo:
             self.win.geometry(f"{w}x{h}+{x}+{y}")
             self.cv.config(width=w, height=h)
+            if self.bg_win is not None:
+                self.bg_win.geometry(f"{w}x{h}+{x}+{y}")
+                self.bg_cv.config(width=w, height=h)
             self._geo = geo
         self.cv.delete("all")
+        if self.bg_cv is not None:
+            self.bg_cv.delete("all")
         if not self.shown:
+            if self.bg_win is not None:
+                self.bg_win.deiconify()   # glass first, so it never flashes
             self.win.deiconify()          # show INSTANTLY (no fade)
             self.shown = True
+        # Raise the glass first, then the content directly above it. Doing it
+        # in this order every frame keeps the pair together in the z-order —
+        # if the content ever slipped behind its own glass the panel would
+        # look washed out.
+        if self.bg_hwnd:
+            user32.SetWindowPos(self.bg_hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                                SWP_NOMOVE_NOSIZE_NOACT)
         if self.hwnd:
             user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                                 SWP_NOMOVE_NOSIZE_NOACT)
@@ -95,4 +135,6 @@ class _Panel:
     def hide(self):
         if self.shown:
             self.win.withdraw()           # hide INSTANTLY (no fade)
+            if self.bg_win is not None:
+                self.bg_win.withdraw()
             self.shown = False

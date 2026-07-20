@@ -18,13 +18,20 @@ import threading
 
 CHROMA = "#010102"      # fully transparent key color (must be unused elsewhere)
 WIN_ALPHA = 0.86        # whole-window opacity: solid SOLID dark panels (no dotty
-# BACKGROUND-ONLY TRANSPARENCY. The panel windows are chroma-keyed with a
-# whole-window -alpha, which fades TEXT as much as the background — so it
-# cannot be used to make only the backgrounds see-through. Tk has no per-item
-# alpha either; a stipple is the one mechanism that punches real holes in a
-# fill and leaves text untouched. "gray75" paints 75% of the pixels, i.e. the
-# game shows through the remaining quarter. Set to "" for solid panels.
-BG_STIPPLE = "gray75"
+# TRUE GLASS BACKGROUNDS.
+#
+# tk has no per-item alpha, and a window's -alpha fades TEXT as much as the
+# background, so neither can give "see-through panel, crisp numbers". Stipple
+# can, but it dithers and looks cheap.
+#
+# The trick: alpha is per-WINDOW, so use TWO stacked windows per panel. A
+# backing window holds only the panel BODY at GLASS_ALPHA; the content window
+# sits exactly on top at full opacity, with the body area left as the chroma
+# key so the glass shows through it. Result: smoothly translucent background,
+# 100% solid text and borders, no dithering.
+GLASS = True             # False -> single opaque window (the old look)
+GLASS_ALPHA = 0.58       # backing-window opacity: lower = more see-through
+BG_STIPPLE = ""          # legacy dither fallback; keep empty
 PANEL_STIPPLE = ""        # solid panel backgrounds (stipple looked pixelated behind
 PANEL_ALPHA = 0.55        # (legacy whole-window alpha; superseded by stipple+CHROMA)
 PANEL_BG = "#0c1014"
