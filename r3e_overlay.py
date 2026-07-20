@@ -909,6 +909,14 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin):
                 # trigger as soon as the field launches (lower threshold) so the
                 # 'lights out' call lands closer to the actual moment
                 self._racing = True
+            if self._racing:
+                # Green-flag stamp for the RADIO. The booth keeps its own
+                # (_green_at), but that is set in update_commentary, which runs
+                # AFTER update_radio in the tick — so on the very first racing
+                # tick the engineer saw no stamp at all and any "wait N seconds
+                # after the green" guard passed trivially. Stamped here, at the
+                # same latch as _racing, both are true from the same instant.
+                self._green_t = time.time()
 
         # RaceRoom's time_delta_front/behind are garbage in replays (huge
         # numbers / NaN), so derive gaps from track position instead. Convert a

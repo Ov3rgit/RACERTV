@@ -570,12 +570,21 @@ class RadioMixin:
                 if _et > 0:
                     self._eng_engtemp_base = _et
 
-        # race start (once) — fire the instant the race goes green (_racing
-        # edge; in practice the intro gate above releases us a few seconds in,
-        # so the launch delta vs the grid slot is already meaningful).
-        # bypass=True: this is the engineer's opening word to the player after
-        # lights out — it must never sit behind the 14s radio spacing.
-        if not self._eng_flags.get("start") and self._racing:
+        # RACE START (once) — held until the launch has actually PLAYED OUT,
+        # not fired on the green itself. Two reasons it must wait:
+        #   * `gained` is the delta vs the grid slot, and at lights-out that is
+        #     still 0 — so the call could never say "good start, up to P5",
+        #     which is the whole point of it
+        #   * at t=0 it collided with the booth's lights-out call (a signature
+        #     line that interrupts), so it was fighting for the busiest audio
+        #     moment of the race and losing
+        # 9s clears the booth's own 8s grid-sort window, i.e. roughly turn one.
+        # _green_t (not the booth's _green_at): stamped in update_stats at the
+        # same moment _racing latches, so it is already set when the radio runs.
+        # Default +inf, so a missing stamp holds the call rather than releasing
+        # it — the failure mode we want is "late", never "on the green".
+        if (not self._eng_flags.get("start") and self._racing
+                and now - getattr(self, "_green_t", float("inf")) >= 9.0):
             self._eng_flags["start"] = True
             if gained >= 1 and "start_gain" in ENGINEER_LINES:
                 return add("start_gain", 0, bypass=True)

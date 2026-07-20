@@ -954,12 +954,21 @@ class BoothMixin:
                         # the pipeline, so nothing can wedge between a question
                         # and its answer ("What do you think, Brett?" ->
                         # engineer gap call -> answer broke the whole flow)
+                        # exchange=True for EVERY followup, not just the forced
+                        # ones. expect_answer() holds all prio>=0 jobs, and a
+                        # non-exchange reply is prio 1 — so the pundit's
+                        # chime-back was being blocked by the very hold its own
+                        # question set, sat out the whole 8s window, and the
+                        # engineer (prio 0) then beat it to the queue. That is
+                        # the "engineer talks in the middle of the booth's
+                        # conversation" the tester heard. force stays as-is, so
+                        # banter is still droppable — it just can't be gazumped.
                         self.tts.speak(ftxt, fper,
                                        seed=("PUNDIT" if fper == "PUNDIT"
                                              else "COMM"),
                                        intensity=finten, force=ffor,
                                        on_play=self._show_caption,
-                                       exchange=ffor)
+                                       exchange=True)
             else:
                 _onp = self._show_caption
             # booth lines quoting a LIVE figure (gap/lap/standing) date fastest

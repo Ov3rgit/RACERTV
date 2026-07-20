@@ -590,9 +590,17 @@ class Tts:
                 self._topic_done(topic)
                 continue
             try:
-                if on_play:
+                playable = bool(winsound) and os.path.exists(wav)
+                if on_play and playable:
+                    # Caption/bubble fires ONLY when audio is actually about to
+                    # sound. It used to fire unconditionally, one line earlier —
+                    # so a line whose render had failed (no wav on disk) still
+                    # put a caption on screen with nothing to hear, which reads
+                    # exactly like "captions not matching the audio".
                     on_play(text, persona)             # caption/bubble IN SYNC
-                if winsound and os.path.exists(wav):
+                elif on_play:
+                    _log(f"play NO-WAV (caption suppressed) :: {text[:40]}")
+                if playable:
                     _log(f"play START :: {text[:30]}")
                     # SND_NODEFAULT: if the file can't be played, stay SILENT
                     # rather than letting Windows substitute its default *beep*

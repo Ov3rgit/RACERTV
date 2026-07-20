@@ -214,14 +214,19 @@ def race_scenario(o, s, emitted):
     # booth sets the scene...
     assert eng_count(emitted) == 0, "engineer spoke on the grid (pre-green)!"
     print("  [gate] engineer silent on the grid: OK")
-    # ...but the RACE gate lifts at lights out — he talks to the player from
-    # the launch instead of waiting out the booth's opening spiel (which left
-    # him mute for most of lap one and reported lap-1 offs a lap late).
+    # ...and the RACE gate lifts at lights out, so he is no longer waiting out
+    # the booth's opening spiel (which left him mute for most of lap one and
+    # reported lap-1 offs a lap late). His START call still holds ~9s for the
+    # launch to play out — at lights-out itself the position delta is 0 and it
+    # would collide with the booth's interrupting lights-out call — so age the
+    # green stamp before expecting him. See tests/startradiotest.py.
     for i in range(s.num_cars):
         s.all_drivers_data_1[i].car_speed = 50.0
     drive(o, s, 3)
-    assert eng_count(emitted) > 0, "engineer still gagged after lights out!"
-    print("  [gate] engineer live from lights out: OK")
+    o._green_t -= 10.0              # launch has played out (turn one)
+    drive(o, s, 2)
+    assert eng_count(emitted) > 0, "engineer still gagged after the launch!"
+    print("  [gate] engineer live once the launch settles: OK")
     age_intro(o)                    # (kept: exercises the quali-gate helper)
     drive(o, s, 2)
     # complete several laps, you (slot0) set sector times
