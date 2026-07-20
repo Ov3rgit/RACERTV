@@ -29,6 +29,14 @@ import tkinter.font as tkfont
 
 import r3e_data as R
 import avatars
+from overlay_common import (ACCENT, CARD_BG, CARD_BG2, CARD_BORDER,
+    CAT_INTENSITY, CHROMA, COMMENTATOR_COLOR, CORNER_NBINS, CYAN, DIM,
+    DRIVER_COLORS, ENGINEER_COLOR, ENG_EMOTION, GREEN, HEADER_ACCENT,
+    LEADER, MAX_ROWS, PANEL_BG, PANEL_OUTLINE, PANEL_STIPPLE,
+    PENALTY_SPOKEN, PLACE_CONFIRM_TICKS, PUNDIT_AFTER, PURPLE, RECAP_CATS,
+    TEXT, TYRE_COLORS, UPDATE_MS, VK_C, VK_CONTROL, VK_E, VK_LBUTTON, VK_M, VK_O, VK_Q,
+    VK_SHIFT, VK_D, VK_R,
+    WIN_ALPHA, YELLOWT, _LEET, _RADIO_LOCK)
 from lines import (   # dialogue pools (moved out of this file for size)
     COMMENTATOR_NAME, PUNDIT_NAME, COMMENTATOR_FULL, PUNDIT_FULL,
     COMMENTARY_LINES, CROSSTALK, CROSSTALK_ACK, CROSSTALK_ANSWERS,
@@ -122,31 +130,12 @@ def find_game_rect():
     return best["rect"]
 
 # ----- look & feel -----------------------------------------------------------
-CHROMA = "#010102"      # fully transparent key color (must be unused elsewhere)
-WIN_ALPHA = 0.86        # whole-window opacity: solid SOLID dark panels (no dotty
                         # stipple behind text) but slightly see-through over the game
-PANEL_STIPPLE = ""        # solid panel backgrounds (stipple looked pixelated behind
                           # the data); transparency now comes from WIN_ALPHA + CHROMA
-PANEL_ALPHA = 0.55        # (legacy whole-window alpha; superseded by stipple+CHROMA)
-PANEL_BG = "#0c1014"
-PANEL_OUTLINE = "#2b313b"
 # broadcast "card" styling — dark fill, thin subtle border, rounded corners,
 # coloured accent strip (shared by the header, radio bubbles and commentary)
-CARD_BG = "#0d1320"
-CARD_BG2 = "#0a0d12"
-CARD_BORDER = "#2a3440"
-HEADER_ACCENT = "#39d0e0"
-TEXT = "#f2f4f7"
-DIM = "#9aa3ad"
-ACCENT = "#ffd23f"      # viewed/focused car
-LEADER = "#5cc8ff"
-PURPLE = "#c77dff"      # session best (fastest)
-GREEN = "#69db7c"       # personal best
-ENGINEER_COLOR = "#39d0e0"   # your engineer's radio colour (not a driver)
-COMMENTATOR_COLOR = "#ffcf33"  # broadcast booth caption colour
 
 
-_LEET = {"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g"}
 
 
 def pronounce(name):
@@ -180,38 +169,7 @@ def _safe_format(tmpl, kw):
 
 
 # how hyped the booth voice gets per event (0 calm .. 2 max)
-CAT_INTENSITY = {
-    "start": 1, "overtake": 2, "overtake_long": 2, "leadchange": 2, "fastlap": 1,
-    "spin": 2, "battle": 2, "battle_mid": 1, "battle_sustained": 2,
-    "pit": 0, "lastlap": 2, "win": 2,
-    "win_charge": 2, "win_comeback": 2, "win_wire": 2,
-    "leadchange_charge": 2, "leadchange_comeback": 2,
-    "overtake_charge": 2, "overtake_comeback": 2,
-    "second": 1, "third": 1, "summary": 1, "closing": 1, "pulling_away": 0,
-    "recovery": 1, "podium_lock": 0, "penalty": 1, "yellow": 1, "analysis": 0,
-    "analysis_strategy": 0,
-    "lap_milestone": 0, "standings": 0, "praise": 0, "criticism": 0,
-    "time_remaining": 1,
-    "track_generic": 0, "track_fact": 0, "crosstalk_q": 0, "stat": 0,
-    "car": 0, "pass_clean": 1, "midpack": 0,
-    "late": 2, "final_lap": 2,
-    "pregrid": 1,
-    "quali_start": 1, "practice_start": 0, "quali_fastlap": 1, "quali_pole": 2,
-    "quali_improve": 0, "quali_standings": 0, "quali_final": 1, "practice_note": 0,
-    "session_colour": 0, "lap_report": 1, "lap_report_slow": 0,
-    "insight_lead_slim": 1, "insight_lead_big": 0, "insight_podium_fight": 1,
-    "insight_field_spread": 0, "insight_laps_left": 1, "insight_time_left": 1,
-    "offtrack": 2, "offtrack_ack": 0, "offtrack_more": 2, "offtrack_chaos": 2,
-    "ranwide": 1,
-    "offtrack_cut": 2, "offtrack_late": 2, "broadcast": 0, "retake": 2,
-    "arc_cost": 1, "arc_recovered": 1, "shuffle": 2, "driverstory_q": 0,
-    "lore_q": 0, "lore_a": 0, "lore_q_rally": 0, "lore_a_rally": 0,
-    "signoff": 1, "quali_goals": 0, "booth_joke": 0,
-}
 # spoken penalty names by penaltyType (RaceRoom PenaltyType enum)
-PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",
-                  2: "pit-stop penalty", 3: "time penalty", 4: "slow-down penalty",
-                  5: "disqualification"}
 # which events earn a co-commentator follow-up (and how often) — keep the booth
 # chatting back and forth on the big moments
 # RECAP categories describe something still true seconds later (a driver's
@@ -220,63 +178,18 @@ PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",
 # from the "queue busy" gate (both in update_commentary / _emit_commentary).
 # Without this, driverstory (rare — its own 30s+ gate — and number-heavy,
 # quoting grid/finish positions) got dropped almost every time it was picked.
-RECAP_CATS = {"driverstory_q", "lore_q", "lore_q_rally", "lore_a",
-              "lore_a_rally", "storyarc"}
 
-PUNDIT_AFTER = {"overtake": 0.7, "overtake_long": 0.8, "spin": 0.75,
-                "leadchange": 0.7, "win": 0.0, "battle": 0.5, "battle_mid": 0.4,
-                "overtake_charge": 0.7, "overtake_comeback": 0.7,
-                "leadchange_charge": 0.7, "leadchange_comeback": 0.7,
-                "battle_sustained": 0.6,
-                "penalty": 0.7, "yellow": 0.6, "closing": 0.3, "recovery": 0.5,
-                "fastlap": 0.4, "analysis": 0.45, "standings": 0.3,
-                "lap_milestone": 0.3}
 
 # radio category -> driver-avatar emotion (the face drawn in the bubble)
-ENG_EMOTION = {
-    "start": "fired", "start_gain": "happy", "start_loss": "worried",
-    "win": "happy", "podium": "happy", "recovery": "fired",
-    "slip": "sad", "finish_strong": "happy", "finish_points": "neutral",
-    "finish_low": "sad", "fastest": "smug", "lastlap": "fired", "pit": "neutral",
-    "lead": "smug", "gained": "happy", "lost": "sad", "catching": "fired",
-    "dropping": "worried", "defending": "worried", "clear": "smug",
-    "encourage": "neutral", "enc_top": "smug", "enc_mid": "neutral",
-    "enc_back": "worried", "info_ahead": "neutral", "info_behind": "neutral",
-    "nextlap": "worried", "tyres_gone": "worried",
-    "tyre_cold": "neutral", "tyre_hot": "worried",
-    "tyre_hot_traffic": "worried", "brake_hot": "worried",
-    "engine_hot": "worried", "engine_hot_dmg": "worried",
-    "gained_where": "happy", "section_ahead": "neutral",
-    "warn_offtrack": "worried", "warn_limits_repeat": "worried",
-    "warn_limits_serious": "angry", "incident_tally": "worried",
-    "warn_points": "worried", "points_high": "worried",
-    "points_critical": "angry",
-}
 # vivid, broadcast-style per-driver colours (assigned consistently by name)
 # 20 distinct, well-spaced colours (assigned sequentially per driver, so the
 # first 20 cars on track each get a unique one before any repeat)
-DRIVER_COLORS = [
-    "#ff3b3b", "#ff7a1a", "#ffb000", "#ffe24d", "#b6e02e",
-    "#4fd13a", "#16c98a", "#00c2c7", "#29a8ff", "#4f7bff",
-    "#8a6dff", "#b964ff", "#e85aff", "#ff5db4", "#ff6f61",
-    "#c98a3c", "#88c057", "#5ad1b0", "#c3a6ff", "#9fd8ff",
-]
-YELLOWT = "#e6c84a"     # slower than best
-CYAN = "#4dd6e0"        # push-to-pass
 # tyre compound dot colors, keyed by tire_subtype (2=soft,3=med,4=hard,
 # 0=primary,1=alternate)
-TYRE_COLORS = {2: "#e03131", 3: "#f1c40f", 4: "#e9ecef",
-               0: "#4dabf7", 1: "#69db7c"}
-ROW_H = 22
-MAX_ROWS = 24
-CORNER_NBINS = 180      # lap-fraction bins for learning corner positions (2°)
-UPDATE_MS = 50          # 20 Hz — snappier event detection + tower updates
 # radio_msgs is mutated from BOTH the TTS play thread (_air_bubble) and the tk
 # loop (draw_radio's prune rebuilds the list) — an unguarded append between the
 # prune's read and reassign was silently lost (audio played, no card). Module
 # level so the headless test harness (object.__new__, no __init__) has it too.
-_RADIO_LOCK = threading.Lock()
-PLACE_CONFIRM_TICKS = 6  # a position must hold this many ticks (~300ms) before
                          # the booth/radio treat it as a REAL change. This kills
                          # the side-by-side flicker that made the booth call a
                          # pass when two cars were merely running level. The TIMING
@@ -284,11 +197,6 @@ PLACE_CONFIRM_TICKS = 6  # a position must hold this many ticks (~300ms) before
                          # so the display stays instant; only the spoken overtake
                          # CALLS wait for the new order to actually stick.
 
-VK_CONTROL, VK_SHIFT, VK_Q, VK_O, VK_E, VK_M = 0x11, 0x10, 0x51, 0x4F, 0x45, 0x4D
-VK_D = 0x44
-VK_C = 0x43
-VK_R = 0x52
-VK_LBUTTON = 0x01
 
 
 def key_down(vk):
