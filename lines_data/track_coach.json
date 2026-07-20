@@ -1,169 +1,337 @@
 {
- "laguna": [
-  "The lap here hinges on the Corkscrew — get a clean entry and you carry speed over the crest; commit too early and you wash wide on the plunge.",
-  "Turn two and the Andretti hairpin are the real overtaking chances; the rest is too committed to dive down the inside.",
-  "Laguna is a traction circuit — square off the slow corners, get the car rotated, and fire it out cleanly. That's where the time is."
- ],
- "bathurst": [
-  "Across the top of the mountain the time comes from sheer commitment — there's no room for error, so the ones who don't lift find the lap.",
-  "Overtaking is all down Mountain Straight and into The Chase; the mountain itself is about rhythm and survival.",
-  "A clean exit from the top sets up the whole run down Conrod — lose time up there and you pay for it all the way to the bottom."
- ],
- "panorama": [
-  "The mountain rewards bravery over the crests — find a rhythm across the top and the lap time follows.",
-  "Your one big overtaking zone is the bottom of the mountain; everywhere else, patience is the only way through."
- ],
- "spa": [
-  "The middle sector is where Spa is won — those long flowing curves reward a settled car and a driver who trusts the front end.",
-  "Your overtaking spots are the Bus Stop and the run up to Les Combes; nail the exit onto the straight and the slipstream does the rest.",
-  "Eau Rouge isn't where you pass — it's where you set up everything after it. Commit through there and the whole lap opens up."
- ],
- "monza": [
-  "It's all about the chicanes — brake deep, get it turned, fire it out; the Lesmos and Parabolica reward patience on entry for speed onto the straights.",
-  "Overtaking in a straight line is the easy part here; the art is defending into the first chicane without wrecking your exit."
- ],
- "nurburg": [
-  "Around the modern Grand Prix circuit the time is in the technical infield — traction and patience over outright bravery."
- ],
- "nordschleife": [
-  "You don't attack the Green Hell, you build up to it — find a rhythm, respect the blind crests, and the time comes from confidence.",
-  "Knowing what's over each crest is worth more than horsepower here — commitment born of memory is the real lap time."
- ],
- "suzuka": [
-  "The Esses are where the lap lives — a rhythm section where momentum is everything; lose the front in the first and you pay all the way through.",
-  "130R and the final chicane set up the run to the line — that's your overtaking window at Suzuka."
- ],
- "imola": [
-  "Time at Imola is in the chicanes — sharp, precise, kerb-riding stuff; Acque Minerali and the Variante Alta reward attacking the kerbs cleanly.",
-  "It's a tough place to pass, so track position is gold — qualifying and the opening lap matter enormously around here."
- ],
- "silverstone": [
-  "Maggotts and Becketts is where the brave find their time — minimal steering, maximum commitment, carrying speed through the whole complex.",
-  "Stowe and the Loop are your overtaking zones; a clean exit from Chapel gives you the run down the Hangar Straight."
- ],
- "zandvoort": [
-  "The banking lets you carry astonishing speed, but the lap time is in trusting it — commit to the banked corners and let the camber work.",
-  "Passing is genuinely hard here, so a strong exit onto the main straight from that final banked turn is everything."
- ],
- "brands hatch": [
-  "Paddock Hill Bend is the signature — turn in almost blind over the crest and let it run down the hill; that's where the brave find time.",
-  "Your best look is into Druids after the plunge down Paddock — get that hairpin right and you set up the whole lap."
- ],
- "hockenheim": [
-  "The stadium section is where the lap comes alive — tight and technical, the place to make up time after the fast run through the forest."
- ],
- "red bull ring": [
-  "Short lap, big stops — turns one, three and four are heavy braking zones and your best overtaking chances; nail the traction on exit."
- ],
- "spielberg": [
-  "It's a traction circuit — the time is all in firing cleanly out of the heavy braking zones and onto those uphill straights."
- ],
- "interlagos": [
-  "The climb to the line means a good exit from the final corner pays double; the Senna S is your main overtaking chance lap after lap.",
-  "It's a momentum lap — the long left of Curva do Sol carries you onto the back straight, so protect that exit above all."
- ],
- "watkins": [
-  "The Esses reward commitment, and the Bus Stop is your overtaking chance — it's all about the drive onto the back straight."
- ],
- "road america": [
-  "Long straights and heavy braking — turns five and eight are the passing spots, and the time is all in nailing the exits onto those straights."
- ],
- "indianapolis": [
-  "On the road course the infield is fiddly and technical — patience there sets up the long runs where you actually find the lap time."
- ],
- "daytona": [
-  "On the banking it's momentum and the draft — both your lap time and your overtaking come from how cleverly you use the tow."
- ],
- "le mans": [
-  "Top speed down the Mulsanne matters, but the Porsche Curves are where a brave driver finds real time — flowing, committed, unforgiving.",
-  "The two Mulsanne chicanes are your heavy braking zones and your best overtaking chances on that endless straight."
- ],
- "hungaroring": [
-  "With overtaking so hard, the whole lap is about track position — qualifying and the undercut decide races here.",
-  "It's a rhythm circuit: link the turns smoothly, protect the front tyres, and never throw away the exit onto the main straight."
- ],
- "zolder": [
-  "The chicanes are the key — attack the kerbs to find time, but unsettle the car and you'll lose everything on exit.",
-  "Carry your speed through the quick stuff; that's where the brave make the difference at Zolder."
- ],
- "zhuhai": [
-  "The long back straight and the heavy stop at the end are your big overtaking chance — it's all about the exit before it.",
-  "Be patient through the technical middle sector; tidy lines there set up the whole lap."
- ],
- "sonoma": [
-  "The downhill esses are where the lap is won and lost — commit early, because there's no margin if you get it wrong.",
-  "Elevation hides the apexes, so it's all about confidence and a clean drive out of the slow corners."
- ],
- "sebring": [
-  "Survival is half the battle on this bumpy concrete — keep the car off the worst of it and look after the tyres and brakes.",
-  "The fast corners reward bravery, but it's tyre and brake management over the long run that decides Sebring."
- ],
- "portim": [
-  "Commit over the blind crests — the drivers brave enough to carry speed where they can't see the apex find all the time here.",
-  "Protect your exits up and over those brows; momentum is everything on this rollercoaster."
- ],
- "barcelona": [
-  "It's a tyre-management track above all — abuse the fronts early and that final sector will punish you late on.",
-  "The long run to turn one is the prime overtaking chance; everywhere else, track position is king."
- ],
- "paul ricard": [
-  "The Mistral straight with its chicane is your overtaking chance — it's all about the slipstream and the heavy braking zone.",
-  "Stay off those painted run-offs; they look harmless but they'll rob you of grip and a chunk of lap time."
- ],
- "norisring": [
-  "It's stop-and-go — huge braking into the hairpins, then traction back out; look after those brakes over a stint.",
-  "The grandstand hairpin is the overtaking spot, so a strong exit onto the straight before it is everything."
- ],
- "salzburgring": [
-  "It's flat-out and flowing — carry the speed through the fast stuff and save your big stop for the tight hairpin.",
-  "With so little run-off, precision matters more than bravery here; a small error costs a big lap."
- ],
- "macau": [
-  "Lisboa is the one real overtaking chance — get a run out of the last corner and dive down the inside.",
-  "Through the mountain section it's all about precision; clip a wall and your race is over in an instant."
- ],
- "dubai": [
-  "Link the esses cleanly and protect your exits onto the straights — rhythm is where the Dubai lap is found.",
-  "It's a flowing circuit that rewards a smooth, tidy driver over a ragged, aggressive one."
- ],
- "moscow": [
-  "Late braking into the slow corners and strong traction out is the recipe; link the chicanes without unsettling the car.",
-  "Protect your exits onto the straights — that's where the lap time lives here."
- ],
- "anderstorp": [
-  "That long airfield straight makes traction out of the final corner absolutely vital — the whole lap builds to it.",
-  "Commit through the fast sweepers and square off the slow corners for a clean drive onto the straights."
- ],
- "oschersleben": [
-  "Rhythm through the linked corners is everything — there's nowhere to make up a big chunk, so a tidy lap wins out.",
-  "Be patient into the hairpins; get them slowed and hooked up, then fire out cleanly."
- ],
- "lausitz": [
-  "On the road course it's late braking and traction out of the slow stuff; a clean exit onto the straights is the key.",
-  "Two different disciplines in one lap — adapt from the banking to the fiddly infield and you'll find the time."
- ],
- "slovakia": [
-  "It's a momentum lap — lift rather than brake through the sweepers and trust the line to carry your speed.",
-  "Protect every exit onto the straights; clean traction is where the Slovakia Ring rewards you."
- ],
- "ningbo": [
-  "Traction out of the slow corners onto the straights is the priority — it's a clinical, modern test of precision.",
-  "Be smooth through the technical sections; this is a track where you lose time in dribs and drabs."
- ],
- "chang": [
-  "Long straights and big stops make the braking zones your overtaking spots — get the exit before them right and you'll pounce.",
-  "Manage the heat above all; tyres and brakes fade fast here, so the smart drive comes good late on."
- ],
- "sachsenring": [
-  "The downhill Sachsenkurve is the signature — blind, committed, and the place that separates the brave from the rest.",
-  "Get traction out of the slow corners; on a lap this short, every clean exit is precious."
- ],
- "raceroom": [
-  "It rewards a tidy, rhythmic lap — string the quick sweepers and the technical sections together and the time comes.",
-  "There's a real overtaking spot or two if you're brave on the brakes; set it up with a good exit beforehand."
- ],
- "mid-ohio": [
-  "With overtaking so hard, track position is everything — the Keyhole is your best look, so set it up with a strong exit before it.",
-  "It's a precision lap through the narrow, technical sections; commit through the Esses and protect every exit."
- ]
+  "laguna": [
+    "The lap here hinges on the Corkscrew — get a clean entry and you carry speed over the crest; commit too early and you wash wide on the plunge.",
+    "Turn two and the Andretti hairpin are the real overtaking chances; the rest is too committed to dive down the inside.",
+    "Laguna is a traction circuit — square off the slow corners, get the car rotated, and fire it out cleanly. That's where the time is."
+  ],
+  "bathurst": [
+    "Across the top of the mountain the time comes from sheer commitment — there's no room for error, so the ones who don't lift find the lap.",
+    "Overtaking is all down Mountain Straight and into The Chase; the mountain itself is about rhythm and survival.",
+    "A clean exit from the top sets up the whole run down Conrod — lose time up there and you pay for it all the way to the bottom."
+  ],
+  "panorama": [
+    "The mountain rewards bravery over the crests — find a rhythm across the top and the lap time follows.",
+    "Your one big overtaking zone is the bottom of the mountain; everywhere else, patience is the only way through.",
+    "Across the top it is a different circuit — narrow, walled, no room for error. Precision beats bravery over the mountain.",
+    "The Chase is your overtaking spot; get the run up Conrod and make it stick, because passing over the top is a lottery.",
+    "Down Conrod the car goes light over the crests. Stay committed and let it breathe.",
+    "Uphill through the Cutting, get it straight before you climb — anything sideways there costs you the whole ascent."
+  ],
+  "spa": [
+    "The middle sector is where Spa is won — those long flowing curves reward a settled car and a driver who trusts the front end.",
+    "Your overtaking spots are the Bus Stop and the run up to Les Combes; nail the exit onto the straight and the slipstream does the rest.",
+    "Eau Rouge isn't where you pass — it's where you set up everything after it. Commit through there and the whole lap opens up."
+  ],
+  "monza": [
+    "It's all about the chicanes — brake deep, get it turned, fire it out; the Lesmos and Parabolica reward patience on entry for speed onto the straights.",
+    "Overtaking in a straight line is the easy part here; the art is defending into the first chicane without wrecking your exit.",
+    "Traction out of the second chicane sets up the entire run to Lesmo — whatever you waste there you pay for twice.",
+    "Ascari separates the field. Commit through the first part and the rest follows.",
+    "The slipstream is a weapon AND a trap — the tow gets you alongside, but it also carries you far too deep into the chicane.",
+    "Kerbs at the chicanes will launch the car if you get greedy. Use them, do not attack them."
+  ],
+  "nurburg": [
+    "Around the modern Grand Prix circuit the time is in the technical infield — traction and patience over outright bravery.",
+    "Turn One is the overtaking spot — a heavy stop after a long run, so brake later than feels sensible and you will have him.",
+    "The Dunlop hairpin decides your lap: rotate it early, be patient with the throttle, and the run to the Veedol opens up.",
+    "Do not chase the kerbs through the infield. The car goes light, you lose the front, and the lap is gone in a corner you cannot see the time in.",
+    "The Mercedes Arena is a rhythm section, not three separate corners. Link them, minimal steering, and it flows.",
+    "Traction out of the slow stuff is everything — short-shift if you must, because wheelspin costs you all the way down the next straight."
+  ],
+  "nordschleife": [
+    "You don't attack the Green Hell, you build up to it — find a rhythm, respect the blind crests, and the time comes from confidence.",
+    "Knowing what's over each crest is worth more than horsepower here — commitment born of memory is the real lap time.",
+    "There is no such thing as one lap here — build it corner by corner and accept you will never get them all right.",
+    "The compressions load the car enormously. Where the track drops away your grip goes with it, so be gentle with the inputs.",
+    "Respect the blind crests. Your reference is what you learned, not what you can see.",
+    "The Karussell needs commitment — drop into it decisively, hold the throttle, and let it carry you round."
+  ],
+  "suzuka": [
+    "The Esses are where the lap lives — a rhythm section where momentum is everything; lose the front in the first and you pay all the way through.",
+    "130R and the final chicane set up the run to the line — that's your overtaking window at Suzuka.",
+    "The Esses are one flowing sequence — get the first right and the rest are free. Get it wrong and you fight all the way through.",
+    "130R is about confidence in the car, not bravery. If it is not settled on entry, do not force it.",
+    "The chicane is your only real overtaking spot, so build the whole lap around arriving there with a run.",
+    "Degner Two catches out more drivers than any corner here. Early on the brakes, precise on the apex."
+  ],
+  "imola": [
+    "Time at Imola is in the chicanes — sharp, precise, kerb-riding stuff; Acque Minerali and the Variante Alta reward attacking the kerbs cleanly.",
+    "It's a tough place to pass, so track position is gold — qualifying and the opening lap matter enormously around here.",
+    "Traction out of the chicanes is the whole lap — this circuit is a series of good exits joined together.",
+    "Acque Minerali is downhill into the braking, so the car is light and it is easy to lock a wheel. Be early and gentle.",
+    "Rivazza rewards patience. Roll the speed in, rotate it, and use the exit onto the straight.",
+    "Kerbs at the Variante Alta will spit the car sideways. Respect them and you will never have a moment."
+  ],
+  "silverstone": [
+    "Maggotts and Becketts is where the brave find their time — minimal steering, maximum commitment, carrying speed through the whole complex.",
+    "Stowe and the Loop are your overtaking zones; a clean exit from Chapel gives you the run down the Hangar Straight.",
+    "Copse is a commitment corner — lift too early and you lose time all the way to Maggotts.",
+    "Brooklands and Luffield are slow and thankless, but a clean exit onto the Wellington Straight is real lap time.",
+    "The wind swings a lot here and changes the fast corners lap to lap. Adjust to it, do not fight it.",
+    "Village into the Loop is where people overdrive. Slow in, tidy out — the exit is what matters."
+  ],
+  "zandvoort": [
+    "The banking lets you carry astonishing speed, but the lap time is in trusting it — commit to the banked corners and let the camber work.",
+    "Passing is genuinely hard here, so a strong exit onto the main straight from that final banked turn is everything.",
+    "The banking changes everything — you can carry far more speed than feels natural, but only if the car is settled going in.",
+    "Tarzan is the classic overtaking spot; get a run out of the last corner and go round the outside if you are brave.",
+    "It is narrow and there is nowhere to hide. Track position matters more than raw pace here.",
+    "The blind uphill sections need reference points, not eyesight. Learn them and trust them."
+  ],
+  "brands hatch": [
+    "Paddock Hill Bend is the signature — turn in almost blind over the crest and let it run down the hill; that's where the brave find time.",
+    "Your best look is into Druids after the plunge down Paddock — get that hairpin right and you set up the whole lap.",
+    "Paddock Hill Bend is the defining corner — it drops away under you, so commit and let the car take the load.",
+    "Druids is your overtaking spot, but the exit matters far more than the entry.",
+    "The undulation loads and unloads the car constantly. Smooth inputs, always.",
+    "Clearways sets up the whole lap. A patient exit there is worth more than any heroics earlier."
+  ],
+  "hockenheim": [
+    "The stadium section is where the lap comes alive — tight and technical, the place to make up time after the fast run through the forest.",
+    "The hairpin is your overtaking spot — a huge braking zone off the back straight, and a good exit sets up the whole stadium section.",
+    "The stadium section rewards patience. It looks slow and fiddly, but that is where a tidy driver takes half a second off a fast one.",
+    "Turn One is a proper chance if you get the run — be alongside early, because there is no room to argue once you are committed.",
+    "Kerbs in the stadium unsettle the car badly. Stay off them, stay smooth, and let the others make that mistake.",
+    "Traction out of the final corner is the whole lap — whatever you spin away there you pay for all the way down the straight."
+  ],
+  "red bull ring": [
+    "Short lap, big stops — turns one, three and four are heavy braking zones and your best overtaking chances; nail the traction on exit.",
+    "Three big braking zones, three overtaking chances — Turn One, Turn Three and Turn Four. This lap is about the stops.",
+    "It is a short lap, so traffic and track position matter more here than almost anywhere. Get clear air and the time comes to you.",
+    "Turn Three catches people out — it is steeply uphill into the braking, so the car is light and the stop is longer than it looks.",
+    "The final sector flows. Stop steering so much through there and you will find time immediately.",
+    "Track limits at the exit of the last two corners are strict. Keep the wheels inside and you never think about it again."
+  ],
+  "spielberg": [
+    "It's a traction circuit — the time is all in firing cleanly out of the heavy braking zones and onto those uphill straights.",
+    "Three heavy braking zones, three overtaking chances — this lap is decided under braking, not in the corners.",
+    "It is a short lap, so a single tenth is a big percentage. Clean air is worth more here than anywhere.",
+    "Uphill into Turn Three means the car is light on entry and the stop takes longer than your eyes tell you. Brake earlier than instinct says.",
+    "The last two corners have strict limits — stay inside the white lines and it is a non-issue all race.",
+    "Traction off the slow corners is the currency here. Feed the throttle, do not stamp on it."
+  ],
+  "interlagos": [
+    "The climb to the line means a good exit from the final corner pays double; the Senna S is your main overtaking chance lap after lap.",
+    "It's a momentum lap — the long left of Curva do Sol carries you onto the back straight, so protect that exit above all.",
+    "The Senna S is everything — a good exit there carries you all the way down the back straight.",
+    "The uphill final sector is where tired drivers lose time. Stay precise when your arms are burning.",
+    "Turn One under braking is your overtaking spot; it is downhill and slippery, so commit early or not at all.",
+    "Juncao sets up the whole lap. Get on the throttle early and hold it all the way up the hill."
+  ],
+  "watkins": [
+    "The Esses reward commitment, and the Bus Stop is your overtaking chance — it's all about the drive onto the back straight.",
+    "The Esses are where the lap lives — commit early, minimal steering, and let the car flow downhill through the sequence.",
+    "The Bus Stop chicane is your overtaking spot; brake deep off the back straight but keep it straight, because it bites.",
+    "Turn One is a long, patient corner. Get greedy on entry and you run wide and lose everything on the exit.",
+    "The Inner Loop breaks your rhythm on purpose. Take it tidily rather than heroically and the lap stays together.",
+    "Elevation hides the apexes here — trust your reference points, not your eyes, especially through the Esses."
+  ],
+  "road america": [
+    "Long straights and heavy braking — turns five and eight are the passing spots, and the time is all in nailing the exits onto those straights.",
+    "Long straights and heavy braking — Turn Five and Canada Corner are your overtaking spots, and both reward a brave late stop.",
+    "The Carousel is all patience: get it settled, hold the line, and carry the speed onto the straight after it.",
+    "Slipstreaming matters here more than almost anywhere. Sit in the tow, wait, and use it in the braking zone.",
+    "Turn One is deceptive — fast in and tightening, so do not be seduced by how easy the entry feels.",
+    "The Kink is flat when the car is right, and it is the bravest corner on the circuit. Get it wrong and it is a very big accident."
+  ],
+  "indianapolis": [
+    "On the road course the infield is fiddly and technical — patience there sets up the long runs where you actually find the lap time.",
+    "It is about the banking and the draft — your lap time and your overtaking both come from how well you use the tow.",
+    "The infield is where you actually lose time. Be tidy and patient in there; the banking looks after itself.",
+    "Turn One on the road course is the big stop — get a run out of the last corner and you are alongside before he sees you.",
+    "Momentum is everything. Every metre you scrub in the infield costs you the whole way round the banking.",
+    "Getting the exit onto the front straight right is worth more than any single corner on this lap."
+  ],
+  "daytona": [
+    "On the banking it's momentum and the draft — both your lap time and your overtaking come from how cleverly you use the tow.",
+    "The bus stop chicane is the overtaking spot — huge braking off the banking, and it punishes anyone who arrives untidy.",
+    "In the infield, be patient. All your speed on the banking comes from the exit you carry out of the last infield corner.",
+    "Work the draft — sitting alone in clean air here is slower than sitting in a tow, whatever your instincts say.",
+    "The transition onto the banking loads the car hard. Get the line right and it settles; get it wrong and it steps out.",
+    "Look after the right-front through the banking — the loads are relentless and it goes off long before the others do."
+  ],
+  "le mans": [
+    "Top speed down the Mulsanne matters, but the Porsche Curves are where a brave driver finds real time — flowing, committed, unforgiving.",
+    "The two Mulsanne chicanes are your heavy braking zones and your best overtaking chances on that endless straight.",
+    "The Porsche Curves are where the lap is truly won — flowing, committed, and utterly unforgiving of a wide entry.",
+    "The Mulsanne chicanes reward a car that is stable under braking. Get it straight, get it stopped, fire it out.",
+    "Indianapolis and Arnage punish greed. Patient entry, early throttle — that is the whole trick.",
+    "Traffic management IS the skill here. Plan your passes on the straights and never lose momentum behind a slower car."
+  ],
+  "hungaroring": [
+    "With overtaking so hard, the whole lap is about track position — qualifying and the undercut decide races here.",
+    "It's a rhythm circuit: link the turns smoothly, protect the front tyres, and never throw away the exit onto the main straight.",
+    "Track position is everything here — passing is genuinely hard, so qualifying and the exit onto the straight decide your race.",
+    "Turn One is the only real overtaking spot. Build the entire lap around arriving there with a run.",
+    "The middle sector is a rhythm section. Flow through it rather than attacking it, and the time appears.",
+    "It is hot, twisty and hard on the rears. Manage the traction early or you will be sliding by the end of the stint."
+  ],
+  "zolder": [
+    "The chicanes are the key — attack the kerbs to find time, but unsettle the car and you'll lose everything on exit.",
+    "Carry your speed through the quick stuff; that's where the brave make the difference at Zolder.",
+    "The chicanes make this lap. Get them straight and stopped, and use the kerbs sparingly — they are aggressive.",
+    "The fast opening section rewards commitment, but the time is really made in the tight stuff after it.",
+    "Traction out of the last chicane onto the straight is where you gain or lose a place every lap.",
+    "It is bumpy in the braking zones — brake in a straight line and give yourself margin."
+  ],
+  "zhuhai": [
+    "The long back straight and the heavy stop at the end are your big overtaking chance — it's all about the exit before it.",
+    "Be patient through the technical middle sector; tidy lines there set up the whole lap.",
+    "Link the corners rather than driving them one at a time — the exit of one is the entry to the next here.",
+    "Minimal steering is fast steering. Every extra input scrubs speed you never get back.",
+    "Find your rhythm before you find your limit. The lap comes to you once the sequence makes sense.",
+    "Be smooth with the hands. This place rewards tidiness far more than aggression."
+  ],
+  "sonoma": [
+    "The downhill esses are where the lap is won and lost — commit early, because there's no margin if you get it wrong.",
+    "Elevation hides the apexes, so it's all about confidence and a clean drive out of the slow corners.",
+    "The elevation is the whole story — blind crests and off-camber exits, so trust your references, not your eyes.",
+    "Turn Seven is your overtaking spot, a heavy stop at the bottom of the hill.",
+    "The Esses reward a settled car. Get greedy with the kerbs and it will unsettle everything.",
+    "Downhill braking zones here are longer than they look. Be early rather than heroic."
+  ],
+  "sebring": [
+    "Survival is half the battle on this bumpy concrete — keep the car off the worst of it and look after the tyres and brakes.",
+    "The fast corners reward bravery, but it's tyre and brake management over the long run that decides Sebring.",
+    "The bumps are the whole story — a soft, settled car that absorbs them beats a stiff, fast one every time.",
+    "Turn One is a huge stop after the fastest part of the lap. Get it straight before you brake.",
+    "The concrete sections change grip completely. Expect it, adjust for it, do not be surprised by it.",
+    "Look after the car here. Sebring breaks more races than it wins."
+  ],
+  "portim": [
+    "Commit over the blind crests — the drivers brave enough to carry speed where they can't see the apex find all the time here.",
+    "Protect your exits up and over those brows; momentum is everything on this rollercoaster.",
+    "This place is a rollercoaster — the crests unload the car exactly where you want to commit, so be smooth and patient.",
+    "The main straight exit is critical; a good run out of the final corner is worth a place.",
+    "Blind apexes everywhere. Learn the reference points and stop looking for the kerb.",
+    "It is hard on tyres with all the elevation and long corners. Save them early."
+  ],
+  "barcelona": [
+    "It's a tyre-management track above all — abuse the fronts early and that final sector will punish you late on.",
+    "The long run to turn one is the prime overtaking chance; everywhere else, track position is king.",
+    "The final chicane decides your lap — a clean exit is the only way to use the main straight.",
+    "Turn Three is long and it hurts the front tyre. Be patient, let it run to the apex, and save the rubber.",
+    "Turn One is your overtaking spot, but the run to it is long and you will be seen coming. Time it late.",
+    "The middle sector eats front tyres. Manage them early or you will have nothing left at the end."
+  ],
+  "paul ricard": [
+    "The Mistral straight with its chicane is your overtaking chance — it's all about the slipstream and the heavy braking zone.",
+    "Stay off those painted run-offs; they look harmless but they'll rob you of grip and a chunk of lap time.",
+    "The Mistral chicane is your overtaking spot — huge braking, and the run-off tempts people into overdoing it.",
+    "Signes is properly fast and properly committed. If the car is not settled, do not take it flat.",
+    "The painted run-off flatters you into thinking a mistake is free. It is not — it is a lap deleted.",
+    "Traction out of the final corners is where the lap is really made."
+  ],
+  "norisring": [
+    "It's stop-and-go — huge braking into the hairpins, then traction back out; look after those brakes over a stint.",
+    "The grandstand hairpin is the overtaking spot, so a strong exit onto the straight before it is everything.",
+    "It is a street circuit — walls, no run-off, and the hairpins decide everything. Traction and braking, nothing else.",
+    "The Grundig hairpin is your overtaking spot; brake late but get it stopped, because there is a wall waiting.",
+    "Short lap, so traffic is constant. Clear air is worth more than pace here.",
+    "Brakes and rears take a hammering with the stop-start rhythm. Look after both."
+  ],
+  "salzburgring": [
+    "It's flat-out and flowing — carry the speed through the fast stuff and save your big stop for the tight hairpin.",
+    "With so little run-off, precision matters more than bravery here; a small error costs a big lap.",
+    "Momentum is everything — every metre you scrub costs you all the way down the next straight.",
+    "Do not over-slow the car. Roll the speed through the corner and keep it alive.",
+    "Brake earlier and lighter rather than late and hard; carrying speed beats stopping speed here.",
+    "Use the slipstream. Sitting in a tow is worth more than a tenth of raw pace."
+  ],
+  "macau": [
+    "Lisboa is the one real overtaking chance — get a run out of the last corner and dive down the inside.",
+    "Through the mountain section it's all about precision; clip a wall and your race is over in an instant.",
+    "Walls everywhere and no margin at all. A clean lap beats a fast one, every single time.",
+    "The mountain section is desperately narrow — commit to your line and do not change your mind mid-corner.",
+    "Lisboa is the overtaking spot, and it has ended more races than it has won. Be certain before you commit.",
+    "The long straight builds huge speed into a slow corner. Get your braking reference right and never improvise."
+  ],
+  "dubai": [
+    "Link the esses cleanly and protect your exits onto the straights — rhythm is where the Dubai lap is found.",
+    "It's a flowing circuit that rewards a smooth, tidy driver over a ragged, aggressive one.",
+    "Traction out of the slow corners is the whole lap — anything you spin away there you pay for down the straight.",
+    "Feed the throttle, do not stamp on it. Wheelspin costs you the entire following straight.",
+    "Get the car straight before you commit to full power, and you will gain everywhere.",
+    "Patience on entry buys you the exit. Slow in, fast out — that is the trade here."
+  ],
+  "moscow": [
+    "Late braking into the slow corners and strong traction out is the recipe; link the chicanes without unsettling the car.",
+    "Protect your exits onto the straights — that's where the lap time lives here.",
+    "Traction out of the slow corners is the whole lap — anything you spin away there you pay for down the straight.",
+    "Feed the throttle, do not stamp on it. Wheelspin costs you the entire following straight.",
+    "Get the car straight before you commit to full power, and you will gain everywhere.",
+    "Patience on entry buys you the exit. Slow in, fast out — that is the trade here."
+  ],
+  "anderstorp": [
+    "That long airfield straight makes traction out of the final corner absolutely vital — the whole lap builds to it.",
+    "Commit through the fast sweepers and square off the slow corners for a clean drive onto the straights.",
+    "The long back straight makes the slipstream decisive — plan your move there and be patient until it.",
+    "The tight infield is where you actually lose time. Be precise, not brave.",
+    "Traction onto the long straights is worth more than any corner speed.",
+    "Get the final corner right and you carry the advantage the whole way down the straight."
+  ],
+  "oschersleben": [
+    "Rhythm through the linked corners is everything — there's nowhere to make up a big chunk, so a tidy lap wins out.",
+    "Be patient into the hairpins; get them slowed and hooked up, then fire out cleanly.",
+    "Link the corners rather than driving them one at a time — the exit of one is the entry to the next here.",
+    "Minimal steering is fast steering. Every extra input scrubs speed you never get back.",
+    "Find your rhythm before you find your limit. The lap comes to you once the sequence makes sense.",
+    "Be smooth with the hands. This place rewards tidiness far more than aggression."
+  ],
+  "lausitz": [
+    "On the road course it's late braking and traction out of the slow stuff; a clean exit onto the straights is the key.",
+    "Two different disciplines in one lap — adapt from the banking to the fiddly infield and you'll find the time.",
+    "Traction out of the slow corners is the whole lap — anything you spin away there you pay for down the straight.",
+    "Feed the throttle, do not stamp on it. Wheelspin costs you the entire following straight.",
+    "Get the car straight before you commit to full power, and you will gain everywhere.",
+    "Patience on entry buys you the exit. Slow in, fast out — that is the trade here."
+  ],
+  "slovakia": [
+    "It's a momentum lap — lift rather than brake through the sweepers and trust the line to carry your speed.",
+    "Protect every exit onto the straights; clean traction is where the Slovakia Ring rewards you.",
+    "Link the corners rather than driving them one at a time — the exit of one is the entry to the next here.",
+    "Minimal steering is fast steering. Every extra input scrubs speed you never get back.",
+    "Find your rhythm before you find your limit. The lap comes to you once the sequence makes sense.",
+    "Be smooth with the hands. This place rewards tidiness far more than aggression."
+  ],
+  "ningbo": [
+    "Traction out of the slow corners onto the straights is the priority — it's a clinical, modern test of precision.",
+    "Be smooth through the technical sections; this is a track where you lose time in dribs and drabs.",
+    "Traction out of the slow corners is the whole lap — anything you spin away there you pay for down the straight.",
+    "Feed the throttle, do not stamp on it. Wheelspin costs you the entire following straight.",
+    "Get the car straight before you commit to full power, and you will gain everywhere.",
+    "Patience on entry buys you the exit. Slow in, fast out — that is the trade here."
+  ],
+  "chang": [
+    "Long straights and big stops make the braking zones your overtaking spots — get the exit before them right and you'll pounce.",
+    "Manage the heat above all; tyres and brakes fade fast here, so the smart drive comes good late on.",
+    "Momentum is everything — every metre you scrub costs you all the way down the next straight.",
+    "Do not over-slow the car. Roll the speed through the corner and keep it alive.",
+    "Brake earlier and lighter rather than late and hard; carrying speed beats stopping speed here.",
+    "Use the slipstream. Sitting in a tow is worth more than a tenth of raw pace."
+  ],
+  "sachsenring": [
+    "The downhill Sachsenkurve is the signature — blind, committed, and the place that separates the brave from the rest.",
+    "Get traction out of the slow corners; on a lap this short, every clean exit is precious.",
+    "It is tight and twisty with real elevation — rhythm matters more than outright power.",
+    "The long left-hander loads the right-front hard. Be patient with it or it will go off.",
+    "Traction out of the slow corners is where the lap is made.",
+    "Short lap, so traffic is a constant factor. Manage your gaps."
+  ],
+  "raceroom": [
+    "It rewards a tidy, rhythmic lap — string the quick sweepers and the technical sections together and the time comes.",
+    "There's a real overtaking spot or two if you're brave on the brakes; set it up with a good exit beforehand.",
+    "Link the corners rather than driving them one at a time — the exit of one is the entry to the next here.",
+    "Minimal steering is fast steering. Every extra input scrubs speed you never get back.",
+    "Find your rhythm before you find your limit. The lap comes to you once the sequence makes sense.",
+    "Be smooth with the hands. This place rewards tidiness far more than aggression."
+  ],
+  "mid-ohio": [
+    "With overtaking so hard, track position is everything — the Keyhole is your best look, so set it up with a strong exit before it.",
+    "It's a precision lap through the narrow, technical sections; commit through the Esses and protect every exit.",
+    "The Esses are the heart of the lap — flow through them, minimal steering, and let the car settle.",
+    "The Keyhole rewards patience: slow in, get it rotated, then use the exit down the back straight.",
+    "The back straight into the chicane is your overtaking spot.",
+    "It is narrow with grass close by. Track limits mistakes here become spins very quickly."
+  ]
 }
