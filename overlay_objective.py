@@ -132,7 +132,7 @@ class ObjectiveMixin:
             return {
                 "kind": "clean", "target_slot": vslot,
                 "target_name": "", "goal_pos": None, "gap_target": None,
-                "cuts0": cuts, "laps": min(laps_left, 6),
+                "cuts0": cuts, "laps": min(laps_left, 3),
                 "hud": f"No more limits warnings ({cuts})",
             }
 
@@ -146,7 +146,7 @@ class ObjectiveMixin:
             return {
                 "kind": "recover", "target_slot": vslot, "target_name": "",
                 "goal_pos": goal, "gap_target": None,
-                "laps": min(laps_left, 8),
+                "laps": min(laps_left, 6),
                 "hud": f"Recover to P{goal} (from P{pos})",
             }
 
@@ -158,7 +158,7 @@ class ObjectiveMixin:
             return {
                 "kind": "tyres", "target_slot": vslot, "target_name": "",
                 "goal_pos": pos, "gap_target": None,
-                "laps": min(laps_left, 8),
+                "laps": min(laps_left, 5),
                 "hud": f"Nurse the tyres, hold P{pos}",
             }
 
@@ -174,7 +174,7 @@ class ObjectiveMixin:
                 return {
                     "kind": "damage", "target_slot": behind.driver_info.slot_id,
                     "target_name": self._dname(behind), "gap_target": float(hold),
-                    "goal_pos": pos, "laps": min(laps_left, 5),
+                    "goal_pos": pos, "laps": min(laps_left, 4),
                     "hud": f"Stay ahead of {self._dname(behind)} (+{hold}s)",
                 }
 
@@ -225,7 +225,7 @@ class ObjectiveMixin:
                     "kind": "defend", "target_slot": bslot,
                     "target_name": self._dname(behind),
                     "gap_target": float(hold), "goal_pos": pos,
-                    "laps": min(laps_left, 6),
+                    "laps": min(laps_left, 4),
                     "hud": f"Hold P{pos} from {self._dname(behind)}",
                 }
         return None
@@ -456,22 +456,22 @@ class ObjectiveMixin:
             want = round(max(0.15, (pb - pole_t) * 0.5), 2)
             self._obj = {"kind": "pole", "target_slot": vslot,
                          "target_name": "", "goal_pos": None,
-                         "gap_target": want, "laps": 4, "lap0": laps,
+                         "gap_target": want, "laps": 3, "lap0": laps,
                          "hud": f"Within {want:.2f}s of pole"}
             self._obj_count += 1
             self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"pole"}
-            return ("obj_set_pole", {"gap": f"{want:.2f}s", "laps": 4})
+            return ("obj_set_pole", {"gap": f"{want:.2f}s", "laps": 3})
 
         # BEAT YOUR BEST — a couple of tenths is a real but fair ask
         if not self._obj_seen("pb"):
             want = round(pb - 0.20, 3)
             self._obj = {"kind": "pb", "target_slot": vslot,
                          "target_name": "", "goal_pos": None,
-                         "gap_target": None, "target_t": want, "laps": 4,
+                         "gap_target": None, "target_t": want, "laps": 3,
                          "lap0": laps, "hud": "Beat your best by 0.2s"}
             self._obj_count += 1
             self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"pb"}
-            return ("obj_set_pb", {"t": R.fmt_time(want), "laps": 4})
+            return ("obj_set_pb", {"t": R.fmt_time(want), "laps": 3})
         return None
 
     def _obj_pole_time(self, order, vslot):

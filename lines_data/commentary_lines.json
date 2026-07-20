@@ -1637,5 +1637,27 @@
     "Another place back for {drv} — P{pos} now, after being as low as P{worst}. All heart!",
     "{drv} past {oth} into P{pos} — that earlier disaster down in P{worst} is being erased one corner at a time!",
     "P{pos} for {drv} — the recovery from P{worst} continues, and there's real anger in that driving!"
+  ],
+  "obj_booth": [
+    "You can bet the pit wall has told {drv} exactly what they want here.",
+    "That's the sort of moment where the engineer's voice matters — {drv} will be getting instructions right now.",
+    "There'll be a number in {drv}'s ear this very second, {pundit}.",
+    "The pit wall will have given {drv} a target, and you can see them driving to it.",
+    "This is a team sport as much as a driver's one — {drv} won't be making that call alone.",
+    "Somebody on {drv}'s wall is watching the same gap we are, and doing the maths.",
+    "You can almost hear the radio call, can't you? {drv} has been given a job to do.",
+    "{drv} is driving with real purpose — that's a car with a target on the dash."
+  ],
+  "obj_booth_close": [
+    "{drv} is closing this down, and the pit wall will be loving it.",
+    "The gap's coming to {drv} — exactly what the engineers wanted to see.",
+    "Whatever target {drv} was given, they're delivering it right now.",
+    "That's a driver executing a plan, {pundit} — {drv} is right on schedule."
+  ],
+  "obj_booth_done": [
+    "Job done for {drv} — you can imagine the noise on that pit wall.",
+    "{drv} has delivered exactly what was asked. That's a good afternoon's work.",
+    "The team will be delighted with that from {drv}.",
+    "Whatever the brief was, {drv} has just ticked it off."
   ]
 }

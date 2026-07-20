@@ -583,7 +583,11 @@
     "{drv} is the one we're hunting. Get within {gap} in {laps} laps and we're in business.",
     "Here's the plan — reel {drv} in to {gap} over the next {laps} laps. Steady laps, no heroics.",
     "Target on the board: {gap} to {drv}, {laps} laps. The pace is there, just deliver it.",
-    "We're quicker than {drv} right now. Use it — within {gap}, {laps} laps."
+    "We're quicker than {drv} right now. Use it — within {gap}, {laps} laps.",
+    "Reel {drv} in — {gap} inside {laps} laps and he'll start making mistakes.",
+    "Pressure is the plan: get to {gap} of {drv} within {laps} laps.",
+    "Close him down. {gap} to {drv}, {laps} laps, then we reassess.",
+    "{drv} is beatable. Get within {gap} in {laps} laps and we'll see what he's got."
   ],
   "obj_set_position": [
     "P{pos} is on the table, mate. {drv} is the one in your way — {laps} laps to make it happen.",
@@ -591,14 +595,23 @@
     "This is a real chance — P{pos} if you can clear {drv} in the next {laps} laps.",
     "{drv} for P{pos}. You've got {laps} laps and you've got the pace. Go and take it.",
     "Big one, this: P{pos} is live. Clear {drv} within {laps} laps.",
-    "Target P{pos}. {drv} ahead, {laps} laps to get it done. Pick your moment."
+    "Target P{pos}. {drv} ahead, {laps} laps to get it done. Pick your moment.",
+    "Chance here — P{pos} if you can find a way past {drv}. {laps} laps.",
+    "{drv} is holding you up more than he's beating you. P{pos}, {laps} laps.",
+    "We want P{pos}. {drv} is the obstacle, {laps} laps to move him.",
+    "Let's be greedy — P{pos} in {laps} laps. Get {drv} done.",
+    "P{pos} is worth real points. {drv} ahead, {laps} laps. Go."
   ],
   "obj_set_defend": [
     "{drv} is coming. Hold P{pos} for the next {laps} laps — that's all I want.",
     "Job's changed: keep {drv} behind you. P{pos} is worth defending, {laps} laps.",
     "{drv} has pace on us. Defend P{pos} for {laps} laps, be firm but fair.",
     "Eyes in the mirrors — {drv} closing. Hold P{pos} through the next {laps} laps.",
-    "Don't let {drv} through. P{pos} for the next {laps} laps, that's the target."
+    "Don't let {drv} through. P{pos} for the next {laps} laps, that's the target.",
+    "{drv} is faster right now. Hold P{pos} for {laps} laps and he may well fade.",
+    "Defensive job: P{pos}, {laps} laps, {drv} behind. Cover the inside.",
+    "Keep it tidy and keep {drv} behind. P{pos}, {laps} laps.",
+    "Make yourself wide, mate. P{pos} for {laps} laps against {drv}."
   ],
   "obj_set_damage": [
     "Car's hurt, so the goal changes: keep {drv} behind us for {laps} laps. Damage limitation now.",
@@ -613,7 +626,10 @@
     "Beautiful. P{pos} is ours — now let's hold it to the flag.",
     "That's the one! P{pos}. Superb driving, now settle in and defend it.",
     "Target complete — P{pos}. Outstanding. Head down, bring it home.",
-    "P{pos}! You made that look easy. Consolidate now, no need to overdrive."
+    "P{pos}! You made that look easy. Consolidate now, no need to overdrive.",
+    "In FRONT! P{pos}. That's the target, brilliantly done.",
+    "That's the move — P{pos}. Exactly what we asked for.",
+    "P{pos}, target complete. Now make it stick."
   ],
   "obj_met_close": [
     "That's it — {gap} to {drv}. Target hit. Now you're in his mirrors, apply the pressure.",
@@ -640,7 +656,10 @@
     "Couldn't make it stick on {drv}. It happens. Reset, keep pushing, the race isn't done.",
     "We came up short on that one. Not for lack of effort — the pace just wasn't there today.",
     "Target missed. Don't dwell on it, mate. Keep the rhythm and see what comes to us.",
-    "{drv} had a bit more than us. That's racing. Heads up, drive your own race."
+    "{drv} had a bit more than us. That's racing. Heads up, drive your own race.",
+    "Not this time. He defended well — nothing you did wrong there.",
+    "Target's gone but the race isn't. Reset, keep the pressure on.",
+    "We'll take another run at that later. Clean laps for now."
   ],
   "obj_miss_defend": [
     "He's through. Nothing you could do there — he had the pace. Now let's get him back.",
@@ -663,7 +682,10 @@
     "Forget the cars around us — target is clean laps. Not one more warning for the next {laps} laps.",
     "This is the one that matters now: keep it inside the white lines for {laps} laps. No exceptions.",
     "Target: zero limits warnings, next {laps} laps. Give me a tenth back on entry, I don't care, just keep it clean.",
-    "We're one away from real trouble. Clean running for {laps} laps — that's the whole job."
+    "We're one away from real trouble. Clean running for {laps} laps — that's the whole job.",
+    "Three warnings already — I need {laps} clean laps from you now. Nothing fancy.",
+    "Clean running, {laps} laps. Give up a tenth on entry if that's what it takes.",
+    "{laps} laps inside the white lines. That's all I'm asking."
   ],
   "obj_met_clean": [
     "Perfect. Not a wheel out of line — that's the target done and the penalty risk gone. Superb discipline.",
@@ -681,7 +703,10 @@
     "Reset your head. Target is P{pos} in {laps} laps. One car at a time, no heroics.",
     "This race isn't over. P{pos} in {laps} laps — that's the recovery we're going for.",
     "Forget what just happened. New goal: P{pos} inside {laps} laps. Clean, fast, patient.",
-    "We rebuild from here. P{pos} is the target, {laps} laps to do it."
+    "We rebuild from here. P{pos} is the target, {laps} laps to do it.",
+    "Right — rebuild. P{pos} in {laps} laps. One car at a time.",
+    "Nothing's lost yet. Target P{pos}, {laps} laps, clean and quick.",
+    "Chin up. P{pos} inside {laps} laps and this is still a good day."
   ],
   "obj_met_recover": [
     "THAT is a recovery. Back to P{pos} after all that. Outstanding drive, mate.",
@@ -698,7 +723,10 @@
     "Tyres are going off. New target: hold P{pos} to the flag by looking after them — {laps} laps of smooth driving.",
     "Change of plan — nurse these tyres and keep P{pos}. {laps} laps. Smooth hands, early throttle.",
     "The rubber's had it. Target is P{pos} at the flag, managing what's left for {laps} laps.",
-    "Manage the tyres now. Hold P{pos} for {laps} laps — pace comes second to keeping them alive."
+    "Manage the tyres now. Hold P{pos} for {laps} laps — pace comes second to keeping them alive.",
+    "These tyres won't take {laps} more hard laps. Hold P{pos} by being smooth.",
+    "Manage what's left — P{pos} for {laps} laps, gentle on entry.",
+    "Tyre-saving mode. P{pos}, {laps} laps, no big lock-ups."
   ],
   "obj_met_tyres": [
     "Superbly managed. P{pos} held and you nursed those tyres home. That's a proper drive.",
@@ -740,7 +768,10 @@
     "Let's chase a number — {t} inside {laps} laps. Build up to it, don't force the first one.",
     "Target is {t}, {laps} laps to find it. Tidy sectors, that's all it takes.",
     "Give me a {t} in the next {laps} laps and we're where we need to be.",
-    "New benchmark: {t}. You've got {laps} laps. Nice and clean."
+    "New benchmark: {t}. You've got {laps} laps. Nice and clean.",
+    "Give me a {t} in {laps} laps — the sectors say it's in there.",
+    "Target {t}, {laps} laps. Put three good sectors together, that's it.",
+    "{t} is the number. {laps} laps to get it on the board."
   ],
   "obj_met_pb": [
     "THAT'S the one — {t}. Target smashed, lovely lap.",
@@ -757,7 +788,10 @@
     "Pole's in reach — get within {gap} of it in the next {laps} laps. That's the job.",
     "Target: {gap} off pole, {laps} laps. You're closer than you think.",
     "Let's go after the benchmark — within {gap} in {laps} laps.",
-    "{gap} to pole is the target, {laps} laps to do it. Clean lap and it's yours."
+    "{gap} to pole is the target, {laps} laps to do it. Clean lap and it's yours.",
+    "Get to within {gap} of pole in {laps} laps — that's a realistic step.",
+    "{gap} off the benchmark, {laps} laps. One clean lap does it.",
+    "Pole's not out of sight. {gap} in {laps} laps."
   ],
   "obj_met_pole": [
     "That's it — {gap} off pole. Target met, superb lap.",

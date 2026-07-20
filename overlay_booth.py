@@ -1039,6 +1039,12 @@ class BoothMixin:
                 types.append("standings")
             if rdy("crosstalk", 14):
                 types.append("crosstalk")
+            # BOOTH AWARENESS of the player's race objective. The broadcast
+            # can't see a private radio target, but it CAN see a driver
+            # visibly working to one — so the booth nods at the pit wall
+            # rather than quoting numbers it shouldn't know.
+            if getattr(self, "_obj", None) and rdy("objective", 40):
+                types.append("objective")
             if rdy("lore", 70):                 # the booth's racing-past banter
                 types.append("lore")
             # RACE ARC — call back to a driver's earlier incident (did it cost
@@ -1144,6 +1150,16 @@ class BoothMixin:
                 L("crosstalk_q", 6, persona="COMMENTATOR",
                   line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
                   drv=self._crosstalk_drv, pos=d.place)
+            elif pick == "objective":
+                pdrv = next((d for d in order
+                             if d.driver_info.slot_id == s.vehicle_info.slot_id),
+                            None)
+                if pdrv is not None:
+                    o = getattr(self, "_obj", None) or {}
+                    prog = o.get("_prog")
+                    cat = ("obj_booth_close" if prog and prog > 0.55
+                           else "obj_booth")
+                    L(cat, 6, persona=who2(), drv=self._dname(pdrv))
             elif pick == "lore":                         # racing-past banter
                 if random.random() < 0.6:                # Miles asks Brett
                     L("lore_q", 6, persona="COMMENTATOR",

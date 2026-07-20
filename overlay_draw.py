@@ -633,10 +633,22 @@ class DrawMixin:
             prog = 1.0 if ok else None
             badge = "✓" if ok else "✕"
 
-        # --- skewed body (parallelogram) + hard accent edge down the left
+        # --- skewed body (parallelogram) + hard accent edge down the left.
+        # The BODY goes on the glass layer like every other panel — it was
+        # drawn straight onto the solid canvas, which is why this one card
+        # stayed opaque while the rest of the overlay was see-through. The
+        # outline and the accent flash stay solid so the chip keeps its edge.
         body = [x + sk, y, x + w + sk, y, x + w, y + h, x, y + h]
-        self.canvas.create_polygon(*body, fill=CARD_BG, outline=CARD_BORDER,
-                                   width=2)
+        bg = getattr(self, "_bg_real", None)
+        if bg is not None:
+            gb = [(v - self._ox) if i % 2 == 0 else (v - self._oy)
+                  for i, v in enumerate(body)]
+            bg.create_polygon(*gb, fill=CARD_BG, outline="")
+            self.canvas.create_polygon(*body, fill="", outline=CARD_BORDER,
+                                       width=2)
+        else:
+            self.canvas.create_polygon(*body, fill=CARD_BG,
+                                       outline=CARD_BORDER, width=2)
         flash = [x + sk, y, x + sk + 58, y, x + 58, y + h, x, y + h]
         self.canvas.create_polygon(*flash, fill=col, outline="")
         # goal badge sits in the accent flash — the "what am I racing for"

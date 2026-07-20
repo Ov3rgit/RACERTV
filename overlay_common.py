@@ -62,6 +62,7 @@ CAT_INTENSITY = {
     "lap_milestone": 0, "standings": 0, "praise": 0, "criticism": 0,
     "time_remaining": 1,
     "track_generic": 0, "track_fact": 0, "crosstalk_q": 0, "stat": 0,
+    "obj_booth": 0, "obj_booth_close": 1, "obj_booth_done": 1,
     "car": 0, "pass_clean": 1, "midpack": 0,
     "late": 2, "final_lap": 2,
     "pregrid": 1,

@@ -115,14 +115,21 @@ STING_PERSONA = {"alert": "PUNDIT", "lightsout": "COMMENTATOR",
 # ---- neural voice cast (edge-tts) -------------------------------------------
 ENGINEER_VOICE = "en-GB-ThomasNeural"             # your engineer: calm British male
 NEURAL_VOICES = [
-    # Rival drivers: foreign-accented English ONLY — three voices, Spanish,
-    # German and French. These speak the English radio lines with a natural
-    # accent (the flavour that landed). The old wider cast (Irish / Indian /
-    # South African English tiers + native-language Portuguese / Russian)
-    # sounded off and is gone.
-    "de-DE-ConradNeural",   # German
-    "es-ES-AlvaroNeural",   # Spanish
-    "fr-FR-HenriNeural",    # French
+    # Rival drivers: foreign-accented English. These read the English radio
+    # lines in their own accent, which is the flavour that landed. (The older
+    # cast of Irish / Indian / South African ENGLISH tiers sounded off and is
+    # deliberately not here — this list is continental-European only.)
+    # Three voices across a full grid meant several drivers sounded identical;
+    # the per-driver prosody offsets below break that up further.
+    "de-DE-ConradNeural",     # German
+    "es-ES-AlvaroNeural",     # Spanish
+    "fr-FR-HenriNeural",      # French
+    "it-IT-DiegoNeural",      # Italian
+    "pt-BR-AntonioNeural",    # Brazilian
+    "nl-NL-MaartenNeural",    # Dutch
+    "pl-PL-MarekNeural",      # Polish
+    "sv-SE-MattiasNeural",    # Swedish
+    "cs-CZ-AntoninNeural",    # Czech
 ]
 # Native-language radio (audio in the driver's own tongue, English subtitle on
 # the bubble) is DORMANT: the mapping is empty so every rival speaks accented
@@ -194,6 +201,13 @@ def save_volume(v):
             json.dump({"volume": round(float(v), 3)}, f)
     except Exception:
         pass
+
+
+def _seed_hash(seed):
+    """Stable small hash of a driver name — same scheme already used to pick
+    their voice, so a driver's whole vocal identity (voice + prosody offset)
+    is consistent for as long as they are on track."""
+    return sum((seed or "").encode("utf-8", "ignore"))
 
 
 # ----------------------------------------------------------------- wav helpers
@@ -784,11 +798,39 @@ class Tts:
             # Warm, authoritative booth read. Rate kept near-natural so the
             # phonemes don't get clipped (that was the "robotic" symptom —
             # rushing the voice past its natural cadence breaks the delivery).
-            com = edge_tts.Communicate(text, voice, rate="+2%", pitch="-4Hz",
-                                       volume="+18%")
+            # a hair of per-line variation keeps the booth from sounding
+            # metronomic across a long race, without touching the warm,
+            # near-natural cadence that works
+            com = edge_tts.Communicate(
+                text, voice,
+                rate=f"{2 + random.randint(-2, 2):+d}%",
+                pitch=f"{-4 + random.randint(-2, 2):+d}Hz",
+                volume="+18%")
         else:
-            com = edge_tts.Communicate(text, voice,
-                                       rate=PERSONA_RATE.get(persona, "+0%"))
+            # RADIO VOICES. A fixed rate per persona meant every driver on a
+            # given voice delivered every line identically — the flat, sampled
+            # quality that reads as "robotic". Two layers of variation:
+            #   * a STABLE per-driver offset (hashed off the seed) so two
+            #     drivers sharing a voice still sound like different people,
+            #     and each one sounds the same all race
+            #   * a small per-LINE jitter so nobody delivers two lines in
+            #     exactly the same cadence
+            # Both are deliberately small: enough to sound human, not enough
+            # to sound like a different character each time.
+            base = PERSONA_RATE.get(persona, "+0%")
+            try:
+                b = int(base.rstrip("%"))
+            except ValueError:
+                b = 0
+            # mix the hash before splitting it: the raw byte-sum correlates
+            # across small moduli, so two drivers could land on the SAME voice
+            # AND the same offsets and still sound like one person
+            h = (_seed_hash(seed or persona) * 2654435761) & 0xFFFFFFFF
+            drv_rate = (h % 7) - 3            # -3..+3 %
+            drv_pitch = ((h >> 8) % 9) - 4    # -4..+4 Hz
+            rate = f"{b + drv_rate + random.randint(-2, 2):+d}%"
+            pitch = f"{drv_pitch + random.randint(-2, 2):+d}Hz"
+            com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
         asyncio.run(com.save(_MP3))
         return _decode_mp3(_MP3)
 
