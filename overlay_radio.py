@@ -117,6 +117,14 @@ class RadioMixin:
         _started = (getattr(self, "_comm_flags", {}).get("start")
                     or now - getattr(self, "_green_t", 1e18) > 6.0)
         radio_open = self._racing and (s.session_type != 2 or _started)
+        # RIVALS ONLY: hold until the end of lap 1. Lap 1 is a scramble of
+        # place changes that read as passes and spins but are really just the
+        # pack sorting itself out, and the booth is busy calling the start —
+        # driver radio on top of it is noise. YOUR ENGINEER is not held here
+        # (he's gated at _engineer_events below); he stays free from his
+        # opening line, which is wanted.
+        if focused is not None and focused.completed_laps < 1:
+            radio_open = False
 
         # update each driver's momentum (decays; +gain / -loss) BEFORE building
         # lines, so _radio_line can flavour them frustrated/pumped
@@ -516,21 +524,38 @@ class RadioMixin:
         if not self._intro_done(now):
             return
 
+        # ---- RACE OBJECTIVE: DRAIN FIRST, ALWAYS ----------------------------
+        # The engineer setting you a target, tracking it, and RESOLVING IT OUT
+        # LOUD ("well done mate" / "just didn't have it, unlucky"). This used
+        # to sit ~400 lines further down, below the gained/lost place calls —
+        # and a verdict fires at exactly the moment you complete a pass or drop
+        # a place, so those branches returned first and ate the tick, over and
+        # over. Net effect: targets were set and resolved in silence.
+        #
+        # It belongs at the TOP. objective_event() has ALREADY mutated state by
+        # the time it parks something here (the target is set, or met, or
+        # withdrawn), so a dropped line is a verdict the driver never hears —
+        # there is no second chance at it. Nothing below outranks that.
+        #
+        # bypass=True is essential for the same reason: the RADIO_ENG_CD
+        # spacing must not swallow it. These are rare and carry their own
+        # spacing in overlay_objective.py, so they cannot machine-gun.
+        # Covers race AND quali/practice targets — same drain, same rules.
+        obj = getattr(self, "_obj_say", None)
+        if obj:
+            self._obj_say = None
+            ocat, okw = obj
+            if ocat in ENGINEER_LINES:
+                return add(ocat, 1, bypass=True, **okw)
+
         # PRACTICE / QUALIFY / WARMUP: EVENT-DRIVEN. The engineer reacts to YOUR
         # actual laps — a lap completed (with gap to pole), a personal best,
         # provisional pole, a slow lap, a deleted lap — plus a real track tip to
         # help you find time. No more random filler.
         if s.session_type != 2:
-            # SESSION OBJECTIVES (practice / qualifying) — checked FIRST in
-            # this branch. The lap-report ladder below returns on almost every
-            # completed lap, so anything after it is unreachable in a busy
-            # session, which is why quali targets never aired.
-            qobj = getattr(self, "_obj_say", None)
-            if qobj:
-                self._obj_say = None
-                qcat, qkw = qobj
-                if qcat in ENGINEER_LINES:
-                    return add(qcat, 1, bypass=True, **qkw)
+            # (session objectives are drained at the top of this function,
+            # above the lap-report ladder below — which returns on almost every
+            # completed lap and would otherwise bury them)
             is_quali = (s.session_type == 1)
             trk = self._short_track(R.u8_to_str(s.track_name))
             pb = self.best_lap.get(vslot)
@@ -897,27 +922,8 @@ class RadioMixin:
             if where.startswith("into ") and random.random() < 0.7:
                 return add("gained_where", 1, bypass=True, where=where)
             return add("gained", 1, bypass=True)
-        # RACE OBJECTIVE — the engineer setting you a target, tracking it and
-        # resolving it out loud. Sits BELOW the emergencies above (damage,
-        # penalties, limits, pit calls all still come first) but ABOVE routine
-        # chatter, because a target being met or missed is the most meaningful
-        # thing he can tell you. The system stays silent whenever no credible
-        # objective exists — see overlay_objective.py.
-        # objective_event now runs EVERY tick in update_stats (so the HUD
-        # tracks and resolution is instant); here we only drain whatever it
-        # parked for the engineer to say.
-        obj = getattr(self, "_obj_say", None)
-        if obj:
-            self._obj_say = None
-            ocat, okw = obj
-            if ocat in ENGINEER_LINES:
-                # bypass=True is ESSENTIAL here. objective_event() has already
-                # mutated state by the time it returns — the target is set, or
-                # met, or withdrawn. If the line were then dropped by the 14s
-                # engineer spacing the whole system would run silently: targets
-                # set and resolved that the driver never hears. These are rare
-                # and carry their own spacing, so they can't machine-gun.
-                return add(ocat, 1, bypass=True, **okw)
+        # (the race objective is drained at the TOP of this function — it used
+        # to live here, where the place-change calls above buried it)
 
         # directional gap calls (only when the gap is actually moving)
         if ahead and gap and pgap is not None:

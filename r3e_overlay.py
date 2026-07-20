@@ -322,7 +322,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self._filler_until = 0.0   # est. time a colour/filler line finishes
         # ...and the space that frees up goes to YOUR engineer, who is the
         # voice that actually helps you drive.
-        self.RADIO_ENG_CD = 11.0   # min seconds between engineer messages
+        self.RADIO_ENG_CD = 15.0   # min seconds between engineer messages
 
         # team-radio voice (TTS) — optional; never breaks the overlay
         self.tts = None
@@ -1137,10 +1137,9 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             _ev = self.objective_event(s, order, _pm, time.time())
             if _ev:
                 self._obj_say = _ev
-                # let the BOOTH know too, so the commentators react to the
-                # player's target being set / hit / missed instead of the
-                # objective being a private conversation on the radio
-                self._obj_booth = (_ev[0], time.time())
+                # (the booth's cue is posted by _obj_notice inside the
+                # objective module itself — it needs the objective's KIND,
+                # which is gone by the time the category reaches us here)
         except Exception as ex:
             self._stage_err["objective"] = f"{type(ex).__name__}: {ex}"
 

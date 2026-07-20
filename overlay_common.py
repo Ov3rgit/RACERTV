@@ -57,6 +57,7 @@ COMMENTATOR_COLOR = "#ffcf33"  # broadcast booth caption colour
 _LEET = {"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g"}
 CAT_INTENSITY = {
     "start": 1, "overtake": 2, "overtake_long": 2, "leadchange": 2, "fastlap": 1,
+    "overtake_multi": 2,
     "spin": 2, "battle": 2, "battle_mid": 1, "battle_sustained": 2,
     "pit": 0, "lastlap": 2, "win": 2,
     "win_charge": 2, "win_comeback": 2, "win_wire": 2,
@@ -69,6 +70,7 @@ CAT_INTENSITY = {
     "time_remaining": 1,
     "track_generic": 0, "track_fact": 0, "crosstalk_q": 0, "stat": 0,
     "obj_booth": 0, "obj_booth_close": 1, "obj_booth_done": 1,
+    "obj_booth_brief": 1, "obj_booth_met": 1, "obj_booth_miss": 1,
     "car": 0, "pass_clean": 1, "midpack": 0,
     "late": 2, "final_lap": 2,
     "pregrid": 1,
@@ -84,12 +86,27 @@ CAT_INTENSITY = {
     "lore_q": 0, "lore_a": 0, "lore_q_rally": 0, "lore_a_rally": 0,
     "signoff": 1, "quali_goals": 0, "booth_joke": 0,
 }
+# What the pit wall has visibly asked for, per objective kind — slotted into
+# the booth's obj_booth_brief lines ("{drv} has been asked {brief}"). The booth
+# never quotes numbers off a private radio call; it describes what anyone
+# watching the driver could infer. {tgt} is the target driver's name.
+OBJ_BRIEF = {
+    "position": "to find a way past {tgt}",
+    "chase":    "to close that gap down",
+    "defend":   "to defend this position",
+    "damage":   "to hold on to what they've got",
+    "clean":    "to keep it clean and stay out of trouble",
+    "recover":  "to start making places back",
+    "tyres":    "to look after those tyres",
+}
+OBJ_BRIEF_DEFAULT = "for something specific over these next few laps"
 PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",
                   2: "pit-stop penalty", 3: "time penalty", 4: "slow-down penalty",
                   5: "disqualification"}
 RECAP_CATS = {"driverstory_q", "lore_q", "lore_q_rally", "lore_a",
               "lore_a_rally", "storyarc"}
 PUNDIT_AFTER = {"overtake": 0.7, "overtake_long": 0.8, "spin": 0.75,
+                "overtake_multi": 0.85,   # a double pass always earns a reaction
                 "leadchange": 0.7, "win": 0.0, "battle": 0.5, "battle_mid": 0.4,
                 "overtake_charge": 0.7, "overtake_comeback": 0.7,
                 "leadchange_charge": 0.7, "leadchange_comeback": 0.7,

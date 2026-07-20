@@ -14,7 +14,8 @@ import random
 import re
 import time
 from types import SimpleNamespace
-from overlay_common import (_safe_format, CAT_INTENSITY, PUNDIT_AFTER, RECAP_CATS)
+from overlay_common import (_safe_format, CAT_INTENSITY, PUNDIT_AFTER, RECAP_CATS,
+                            OBJ_BRIEF, OBJ_BRIEF_DEFAULT)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
     CROSSTALK, CROSSTALK_ACK, CROSSTALK_ANSWERS, LORE_COMM_BY_TRACK,
     LORE_PUNDIT_BY_TRACK, LORE_TOPICS, PUNDIT_FULL, PUNDIT_LINES,
@@ -605,7 +606,41 @@ class BoothMixin:
                 self._story.setdefault(sl, [])
                 if "spun" not in self._story[sl]:
                     self._story[sl].append("spun")
-            elif is_race and cpd == pv - 1 and _focus(cpd):  # gained a place
+            # MULTIPLE PLACES IN ONE MOVE — a driver who takes two or more cars
+            # at once is one of the biggest things that can happen, and it used
+            # to hit NO branch at all: the loss branch wants cpd >= pv+2 and the
+            # gain branch wants exactly cpd == pv-1, so a double pass fell
+            # straight through in silence.
+            #
+            # The catch is that most big jumps are NOT heroics — they're the
+            # cars ahead peeling into the pits. So every car we supposedly
+            # passed must still be on track and not fresh out of a stop; if any
+            # of them is pit-related this is a cycle, not a move, and we say
+            # nothing. Front-of-field moves ignore the phase focus limit.
+            elif (is_race and self._racing and cpd <= pv - 2
+                  and not grid_sort and d.in_pitlane != 1
+                  and now - self._pit_t.get(sl, -1e9) > 12.0
+                  and (_focus(cpd) or cpd <= 3)):
+                passed = [placemap.get(p) for p in range(cpd + 1, pv + 1)]
+                real = [v for v in passed if v is not None]
+                pitting = any(v.in_pitlane == 1
+                              or now - self._pit_t.get(v.driver_info.slot_id,
+                                                       -1e9) < 12.0
+                              for v in real)
+                if real and not pitting:
+                    n = pv - cpd
+                    # top-3 moves outrank everything bar a retake
+                    L("overtake_multi", 1 if cpd <= 3 else 2,
+                      drv=self._dname(d), n=n, pos=cpd,
+                      oth=self._dname(real[0]))
+                    self._story.setdefault(sl, [])
+                    if "charging" not in self._story[sl]:
+                        self._story[sl].append("charging")
+                self._battle.pop(sl, None)
+            # a pass for P1/P2/P3 is the story of the race — it must not be
+            # gated out by the phase focus limit, and it outranks midfield
+            # chatter in the candidate sort below.
+            elif is_race and cpd == pv - 1 and (_focus(cpd) or cpd <= 3):
                 victim = placemap.get(cpd + 1)
                 if (victim is not None
                         and self._comm_prev.get(victim.driver_info.slot_id) == cpd):
@@ -655,7 +690,11 @@ class BoothMixin:
                                     "charge": "overtake_charge"}.get(arc)
                             if ncat and random.random() < 0.5:
                                 cat, akw = ncat, akw2
-                        L(cat, 1 if cat == "retake" else 2,
+                        # PRIORITY BY POSITION: a pass for the lead or the
+                        # podium is the story; a P9 swap is texture. Without
+                        # this they were all prio 2 and the sort picked
+                        # whichever happened to land first in the tick.
+                        L(cat, 1 if (cat == "retake" or cpd <= 3) else 2,
                           drv=self._dname(d), oth=self._dname(victim), pos=cpd,
                           **akw)
                         self._last_pass = (sl, vsl, cpd, now)
@@ -670,8 +709,14 @@ class BoothMixin:
                 ahead = placemap.get(d.place - 1)
                 if ahead is None or not _focus(ahead.place):
                     continue
-                if 0.05 < itv < 0.6 and random.random() < 0.12:
-                    L("battle", 3, drv=self._dname(d),
+                # A PODIUM FIGHT INSIDE 0.5s is the shot the broadcast would be
+                # holding — it outranks midfield colour (prio 2) and is offered
+                # far more often. Anything further back stays occasional
+                # texture at prio 3, otherwise the booth just narrates traffic.
+                podium_fight = (ahead.place <= 3 and itv < 0.5)
+                if 0.05 < itv < 0.6 and random.random() < (0.35 if podium_fight
+                                                           else 0.12):
+                    L("battle", 2 if podium_fight else 3, drv=self._dname(d),
                       oth=self._dname(ahead), pos=ahead.place)   # contested place
                     break
                 pvi = prev_int.get(sl)                  # closing the gap down quickly
@@ -800,21 +845,34 @@ class BoothMixin:
         # set, hit or missed. The engineer's radio is a private conversation;
         # having the commentators pick up on it is what makes the objective
         # feel like part of the broadcast rather than a HUD widget.
+        # This used to be gated on `not cands` at prio 4, which is why it was
+        # never heard: a target is set or resolved at exactly the moments the
+        # booth has something else to say, so the gate suppressed it almost
+        # every time. It's now a normal candidate at prio 3 — it competes on
+        # merit and loses to genuine incidents, rather than being silenced by
+        # any candidate at all.
         _ob = getattr(self, "_obj_booth", None)
-        if is_race and _ob and now - _ob[1] < 12.0 and not cands:
-            _cat, _t = _ob
+        if is_race and _ob and now - _ob[3] < 12.0:
+            _ev, _kind, _tgt, _t = _ob
             self._obj_booth = None
-            _bcat = ("obj_booth_met" if _cat.startswith("obj_met")
-                     else "obj_booth_miss" if _cat.startswith("obj_miss")
-                     else "obj_booth_set" if _cat.startswith("obj_set")
-                     else None)
-            # only a fraction of the time — the booth noticing EVERY target
-            # would be as tiresome as it noticing none
-            if _bcat and random.random() < 0.55:
+            # noticing EVERY target would be as tiresome as noticing none, but
+            # a RESOLVED target is a payoff and is always worth calling
+            if random.random() < (0.6 if _ev == "set" else 1.0):
                 pdrv = next((d for d in order if d.driver_info.slot_id
                              == s.vehicle_info.slot_id), None)
-                if pdrv is not None:
-                    L(_bcat, 4, persona="PUNDIT", drv=self._dname(pdrv))
+                if pdrv is not None and _ev == "set":
+                    # say WHAT was asked for, in terms the broadcast could
+                    # legitimately infer from watching — "asked to put the
+                    # pressure on", "told to defend" — not numbers off a
+                    # private radio call
+                    _brief = _safe_format(OBJ_BRIEF.get(_kind,
+                                                        OBJ_BRIEF_DEFAULT),
+                                          {"tgt": _tgt or "the car ahead"})
+                    L("obj_booth_brief", 3, persona="PUNDIT",
+                      drv=self._dname(pdrv), brief=_brief)
+                elif pdrv is not None:
+                    L("obj_booth_met" if _ev == "met" else "obj_booth_miss",
+                      3, persona="PUNDIT", drv=self._dname(pdrv))
 
         # LATE phase — one-time urgency call (LAP races only; the {togo} wording
         # needs a lap count). Timed races get their late nudge via the time-aware

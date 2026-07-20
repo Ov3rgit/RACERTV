@@ -37,6 +37,11 @@ class ObjectiveMixin:
         self._obj_met = 0
         self._obj_result = None     # last outcome, for the HUD chip
         self._obj_kinds = set()     # kinds used this race (one-shot ones)
+        # BOOTH NOTICE: ("set"|"met"|"miss", kind, target_name, when). The booth
+        # can't see a private radio call, but it CAN see a driver visibly
+        # working to one — so it nods at the pit wall in the right terms at
+        # the moment it happens, instead of at random. Drained by the booth.
+        self._obj_booth = None
 
     # ---- helpers --------------------------------------------------------
     def _obj_pace(self, slot):
@@ -330,7 +335,16 @@ class ObjectiveMixin:
         self._obj_result = {"ok": ok, "hud": o.get("hud", ""),
                             "until": now + 8.0}
 
+    def _obj_notice(self, event, now):
+        """Post the booth's cue: (event, kind, target, when). MUST be called
+        while _obj is still set — _obj_done/_obj_fail clear it straight after,
+        and the booth needs the KIND to say what was actually asked for."""
+        o = self._obj or {}
+        self._obj_booth = (event, o.get("kind", ""),
+                           o.get("target_name", ""), now)
+
     def _obj_done(self, now, cat, kw):
+        self._obj_notice("met", now)
         self._obj_result_set(True, now)
         self._obj = None
         self._obj_last_t = now
@@ -338,6 +352,7 @@ class ObjectiveMixin:
         return (cat, kw)
 
     def _obj_fail(self, now, cat, kw):
+        self._obj_notice("miss", now)
         self._obj_result_set(False, now)
         self._obj = None
         self._obj_last_t = now
@@ -401,6 +416,7 @@ class ObjectiveMixin:
         o["set_at"] = now
         o["_new_until"] = now + 6.0      # HUD shows a NEW TARGET flash
         self._obj = o
+        self._obj_notice("set", now)
         self._obj_count += 1
         self._obj_kinds = getattr(self, "_obj_kinds", set()) | {o["kind"]}
         kw = {"drv": o["target_name"], "laps": o["laps"],
