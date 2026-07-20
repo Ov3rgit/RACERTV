@@ -594,12 +594,20 @@ class DrawMixin:
     def draw_objective(self, s):
         """The active race objective as a COMPETITIVE broadcast target chip.
 
-        Deliberately not a plain box: a skewed motorsport chip with a solid
-        accent flash carrying the goal position, the target on its own line,
-        a live gap with a trend arrow, and a SEGMENTED progress strip that
-        fills like a rev bar and turns amber then green as you close it out.
-        Shows the verdict for a few seconds when a target resolves, so the
-        screen always agrees with what the engineer just said.
+        Built on _card() like every other panel, so it carries the graphics
+        package's signature frame: notched corners, the chunky 2px border and
+        the stippled glass body. It used to be a hand-rolled skewed
+        parallelogram with a plain polygon outline — a different visual
+        language from the rest of the HUD, which is exactly why it read as
+        flat and unfinished next to the other cards.
+
+        What makes it an OBJECTIVE card rather than a generic one is the
+        content, not a different frame: a solid accent block carrying the goal
+        position, the target on its own line, a live gap with a trend arrow,
+        and a SEGMENTED progress strip that fills like a rev bar and turns
+        amber then green as you close it out. Shows the verdict for a few
+        seconds when a target resolves, so the screen always agrees with what
+        the engineer just said.
         """
         now = time.time()
         res = getattr(self, "_obj_result", None)
@@ -610,19 +618,18 @@ class DrawMixin:
         # sector-time block and the lower-third caption; here it sits in the
         # right-hand column with the rest of the timing information, and
         # follows the tower as it grows and shrinks with the field.
-        sk = 10                                  # skew: the motorsport slant
         rel = getattr(self, "_rel_box", None)
         if rel:
             rx, ry_, rw, rh_ = rel
-            w = rw - sk                          # match the tower's width
+            w = rw                               # match the tower's width
             x = rx
             y = ry_ + rh_ + 8
         else:                                    # relative hidden — fall back
             w = 290
-            x = self.sw - (w + sk) - 30
+            x = self.sw - w - 30
             y = 110
-        h = 52
-        self._begin_panel("objective", x, y, w + sk, h)
+        h = 54
+        self._begin_panel("objective", x, y, w, h)
 
         if obj:
             label, col = "TARGET", HEADER_ACCENT
@@ -637,37 +644,34 @@ class DrawMixin:
             prog = 1.0 if ok else None
             badge = "✓" if ok else "✕"
 
-        # --- skewed body (parallelogram) + hard accent edge down the left.
-        # The BODY goes on the glass layer like every other panel — it was
-        # drawn straight onto the solid canvas, which is why this one card
-        # stayed opaque while the rest of the overlay was see-through. The
-        # outline and the accent flash stay solid so the chip keeps its edge.
-        # a slow blink on the outline while the target is NEW — two frames a
-        # second, no animation machinery, impossible to miss out of the corner
-        # of your eye
-        _fresh = bool(obj) and now < obj.get("_new_until", 0)
-        _edge = col if (_fresh and int(now * 2) % 2 == 0) else CARD_BORDER
-        _bw = 3 if _fresh else 2
-        body = [x + sk, y, x + w + sk, y, x + w, y + h, x, y + h]
-        bg = getattr(self, "_bg_real", None)
-        if bg is not None:
-            gb = [(v - self._ox) if i % 2 == 0 else (v - self._oy)
-                  for i, v in enumerate(body)]
-            bg.create_polygon(*gb, fill=CARD_BG, outline="")
-            self.canvas.create_polygon(*body, fill="", outline=_edge,
-                                       width=_bw)
-        else:
-            self.canvas.create_polygon(*body, fill=CARD_BG,
-                                       outline=_edge, width=_bw)
-        flash = [x + sk, y, x + sk + 58, y, x + 58, y + h, x, y + h]
-        self.canvas.create_polygon(*flash, fill=col, outline="")
-        # goal badge sits in the accent flash — the "what am I racing for"
-        self.text(x + sk + 22, y + h // 2 - 1, str(badge)[:3], fill="#080c11",
-                  font=self.f_row_b, anchor="center")
+        # --- the standard pixel card, with the accent rail down the left.
+        # _card() owns the notched corners, the chunky border and the glass
+        # body, so this panel now matches the tower, the relative and the
+        # radio bubbles instead of inventing its own shape.
+        self._card(x, y, w, h, accent=col, side="left")
+        n = 3                                    # _card's corner notch
+        # a slow blink while the target is NEW — two frames a second, no
+        # animation machinery, impossible to miss out of the corner of your
+        # eye. Drawn as an overlay border so _card keeps ownership of the frame.
+        if bool(obj) and now < obj.get("_new_until", 0) and int(now * 2) % 2 == 0:
+            c = self.canvas
+            c.create_rectangle(x + n, y, x + w - n, y + 2, fill=col, outline="")
+            c.create_rectangle(x + n, y + h - 2, x + w - n, y + h,
+                               fill=col, outline="")
+            c.create_rectangle(x, y + n, x + 2, y + h - n, fill=col, outline="")
+            c.create_rectangle(x + w - 2, y + n, x + w, y + h - n,
+                               fill=col, outline="")
+        # goal badge in a solid accent block — the "what am I racing for".
+        # Sits inboard of the accent rail so the two read as one unit.
+        bxw = 44
+        self.canvas.create_rectangle(x + 8, y + n + 6, x + 8 + bxw, y + h - n - 6,
+                                     fill=col, outline="")
+        self.text(x + 8 + bxw // 2, y + h // 2 - 1, str(badge)[:3],
+                  fill="#080c11", font=self.f_row_b, anchor="center")
 
         # --- label + live status on the top line
-        tx = x + sk + 68
-        self.text(tx, y + 14, label, fill=col, font=self.f_small_b, anchor="w")
+        tx = x + 8 + bxw + 12
+        self.text(tx, y + 16, label, fill=col, font=self.f_small_b, anchor="w")
         status, scol = "", DIM
         if obj:
             left = obj.get("_laps_left")
@@ -681,11 +685,11 @@ class DrawMixin:
                 arrow = "▼" if trend == -1 else "▲" if trend == 1 else "•"
                 status = (status + "   " if status else "") + f"{arrow} {g:.1f}s"
         if status:
-            self.text(x + w - 14, y + 14, status, fill=scol,
+            self.text(x + w - 14, y + 16, status, fill=scol,
                       font=self.f_small_b, anchor="e")
 
         # --- the objective itself
-        self.text(tx, y + 32, txt[:34], fill=TEXT, font=self.f_row, anchor="w")
+        self.text(tx, y + 34, txt[:34], fill=TEXT, font=self.f_row, anchor="w")
 
         # --- SEGMENTED progress strip (rev-bar feel), amber then green
         # Segments are sized to the space AVAILABLE, not fixed at 19px each.
@@ -698,7 +702,7 @@ class DrawMixin:
         bx = tx
         bx_end = x + w - 14
         sw_ = max(4, int((bx_end - bx - gap_ * (segs - 1)) / segs))
-        by, bh = y + h - 12, 5
+        by, bh = y + h - 13, 5
         lit = int(round((prog or 0.0) * segs))
         for i in range(segs):
             sx = bx + i * (sw_ + gap_)

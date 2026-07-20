@@ -100,6 +100,13 @@ o._obj = {"hud": "Pass Pierre Dubois", "_prog": 0.5, "_badge": "P4",
           "_laps_left": 3, "_gap": 1.8, "_trend": -1, "kind": "position",
           "goal_pos": 4, "laps": 4, "lap0": 2}
 check("draw_objective (active target)", lambda: o.draw_objective(None))
+# NEW-target blink: an overlay border drawn on top of _card's own frame. It
+# only runs on alternate half-seconds, so pin _new_until far ahead and draw
+# repeatedly to be sure the lit frame is actually executed, not skipped.
+o._obj["_new_until"] = 9e18
+check("draw_objective (new-target blink)",
+      lambda: [o.draw_objective(None) for _ in range(4)])
+o._obj.pop("_new_until")
 o._obj = None
 o._obj_result = {"ok": True, "hud": "Pass Pierre Dubois",
                  "until": 9e18}
