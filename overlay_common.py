@@ -29,7 +29,13 @@ WIN_ALPHA = 0.86        # whole-window opacity: solid SOLID dark panels (no dott
 # sits exactly on top at full opacity, with the body area left as the chroma
 # key so the glass shows through it. Result: smoothly translucent background,
 # 100% solid text and borders, no dithering.
-GLASS = True             # False -> single opaque window (the old look)
+# DEFAULT OFF. The two-window glass looks right in isolation, but in the game
+# it has caused a run of visual problems: flicker, and panels that RESIZE
+# (radio cards appearing, the caption growing with its text) show a one-frame
+# mismatch because the content window repaints immediately while its glass
+# layer only repaints on flush. Until that is solved properly, the known-good
+# single-window rendering is the default. Set True to try it again.
+GLASS = False
 GLASS_ALPHA = 0.58       # backing-window opacity: lower = more see-through
 BG_STIPPLE = ""          # legacy dither fallback; keep empty
 PANEL_STIPPLE = ""        # solid panel backgrounds (stipple looked pixelated behind

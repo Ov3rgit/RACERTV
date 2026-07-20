@@ -429,8 +429,14 @@ class RadioMixin:
                 self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
                                on_play=_onp)
                 if not st["aired"]:      # (FakeTts fires on_play synchronously)
-                    self._pending_bubbles.append(
-                        (msg, now + (_ttl or 10.0) + 1.0, st))
+                    # SHORT fallback. This deadline is how long a card waits
+                    # for its audio before airing silently. It was derived
+                    # from the TTL, and bypass lines now have NO ttl — so
+                    # those cards sat invisible for 11s, which reads as "the
+                    # cards don't show up at all". 3s covers a normal render;
+                    # beyond that the card is more useful on screen than
+                    # perfectly synced.
+                    self._pending_bubbles.append((msg, now + 3.0, st))
                 spoke = "spoke"
             else:
                 self._air_bubble(msg)    # no audio coming — show it right away
