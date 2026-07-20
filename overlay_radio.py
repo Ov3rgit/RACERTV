@@ -363,9 +363,26 @@ class RadioMixin:
                 # cooldowns so they can't machine-gun.
                 if not bypass and now - self._eng_cd < self.RADIO_ENG_CD:
                     continue
-            elif not bypass and (now - self.driver_radio_cd.get(sl, 0)
-                                 < self.RADIO_DRIVER_CD):
-                continue
+            elif not bypass:
+                if (now - self.driver_radio_cd.get(sl, 0)
+                        < self.RADIO_DRIVER_CD):
+                    continue
+                # RELEVANCE: the drivers worth hearing are the ones you are
+                # actually racing — the car you're chasing and the car hunting
+                # you. Everyone else is background noise, so most of their
+                # chatter is dropped rather than queued. This is what stops
+                # the radio being every driver's reaction to every moment.
+                _me = next((d for d in placemap.values()
+                            if d.driver_info.slot_id == s.vehicle_info.slot_id),
+                           None)
+                if _me is not None:
+                    _them = next((d for d in placemap.values()
+                                  if d.driver_info.slot_id == sl), None)
+                    if _them is not None:
+                        _near = abs(_them.place - _me.place)
+                        if _near > 1 and random.random() > (
+                                0.45 if _near <= 3 else 0.15):
+                            continue
             # TIER-C rival drivers radio in their NATIVE language; the bubble then
             # shows the English translation. Use SESSION-APPROPRIATE chatter — the
             # race set is full of battle lines ("he's right behind me!"), which is
@@ -493,10 +510,9 @@ class RadioMixin:
             # this branch. The lap-report ladder below returns on almost every
             # completed lap, so anything after it is unreachable in a busy
             # session, which is why quali targets never aired.
-            _q_order = sorted((d for d in placemap.values() if d.place > 0),
-                              key=lambda d: d.place)
-            qobj = self.objective_event(s, _q_order, placemap, now)
+            qobj = getattr(self, "_obj_say", None)
             if qobj:
+                self._obj_say = None
                 qcat, qkw = qobj
                 if qcat in ENGINEER_LINES:
                     return add(qcat, 1, bypass=True, **qkw)
@@ -868,10 +884,12 @@ class RadioMixin:
         # chatter, because a target being met or missed is the most meaningful
         # thing he can tell you. The system stays silent whenever no credible
         # objective exists — see overlay_objective.py.
-        _order = sorted((d for d in placemap.values() if d.place > 0),
-                        key=lambda d: d.place)
-        obj = self.objective_event(s, _order, placemap, now)
+        # objective_event now runs EVERY tick in update_stats (so the HUD
+        # tracks and resolution is instant); here we only drain whatever it
+        # parked for the engineer to say.
+        obj = getattr(self, "_obj_say", None)
         if obj:
+            self._obj_say = None
             ocat, okw = obj
             if ocat in ENGINEER_LINES:
                 # bypass=True is ESSENTIAL here. objective_event() has already

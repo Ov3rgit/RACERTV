@@ -796,6 +796,26 @@ class BoothMixin:
             elif n3:
                 L("standings", 3, p1=n1, p2=n2, p3=n3)
 
+        # OBJECTIVE AWARENESS — the booth reacts to the player's target being
+        # set, hit or missed. The engineer's radio is a private conversation;
+        # having the commentators pick up on it is what makes the objective
+        # feel like part of the broadcast rather than a HUD widget.
+        _ob = getattr(self, "_obj_booth", None)
+        if is_race and _ob and now - _ob[1] < 12.0 and not cands:
+            _cat, _t = _ob
+            self._obj_booth = None
+            _bcat = ("obj_booth_met" if _cat.startswith("obj_met")
+                     else "obj_booth_miss" if _cat.startswith("obj_miss")
+                     else "obj_booth_set" if _cat.startswith("obj_set")
+                     else None)
+            # only a fraction of the time — the booth noticing EVERY target
+            # would be as tiresome as it noticing none
+            if _bcat and random.random() < 0.55:
+                pdrv = next((d for d in order if d.driver_info.slot_id
+                             == s.vehicle_info.slot_id), None)
+                if pdrv is not None:
+                    L(_bcat, 4, persona="PUNDIT", drv=self._dname(pdrv))
+
         # LATE phase — one-time urgency call (LAP races only; the {togo} wording
         # needs a lap count). Timed races get their late nudge via the time-aware
         # insight layer instead.

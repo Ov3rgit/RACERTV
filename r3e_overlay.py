@@ -320,7 +320,9 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self._sess_start_t = 0.0   # session start (intro-gate safety release)
         self._signed_off = False   # broadcast over after the closing sign-off
         self._filler_until = 0.0   # est. time a colour/filler line finishes
-        self.RADIO_ENG_CD = 14.0   # min seconds between engineer messages
+        # ...and the space that frees up goes to YOUR engineer, who is the
+        # voice that actually helps you drive.
+        self.RADIO_ENG_CD = 11.0   # min seconds between engineer messages
 
         # team-radio voice (TTS) — optional; never breaks the overlay
         self.tts = None
@@ -335,10 +337,15 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             self.tts = None
         self._m_prev = False
         self.RADIO_GLOBAL_CD = 5.5   # min seconds between any two bubbles
-        self.RADIO_DRIVER_CD = 25.0  # min seconds between same driver's bubbles
+        # Rival chatter is colour, not information — it was firing far too
+        # often and drowning the engineer. ~20% longer spacing, and the
+        # relevance filter in update_radio now favours the cars you are
+        # actually racing (see RADIO_FAR_CHANCE).
+        self.RADIO_DRIVER_CD = 30.0  # min seconds between same driver's bubbles
         self.RADIO_HOLD = 6.0        # how long a bubble stays on screen
         self.RADIO_NEAR = 4          # crashes within N places of you = high priority
-        self.RADIO_FAR_CHANCE = 0.6  # chance a far-away crash gets a reaction
+        # a moment involving a car you are NOT racing rarely deserves a voice
+        self.RADIO_FAR_CHANCE = 0.3  # chance a far-away crash gets a reaction
         self.RADIO_MAX_BUBBLES = 4   # max bubbles on screen at once (no flooding;
                                      # simultaneous driver+engineer calls stack)
         # ONE radio line per tick. Three at once queued three voices back to
@@ -1115,6 +1122,27 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             if live and lvs == 2 and getattr(self, "_q_lvs", -1) != 2:
                 self._q_events.append((vslot, "nextlap_invalid", None))
             self._q_lvs = lvs
+
+        # RACE OBJECTIVE — TRACKED EVERY TICK, deliberately here rather than
+        # inside the engineer's ladder. It used to be reached only when that
+        # ladder got that far, which on most ticks it never does (it returns
+        # early on damage, gaps, temps, pit calls...). Two consequences: the
+        # HUD chip showed stale laps/gap/progress, and a target being MET or
+        # MISSED went undetected until the ladder happened to reach it — so
+        # the engineer frequently never announced it at all. Tracking here
+        # keeps the chip live and resolution instant; anything to SAY is
+        # parked in _obj_say for the radio to drain on its next pass.
+        try:
+            _pm = {d.place: d for d in order if d.place > 0}
+            _ev = self.objective_event(s, order, _pm, time.time())
+            if _ev:
+                self._obj_say = _ev
+                # let the BOOTH know too, so the commentators react to the
+                # player's target being set / hit / missed instead of the
+                # objective being a private conversation on the radio
+                self._obj_booth = (_ev[0], time.time())
+        except Exception as ex:
+            self._stage_err["objective"] = f"{type(ex).__name__}: {ex}"
 
     def _sector_color(self, val, pbest, sbest):
         if val is None or val <= 0:

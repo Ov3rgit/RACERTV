@@ -146,7 +146,7 @@ class ObjectiveMixin:
             return {
                 "kind": "recover", "target_slot": vslot, "target_name": "",
                 "goal_pos": goal, "gap_target": None,
-                "laps": min(laps_left, 6),
+                "laps": min(laps_left, 6), "_from_pos": pos,
                 "hud": f"Recover to P{goal} (from P{pos})",
             }
 
@@ -399,6 +399,7 @@ class ObjectiveMixin:
         o["lap0"] = me.completed_laps
         o["gap0"] = self.interval.get(vslot)
         o["set_at"] = now
+        o["_new_until"] = now + 6.0      # HUD shows a NEW TARGET flash
         self._obj = o
         self._obj_count += 1
         self._obj_kinds = getattr(self, "_obj_kinds", set()) | {o["kind"]}
@@ -457,6 +458,7 @@ class ObjectiveMixin:
             self._obj = {"kind": "pole", "target_slot": vslot,
                          "target_name": "", "goal_pos": None,
                          "gap_target": want, "laps": 3, "lap0": laps,
+                         "_new_until": now + 6.0,
                          "hud": f"Within {want:.2f}s of pole"}
             self._obj_count += 1
             self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"pole"}
@@ -468,7 +470,8 @@ class ObjectiveMixin:
             self._obj = {"kind": "pb", "target_slot": vslot,
                          "target_name": "", "goal_pos": None,
                          "gap_target": None, "target_t": want, "laps": 3,
-                         "lap0": laps, "hud": "Beat your best by 0.2s"}
+                         "lap0": laps, "_new_until": now + 6.0,
+                         "hud": "Beat your best by 0.2s"}
             self._obj_count += 1
             self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"pb"}
             return ("obj_set_pb", {"t": R.fmt_time(want), "laps": 3})

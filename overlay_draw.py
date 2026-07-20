@@ -642,17 +642,23 @@ class DrawMixin:
         # drawn straight onto the solid canvas, which is why this one card
         # stayed opaque while the rest of the overlay was see-through. The
         # outline and the accent flash stay solid so the chip keeps its edge.
+        # a slow blink on the outline while the target is NEW — two frames a
+        # second, no animation machinery, impossible to miss out of the corner
+        # of your eye
+        _fresh = bool(obj) and now < obj.get("_new_until", 0)
+        _edge = col if (_fresh and int(now * 2) % 2 == 0) else CARD_BORDER
+        _bw = 3 if _fresh else 2
         body = [x + sk, y, x + w + sk, y, x + w, y + h, x, y + h]
         bg = getattr(self, "_bg_real", None)
         if bg is not None:
             gb = [(v - self._ox) if i % 2 == 0 else (v - self._oy)
                   for i, v in enumerate(body)]
             bg.create_polygon(*gb, fill=CARD_BG, outline="")
-            self.canvas.create_polygon(*body, fill="", outline=CARD_BORDER,
-                                       width=2)
+            self.canvas.create_polygon(*body, fill="", outline=_edge,
+                                       width=_bw)
         else:
             self.canvas.create_polygon(*body, fill=CARD_BG,
-                                       outline=CARD_BORDER, width=2)
+                                       outline=_edge, width=_bw)
         flash = [x + sk, y, x + sk + 58, y, x + 58, y + h, x, y + h]
         self.canvas.create_polygon(*flash, fill=col, outline="")
         # goal badge sits in the accent flash — the "what am I racing for"

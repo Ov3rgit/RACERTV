@@ -1659,5 +1659,24 @@
     "{drv} has delivered exactly what was asked. That's a good afternoon's work.",
     "The team will be delighted with that from {drv}.",
     "Whatever the brief was, {drv} has just ticked it off."
+  ],
+  "obj_booth_set": [
+    "And you can bet the pit wall has just given {drv} a target here.",
+    "This is where the engineer earns his money — {drv} will have been given a number to hit.",
+    "You'd love to hear {drv}'s radio right now. There'll be a target on the board.",
+    "The pit wall will be asking {drv} for something specific over these next few laps.",
+    "There's a job on for {drv} here, and his engineer will have spelled it out."
+  ],
+  "obj_booth_met": [
+    "And {drv} delivers exactly what the pit wall asked for — that's a job done.",
+    "Whatever the target was for {drv}, he's just hit it. Textbook.",
+    "The engineer will be delighted with that from {drv} — mission complete.",
+    "That's {drv} doing precisely what was needed. You can hear the relief on that pit wall."
+  ],
+  "obj_booth_miss": [
+    "It hasn't come off for {drv} — the pace just wasn't quite there.",
+    "That one's slipped away from {drv}. The pit wall will be regrouping.",
+    "Not to be for {drv}. These things happen — the race is still long.",
+    "{drv} came up short there, and you sense the plan is about to change."
   ]
 }
