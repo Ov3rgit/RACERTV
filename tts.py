@@ -350,6 +350,11 @@ def _click(rate, ms=80):
 #   miss  dup-du   two falling, duller                   -> deflation
 # Still deliberately not a harsh buzzer on miss: missing a target already
 # stings, and an ugly noise on top is cheap.
+# Chime loudness. These sit against speech that has been peak-normalised and
+# driven hard, so a "polite" UI level is inaudible next to the engineer —
+# reported as the cues being too quiet to register.
+CHIME_LEVEL = 0.62
+
 CHIME_NOTES = {
     "set":  [(784.00, 0.000, 0.055), (1174.66, 0.075, 0.075)],
     "met":  [(784.00, 0.000, 0.050), (1046.50, 0.068, 0.050),
@@ -381,7 +386,7 @@ def _chime(rate, kind):
             # tiny filtered noise tick on the leading edge = the "click"
             if i < rate * 0.004:
                 v += random.uniform(-1, 1) * 0.35 * (1 - i / (rate * 0.004))
-            out[j] += v * env * 0.30
+            out[j] += v * env * CHIME_LEVEL
     return [_soft(v) for v in out]
 
 

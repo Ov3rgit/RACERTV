@@ -183,6 +183,32 @@ class ObjectiveMixin:
                     "hud": f"Stay ahead of {self._dname(behind)} (+{hold}s)",
                 }
 
+        # --- HOLD THE LEAD HOME: you are winning, and the race is nearly done.
+        # Without this the leader gets NOTHING: chase/position needs a car
+        # ahead (there isn't one) and defend needs someone inside
+        # OBJ_DEFEND_NEAR, so a comfortable lead produced silence at exactly
+        # the moment the race should feel like it is being closed out. The
+        # driver's own report: "the only objective I was hoping for at the end
+        # was 'hold the lead to the finish' — that way the whole race would
+        # have felt complete."
+        #
+        # No feasibility maths needed, and that is not a loophole: you are
+        # already in front, so the target is to not lose it. Held back to the
+        # closing laps so it reads as the final job of the day rather than a
+        # 20-lap instruction to keep doing what you're doing.
+        if pos == 1 and not self._obj_seen("leadhome") and laps_left <= 5:
+            behind_ldr = self._obj_driver(order, 2)
+            return {
+                "kind": "leadhome",
+                "target_slot": (behind_ldr.driver_info.slot_id
+                                if behind_ldr is not None else vslot),
+                "target_name": (self._dname(behind_ldr)
+                                if behind_ldr is not None else "the field"),
+                "goal_pos": 1, "gap_target": None,
+                "laps": laps_left,
+                "hud": "Hold the lead to the flag",
+            }
+
         # --- CHASE / POSITION: the car directly ahead.
         ahead = self._obj_driver(order, pos - 1)
         if ahead is not None:
@@ -306,6 +332,12 @@ class ObjectiveMixin:
                 return self._obj_done(now, "obj_met_damage",
                                       {"drv": nm, "pos": pos})
 
+        elif o["kind"] == "leadhome":
+            if pos > 1:                                  # lost the lead
+                return self._obj_fail(now, "obj_miss_leadhome", {"drv": nm})
+            if laps_done >= o["laps"]:
+                return self._obj_done(now, "obj_met_leadhome",
+                                      {"drv": nm, "pos": pos})
         elif o["kind"] == "clean":
             # failed the moment another limits warning lands
             if getattr(self, "_own_cuts", 0) > o["cuts0"]:

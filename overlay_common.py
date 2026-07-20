@@ -98,6 +98,7 @@ OBJ_BRIEF = {
     "clean":    "to keep it clean and stay out of trouble",
     "recover":  "to start making places back",
     "tyres":    "to look after those tyres",
+    "leadhome": "to bring it home in front",
 }
 OBJ_BRIEF_DEFAULT = "for something specific over these next few laps"
 PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",

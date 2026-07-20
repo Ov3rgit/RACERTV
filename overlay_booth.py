@@ -43,6 +43,8 @@ class BoothMixin:
             self._comm_pen = {}
             self._battle = {}
             self._battle_called = {}  # (chaser,target) -> last sustained-battle call
+            self._battle_said = {}    # (pair) -> last close-fight colour call, so
+                                      # one long scrap can't monopolise the booth
             self._battle_cd = 0.0     # global cooldown for sustained-battle calls
             self._last_pass = None    # (winner_slot, loser_slot, pos, t) re-pass detect
             self._race_story = {}     # slot -> {best,worst,now}: each driver's arc
@@ -714,14 +716,30 @@ class BoothMixin:
                 ahead = placemap.get(d.place - 1)
                 if ahead is None or not _focus(ahead.place):
                     continue
-                # A PODIUM FIGHT INSIDE 0.5s is the shot the broadcast would be
-                # holding — it outranks midfield colour (prio 2) and is offered
-                # far more often. Anything further back stays occasional
-                # texture at prio 3, otherwise the booth just narrates traffic.
+                # A BATTLE IS A STATE, NOT A MOMENT. It was briefly promoted to
+                # prio 2 for podium fights, which was wrong twice over: prio<=2
+                # is "urgent", so it skipped COMMENTARY_CD and re-rolled at
+                # 20Hz, and two cars stay within 0.5s for many seconds at a
+                # time. The booth ended up narrating the same fight over and
+                # over ("millimetres between them" three times in one race)
+                # AND holding the audio queue at pending>=2, which is the very
+                # gate that blocks crosstalk, lore and race stories — so the
+                # conversation between the two commentators dried up entirely.
+                #
+                # Battles stay prio 3: real colour, subject to the normal
+                # cooldown. A podium fight gets a better chance of being the
+                # colour that airs, not permission to air constantly.
                 podium_fight = (ahead.place <= 3 and itv < 0.5)
-                if 0.05 < itv < 0.6 and random.random() < (0.35 if podium_fight
-                                                           else 0.12):
-                    L("battle", 2 if podium_fight else 3, drv=self._dname(d),
+                # ...and don't re-narrate the SAME pair for a while. Without
+                # this the closest fight monopolises the broadcast simply by
+                # staying close.
+                pair = tuple(sorted((sl, ahead.driver_info.slot_id)))
+                if now - self._battle_said.get(pair, -1e9) < 25.0:
+                    continue
+                if 0.05 < itv < 0.6 and random.random() < (0.22 if podium_fight
+                                                           else 0.10):
+                    self._battle_said[pair] = now
+                    L("battle", 3, drv=self._dname(d),
                       oth=self._dname(ahead), pos=ahead.place)   # contested place
                     break
                 pvi = prev_int.get(sl)                  # closing the gap down quickly
@@ -818,9 +836,30 @@ class BoothMixin:
                 if sec is not None and g2 is not None and g2 < 2.0:
                     L("battle", 2, drv=self._dname(sec),
                       oth=self._dname(leader), pos=1)
-                else:
+                elif not self._comm_flags.get("runaway"):
+                    # A RUNAWAY WIN IS ONE LINE, NOT A THEME. Said once, "he's
+                    # got this in hand" is the right call; said every fifteen
+                    # seconds it becomes the entire final phase of the
+                    # broadcast, which is what a real log showed — six
+                    # different ways of saying "the leader is clear", back to
+                    # back, while the actual racing behind went uncovered.
+                    self._comm_flags["runaway"] = True
                     L("pulling_away", 2, drv=self._dname(leader),
                       oth=self._dname(sec) if sec is not None else n2, pos=1)
+                else:
+                    # ...then follow the best fight still live behind him. If
+                    # the win is settled, the race is P2 and back.
+                    fight = None
+                    for d in order[1:10]:
+                        g = self.interval.get(d.driver_info.slot_id)
+                        if g is not None and 0.05 < g < 2.0:
+                            fight = d
+                            break
+                    if fight is not None:
+                        aho = placemap.get(fight.place - 1)
+                        if aho is not None:
+                            L("battle", 2, drv=self._dname(fight),
+                              oth=self._dname(aho), pos=aho.place)
             # LATE: follow the closest fight that actually matters — the
             # HIGHEST-PLACED close battle, not automatically P1/P2. If the
             # leaders are strung out and P4/P5 are scrapping, that scrap is

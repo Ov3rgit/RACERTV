@@ -628,7 +628,7 @@ class DrawMixin:
             w = 290
             x = self.sw - w - 30
             y = 110
-        h = 54
+        h = 62
         self._begin_panel("objective", x, y, w, h)
 
         if obj:
@@ -671,7 +671,7 @@ class DrawMixin:
 
         # --- label + live status on the top line
         tx = x + 8 + bxw + 12
-        self.text(tx, y + 16, label, fill=col, font=self.f_small_b, anchor="w")
+        self.text(tx, y + 15, label, fill=col, font=self.f_small_b, anchor="w")
         status, scol = "", DIM
         if obj:
             left = obj.get("_laps_left")
@@ -684,12 +684,41 @@ class DrawMixin:
                 trend = obj.get("_trend")        # -1 closing, +1 slipping
                 arrow = "▼" if trend == -1 else "▲" if trend == 1 else "•"
                 status = (status + "   " if status else "") + f"{arrow} {g:.1f}s"
+        # MEASURE, don't guess. The card is only as wide as the relative tower
+        # above it, which shrinks with the field — so a fixed character count
+        # let "TARGET MISSED" run straight into "4 LAPS  ▼ 1.8s" on a narrow
+        # card, and a long target name run past the right edge. Both were
+        # visible as overlapping text.
+        def _clip(txt_, fnt, avail):
+            """Trim to the widest prefix that fits, with an ellipsis."""
+            try:
+                if fnt.measure(txt_) <= avail:
+                    return txt_
+                for n in range(len(txt_) - 1, 0, -1):
+                    if fnt.measure(txt_[:n] + "…") <= avail:
+                        return txt_[:n] + "…"
+                return ""
+            except Exception:
+                return txt_[:34]
+
         if status:
-            self.text(x + w - 14, y + 16, status, fill=scol,
+            try:
+                lab_end = tx + self.f_small_b.measure(label) + 12
+                room = (x + w - 14) - lab_end
+                # the gap+trend is the live part and matters most; the lap
+                # count is the first thing to go when there isn't room
+                if self.f_small_b.measure(status) > room and "   " in status:
+                    status = status.split("   ", 1)[1]
+                status = _clip(status, self.f_small_b, max(0, room))
+            except Exception:
+                pass
+        if status:
+            self.text(x + w - 14, y + 15, status, fill=scol,
                       font=self.f_small_b, anchor="e")
 
         # --- the objective itself
-        self.text(tx, y + 34, txt[:34], fill=TEXT, font=self.f_row, anchor="w")
+        self.text(tx, y + 34, _clip(txt, self.f_row, (x + w - 14) - tx),
+                  fill=TEXT, font=self.f_row, anchor="w")
 
         # --- SEGMENTED progress strip (rev-bar feel), amber then green
         # Segments are sized to the space AVAILABLE, not fixed at 19px each.
@@ -702,7 +731,7 @@ class DrawMixin:
         bx = tx
         bx_end = x + w - 14
         sw_ = max(4, int((bx_end - bx - gap_ * (segs - 1)) / segs))
-        by, bh = y + h - 13, 5
+        by, bh = y + h - 12, 5
         lit = int(round((prog or 0.0) * segs))
         for i in range(segs):
             sx = bx + i * (sw_ + gap_)
