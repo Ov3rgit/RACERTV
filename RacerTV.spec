@@ -47,6 +47,14 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='RacerTV',
+    # PyInstaller 6 moved COLLECT output into an '_internal' subfolder by
+    # default. This app resolves its own _DIR to os.path.dirname(sys.executable)
+    # when frozen, so with the new layout it looked for r3e-data.json,
+    # lines_data/, the fonts, the icons and the stings NEXT TO the exe while
+    # PyInstaller had put them one level down — a frozen build that starts and
+    # then finds none of its content. Pin the flat layout the code expects.
+    # (Verified by building and listing the output, not by reading the spec.)
+    contents_directory='.',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
