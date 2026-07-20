@@ -247,6 +247,10 @@ ENG_EMOTION = {
     "tyre_hot_traffic": "worried", "brake_hot": "worried",
     "engine_hot": "worried", "engine_hot_dmg": "worried",
     "gained_where": "happy", "section_ahead": "neutral",
+    "warn_offtrack": "worried", "warn_limits_repeat": "worried",
+    "warn_limits_serious": "angry", "incident_tally": "worried",
+    "warn_points": "worried", "points_high": "worried",
+    "points_critical": "angry",
 }
 # vivid, broadcast-style per-driver colours (assigned consistently by name)
 # 20 distinct, well-spaced colours (assigned sequentially per driver, so the
@@ -2470,7 +2474,7 @@ class Overlay:
             # RaceRoom's official limits counter ticked — always a real cut
             self._eng_off_cd = now
             self._eng_off_watch = None
-            return add("warn_offtrack", 1)
+            return self._limits_warn(add, cuts_now)
         # The lap-invalid edge alone is NOT proof of an off — it also fires for
         # a harmless kerb/paint clip at full speed (same reasoning as the booth's
         # off grading), which had the engineer scolding "you ran over the track
@@ -2487,9 +2491,27 @@ class Overlay:
                     and now - getattr(self, "_eng_off_cd", -1e9) > 5.0):
                 self._eng_off_watch = None       # confirmed: real excursion
                 self._eng_off_cd = now
-                return add("warn_offtrack", 1)
+                return self._limits_warn(add, cuts_now)
             if now > deadline:
                 self._eng_off_watch = None       # clean clip — say nothing
+        # OFFLINE INCIDENT TALLY. incident_points/max_incident_points are SERVER
+        # fields (-1 = N/A per r3e.h), so vs AI the official block above never
+        # runs and the engineer never mentioned incidents at all. With no server
+        # limit there's no DQ threshold to quote, so report our own running
+        # count of confirmed moments — every 3rd, never the first.
+        # Placed AFTER the off-track handling deliberately: it must never
+        # preempt (and swallow) the immediate limits warning for a live off.
+        # Spaced well clear of the off itself so it lands as a reflective
+        # "let's reset" later in the lap, not as an echo of that same call.
+        if (self._racing and mip <= 0
+                and getattr(self, "_own_inc", 0) >= 3
+                and self._own_inc % 3 == 0
+                and self._own_inc != getattr(self, "_own_inc_said", 0)
+                and now - getattr(self, "_eng_off_cd", -1e9) > 25.0
+                and now - getattr(self, "_own_inc_cd", -1e9) > 20.0):
+            self._own_inc_said = self._own_inc
+            self._own_inc_cd = now
+            return add("incident_tally", 1, count=self._own_inc)
         # a serveable penalty (drive-through / stop-go) sitting unserved — remind
         if pen in (0, 1) and now - getattr(self, "_eng_pen_remind", 0.0) > 22.0:
             self._eng_pen_remind = now
@@ -2818,6 +2840,13 @@ class Overlay:
             self._eng_lvs = -1           # last lap_valid_state (next-lap warning)
             self._eng_ip = max(0, s.incident_points)  # last incident-point count
             self._eng_ip_cd = -1e9       # incident-point report cooldown
+            # OWN tallies: cut_track_warnings / incident_points are SERVER
+            # fields (-1 = N/A per r3e.h), so offline vs AI they never move and
+            # the engineer never mentioned limits or incidents at all. We count
+            # confirmed mistakes ourselves so he still keeps you honest.
+            self._own_cuts = 0           # our confirmed track-limits count
+            self._own_inc = 0            # our confirmed incident count
+            self._own_inc_cd = -1e9
             self._eng_fuel_cd = 0.0      # fuel-warning cooldown
             self._eng_tyre_cd = 0.0      # tyre-warning cooldown
             self._eng_tyre_base = None   # fresh tyre_wear baseline (4 values)
@@ -4859,6 +4888,21 @@ class Overlay:
             return out
         except Exception:
             return {}
+
+    def _limits_warn(self, add, cuts_now):
+        """A confirmed track-limits / off-track moment. Keeps a RUNNING count
+        and escalates, so repeated offs stop sounding like the first one.
+
+        cut_track_warnings is a SERVER field (-1 = N/A offline per r3e.h), so
+        offline it never moves — we count confirmed moments ourselves and use
+        the server's figure only when it's actually being published."""
+        self._own_cuts = getattr(self, "_own_cuts", 0) + 1
+        self._own_inc = getattr(self, "_own_inc", 0) + 1
+        n = cuts_now if cuts_now > 0 else self._own_cuts
+        cat = ("warn_limits_serious" if n >= 5
+               else "warn_limits_repeat" if n >= 2
+               else "warn_offtrack")
+        return add(cat, 1, cuts=n)
 
     @staticmethod
     def _short_car(nm):
