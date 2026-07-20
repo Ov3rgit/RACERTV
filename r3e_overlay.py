@@ -529,6 +529,10 @@ class Overlay:
         self.RADIO_MAX_BUBBLES = 4   # max bubbles on screen at once (no flooding;
                                      # simultaneous driver+engineer calls stack)
         self.RADIO_MAX_BURST = 3     # max new messages from one big incident
+        # card/audio sync: cards waiting for their audio's on_play; tick()
+        # airs any whose deadline passed without the audio ever starting
+        self._pending_bubbles = []
+        self._bubble_lock = threading.Lock()
 
         # post-race podium screen
         self._podium_seen_at = 0.0    # when the race-end was first seen (podium)
@@ -840,6 +844,25 @@ class Overlay:
             except Exception:
                 pass
         self._lmb_prev = lmb
+
+        # card/audio sync fallback: air any radio card whose audio never
+        # started (TTL-dropped / purged / render error) once its deadline
+        # passes — a card may arrive late and silent, but never not at all
+        if getattr(self, "_pending_bubbles", None):
+            _nowb = time.time()
+            _keep = []
+            for _m, _dl, _st in self._pending_bubbles:
+                if _st["aired"]:
+                    continue                       # audio played; card aired
+                if _nowb >= _dl:
+                    with self._bubble_lock:
+                        if _st["aired"]:
+                            continue
+                        _st["aired"] = True
+                    self._air_bubble(_m)
+                else:
+                    _keep.append((_m, _dl, _st))
+            self._pending_bubbles = _keep
 
         found = self._lock_to_game()
         s = self.reader.read()
@@ -3082,13 +3105,15 @@ class Overlay:
                 self._eng_cd = now
             else:
                 self.driver_radio_cd[sl] = now
-            # ALWAYS put the card on screen NOW — the bubble is DECOUPLED from
-            # the audio. The old code only showed a driver card when its voice
-            # actually played (on_play), and demoted it to a silent ticker when
-            # the booth queue was busy — so in a chatty race driver cards (and
-            # voices) vanished entirely. Now the card shows unconditionally and
-            # the voice is queued best-effort on top.
-            self._air_bubble(msg)
+            # CARD/AUDIO SYNC: when the voice is going to play, the card airs
+            # from the audio's on_play — the moment the line actually STARTS —
+            # so bubble and voice land together (queueing the card immediately
+            # put it seconds ahead of its audio: render + queue latency).
+            # GUARANTEE: every card still reaches the screen. It's parked in
+            # _pending_bubbles with a deadline; if the audio never starts
+            # (TTL-dropped, purged, render error), tick() airs it silently at
+            # the deadline — so cards can never vanish like the old on_play-
+            # only code allowed.
             spoke = "card"
             muted = not getattr(self, "radio_on", True)
             if self.tts and self.tts.enabled and not muted:
@@ -3102,8 +3127,23 @@ class Overlay:
                     _ttl = 9.0 if any(c.isdigit() for c in say_text) else None
                 else:
                     _ttl = self.RADIO_HOLD + 2.0
-                self.tts.speak(say_text, persona, seed=nm, ttl=_ttl)
+                st = {"aired": False}
+
+                def _onp(_t, _p, _m=msg, _st=st):
+                    # runs on the TTS play thread at audio start
+                    with self._bubble_lock:
+                        if _st["aired"]:
+                            return
+                        _st["aired"] = True
+                    self._air_bubble(_m)
+                self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
+                               on_play=_onp)
+                if not st["aired"]:      # (FakeTts fires on_play synchronously)
+                    self._pending_bubbles.append(
+                        (msg, now + (_ttl or 10.0) + 1.0, st))
                 spoke = "spoke"
+            else:
+                self._air_bubble(msg)    # no audio coming — show it right away
             self._radio_recent.append(f"{time.strftime('%H:%M:%S')} {persona[:4]}"
                                       f"/{emotion[:4]} [{spoke}] {txt[:40]}")
             self._radio_recent = self._radio_recent[-7:]
@@ -3135,7 +3175,9 @@ class Overlay:
         # avatar in a SQUARE region (so it's never stretched), vertically centred.
         # Drawn on the panel's real canvas — avatars use polygon/arc, which the
         # translating canvas wrapper doesn't proxy — at panel-local coords.
-        av = h - 18
+        # CAPPED at 36px: the old h-18 grew the icon to ~58px on two-line
+        # cards, dwarfing the text — the icon is a badge, not the content.
+        av = min(h - 22, 36)
         ax = x + 11
         ay = y + (h - av) // 2
         if is_eng:

@@ -32,62 +32,72 @@ def _rr(c, x1, y1, x2, y2, fill, r):
         c.create_oval(cx, cy, cx + 2 * r, cy + 2 * r, fill=fill, outline=fill)
 
 
-# EXACT front-face full-face helmet, ported from the approved icon_pick mockup
-# SVG (viewBox 0..100, flattened to fractional polygon points). Domed top,
-# widest at ~40% height, tapering to a rounded chin — a real helmet, not an
-# oval. _DOME shades the upper shell, _CHIN darkens under the visor; both give
-# the flat fill some depth (the mockup used opacity, faked here with shades).
-_HELM_SHELL = [(0.5,0.08), (0.5655,0.0855), (0.6262,0.1019), (0.6814,0.1285), (0.73,0.165), (0.7711,0.2109), (0.8037,0.2656), (0.827,0.3288), (0.84,0.4), (0.8428,0.4507), (0.8436,0.4981), (0.8423,0.5427), (0.8387,0.585), (0.8329,0.6254), (0.8245,0.6644), (0.8136,0.7024), (0.8,0.74), (0.7814,0.7826), (0.7559,0.8203), (0.7244,0.8529), (0.6875,0.88), (0.6459,0.9015), (0.6003,0.9172), (0.5514,0.9268), (0.5,0.93), (0.4486,0.9268), (0.3997,0.9172), (0.3541,0.9015), (0.3125,0.88), (0.2756,0.8529), (0.2441,0.8203), (0.2186,0.7826), (0.2,0.74), (0.1864,0.7024), (0.1755,0.6644), (0.1671,0.6254), (0.1613,0.585), (0.1577,0.5427), (0.1564,0.4981), (0.1572,0.4507), (0.16,0.4), (0.173,0.3288), (0.1963,0.2656), (0.2289,0.2109), (0.27,0.165), (0.3186,0.1285), (0.3738,0.1019), (0.4345,0.0855)]
-_HELM_DOME = [(0.5,0.08), (0.5655,0.0855), (0.6262,0.1019), (0.6814,0.1285), (0.73,0.165), (0.7711,0.2109), (0.8037,0.2656), (0.827,0.3288), (0.84,0.4), (0.8431,0.4254), (0.8448,0.4492), (0.8452,0.4719), (0.8444,0.4938), (0.8424,0.5151), (0.8393,0.5364), (0.8351,0.5579), (0.83,0.58), (0.17,0.58), (0.1649,0.5579), (0.1607,0.5364), (0.1576,0.5151), (0.1556,0.4938), (0.1548,0.4719), (0.1552,0.4492), (0.1569,0.4254), (0.16,0.4), (0.173,0.3288), (0.1963,0.2656), (0.2289,0.2109), (0.27,0.165), (0.3186,0.1285), (0.3738,0.1019), (0.4345,0.0855)]
-_HELM_CHIN = [(0.5,0.84), (0.4635,0.8381), (0.4291,0.8327), (0.397,0.8237), (0.3675,0.8113), (0.3408,0.7956), (0.3172,0.7767), (0.2968,0.7548), (0.28,0.73), (0.72,0.73), (0.7032,0.7548), (0.6828,0.7767), (0.6592,0.7956), (0.6325,0.8113), (0.603,0.8237), (0.5709,0.8327), (0.5365,0.8381)]
-
-
 def draw_helmet(c, ox, oy, s, color, seed=""):
-    """One driver radio icon: the approved front-face full-face helmet,
-    FLAT-filled with the driver's own assigned colour. A darker same-hue
-    shade gives the visor + shell depth; a lighter tint of the colour is a
-    thin gleam that sells the glass. `seed` kept for call-site compat only."""
-    dark = _shade(color, 0.58)          # visor / rim — darker SAME hue
-    dome = _shade(color, 0.88)          # upper-shell shading (fakes the .28 SVG)
-    chin = _shade(color, 0.80)          # under-visor shading (fakes the .5 SVG)
-    gleam = _shade(color, 1.5)          # lighter pop of the driver colour
+    """One driver radio icon: a CLEAN front-face full-face race helmet,
+    flat-filled with the driver's assigned colour. Deliberately few shapes —
+    the old version stacked three unsmoothed 30+ point polygons, which
+    aliased into a mess at bubble size. Now: one smoothed shell, a centre
+    racing stripe, a wide rounded visor with pivot bolts, a visor gleam and
+    chin vents. Reads as a race helmet from 30px up.
+    `seed` kept for call-site compat only."""
+    dark = _shade(color, 0.55)          # visor band / outline — darker SAME hue
+    stripe = _shade(color, 1.45)        # centre racing stripe (lighter tint)
+    gleam = _shade(color, 1.75)         # visor glass gleam
+
+    def P(fx, fy):
+        return (ox + s * fx, oy + s * fy)
 
     def poly(pts, **kw):
-        flat = [v for p in pts for v in (ox + s * p[0], oy + s * p[1])]
+        flat = [v for p in pts for v in P(*p)]
         return c.create_polygon(*flat, **kw)
 
-    poly(_HELM_SHELL, fill=color, outline=dark, width=max(1, s * 0.02))
-    poly(_HELM_DOME, fill=dome, outline="")          # domed top sheen
-    poly(_HELM_CHIN, fill=chin, outline="")          # chin shadow
-    # wide visor band (rounded rect) across the eyes, x23..77 y40..56
-    _rr(c, ox + s * 0.23, oy + s * 0.40, ox + s * 0.77, oy + s * 0.56,
-        fill=dark, r=s * 0.07)
-    # thin gleam bar along the top of the visor
-    _rr(c, ox + s * 0.26, oy + s * 0.425, ox + s * 0.56, oy + s * 0.465,
-        fill=gleam, r=s * 0.02)
+    # shell: domed crown, widest just above the visor, tapering to a rounded
+    # chin bar — SMOOTHED so tk renders clean bezier edges at any size
+    shell = [(.50, .06), (.66, .095), (.78, .19), (.84, .33), (.85, .48),
+             (.83, .63), (.78, .76), (.70, .86), (.58, .92), (.50, .93),
+             (.42, .92), (.30, .86), (.22, .76), (.17, .63), (.15, .48),
+             (.16, .33), (.22, .19), (.34, .095)]
+    poly(shell, fill=color, outline=dark, width=max(1.0, s * 0.025), smooth=1)
+    # centre racing stripe over the crown, stopping at the visor
+    poly([(.44, .065), (.56, .065), (.55, .36), (.45, .36)],
+         fill=stripe, outline="", smooth=1)
+    # visor: one wide rounded band across the eye line
+    _rr(c, *P(.19, .365), *P(.81, .595), fill=dark, r=s * 0.10)
+    # visor pivot bolts OUTSIDE the band ends — the classic race-helmet cue
+    for bx in (.185, .815):
+        c.create_oval(*P(bx - .045, .44), *P(bx + .045, .53),
+                      fill=_shade(color, 0.38), outline="")
+        c.create_oval(*P(bx - .018, .467), *P(bx + .018, .503),
+                      fill=_shade(color, 0.75), outline="")
+    # glass gleam: single thin bar along the visor top
+    _rr(c, *P(.27, .40), *P(.58, .44), fill=gleam, r=s * 0.018)
+    # chin-bar vent: one small rounded slot (kept single — clean at 30px)
+    _rr(c, *P(.42, .72), *P(.58, .77), fill=dark, r=s * 0.02)
 
 
 def draw_headset(c, ox, oy, s):
-    """The race-engineer icon: clean WHITE over-ear headset with a boom mic
-    (facing left, matching the driver helmets' orientation)."""
+    """The race-engineer icon: clean WHITE over-ear headset with a boom mic.
+    Symmetric band, two rounded cups with dark cushions, one smooth boom arc
+    to a mic tip — few shapes, all rounded, so it stays crisp at bubble size."""
     HP = WHITE
 
     def P(fx, fy):
         return (ox + s * fx, oy + s * fy)
 
-    # headband arc over the crown
-    c.create_line(*P(.12, .55), *P(.16, .16), *P(.50, .05), *P(.84, .16),
-                  *P(.88, .55), fill=HP, width=max(2, s * 0.09), smooth=1,
+    # headband: one smooth arc, ends landing on the CENTRE of each cup
+    c.create_line(*P(.13, .52), *P(.15, .22), *P(.50, .08), *P(.85, .22),
+                  *P(.87, .52), fill=HP, width=max(2, s * 0.085), smooth=1,
                   capstyle="round")
-    # ear cups (rounded) with a dark inner cushion
-    _rr(c, *P(.02, .46), *P(.24, .82), fill=HP, r=s * 0.08)
-    _rr(c, *P(.76, .46), *P(.98, .82), fill=HP, r=s * 0.08)
-    _rr(c, *P(.06, .52), *P(.18, .76), fill=DARK, r=s * 0.05)
-    _rr(c, *P(.82, .52), *P(.94, .76), fill=DARK, r=s * 0.05)
-    # boom mic arm sweeping down to a small foam tip
-    c.create_line(*P(.10, .70), *P(.05, .86), *P(.30, .90), *P(.42, .80),
-                  fill=HP, width=max(2, s * 0.06), smooth=1, capstyle="round")
-    c.create_oval(*P(.36, .82), *P(.48, .94), fill=HP, outline="")
+    # ear cups: rounded, symmetric, with an inset dark cushion
+    _rr(c, *P(.04, .44), *P(.26, .80), fill=HP, r=s * 0.09)
+    _rr(c, *P(.74, .44), *P(.96, .80), fill=HP, r=s * 0.09)
+    _rr(c, *P(.09, .50), *P(.21, .74), fill=DARK, r=s * 0.05)
+    _rr(c, *P(.79, .50), *P(.91, .74), fill=DARK, r=s * 0.05)
+    # boom mic: one smooth sweep from the left cup down to the mouth line,
+    # ending in a round foam tip (kept clear of the cup so it reads distinctly)
+    c.create_line(*P(.15, .78), *P(.18, .90), *P(.38, .93),
+                  fill=HP, width=max(2, s * 0.055), smooth=1, capstyle="round")
+    c.create_oval(*P(.36, .86), *P(.50, 1.00), fill=HP, outline="")
 
 
 def draw_avatar(c, ox, oy, s, emotion="neutral", helmet="#e23b3b"):

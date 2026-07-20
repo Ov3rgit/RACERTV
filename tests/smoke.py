@@ -4,7 +4,7 @@ No tkinter, no TTS (tts=None). Exercises the new engineer paths (quali off-track
 sector coaching, mandatory pit, intro gate)."""
 import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
 
-import os, sys, time, ctypes
+import os, sys, time, ctypes, threading
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R
 from r3e_overlay import Overlay
@@ -145,6 +145,8 @@ def headless_overlay(fake_tts=False):
     o._intro_aired = False
     o._q_off_lv = 1
     o._q_off_watch = None
+    o._pending_bubbles = []          # card/audio sync (FakeTts airs instantly)
+    o._bubble_lock = threading.Lock()
     return o
 
 
