@@ -141,12 +141,13 @@ print("  cue found at the right index in both payload shapes: OK")
 print("\nALL DRAW + CUE CHECKS PASSED")
 
 
-print("\n===== VOICE NAMES ARE REAL =====")
-# An invalid edge-tts voice name doesn't error loudly — the render fails and
-# the engine silently falls back to offline SAPI, which sounds robotic. That
-# is exactly how the PUNDIT ran on "en-AU-WilliamNeural" (a name that does
-# not exist) without anything looking wrong. Names are checked offline here
-# against a known-good pattern; run tools/checkvoices.py for a live check.
+print("\n===== VOICE CONFIG =====")
+# FORMAT check only, deliberately. Do NOT assert membership of
+# edge_tts.list_voices(): "en-AU-WilliamNeural" is ABSENT from that list and
+# yet renders perfectly (verified by synthesising with it), so 'not listed'
+# does not mean 'broken'. Inferring otherwise led to the pundit's voice being
+# changed for no reason. The only reliable check is an actual render, which
+# needs the network and so stays a manual step.
 import re as _re                                          # noqa: E402
 _VOICE_RE = _re.compile(r"^[a-z]{2}-[A-Z]{2}-[A-Za-z]+Neural$")
 _bad = [v for v in (_tts.NEURAL_VOICES

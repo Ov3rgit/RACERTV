@@ -141,10 +141,10 @@ NATIVE_VOICE_LANG = {}
 # strongly-accented voices on purpose: a clean RP-English read is the easiest
 # to clock as TTS, whereas natural regional accents carry prosody that masks it
 COMMENTATOR_VOICE = "en-GB-RyanNeural"      # lead play-by-play (British)
-PUNDIT_VOICE = "en-AU-WilliamMultilingualNeural"   # colour man (Australian)
-# NB verify any voice change against edge_tts.list_voices(). The old
-# "en-AU-WilliamNeural" does NOT exist, so every pundit line silently
-# fell back to offline SAPI — which is why Brett sounded robotic.
+PUNDIT_VOICE = "en-AU-WilliamNeural"        # colour/analysis man (Australian)
+# NB this name is NOT in edge_tts.list_voices(), but the service accepts and
+# renders it perfectly well (verified directly). Absence from that list does
+# not mean a voice is broken — do not "fix" this one on that basis again.
 CLEAN_PERSONAS = ("COMMENTATOR", "PUNDIT")
 
 # how long a queued line stays AIRABLE (seconds). Play-by-play goes stale fast —
