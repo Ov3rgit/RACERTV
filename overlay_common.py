@@ -18,6 +18,13 @@ import threading
 
 CHROMA = "#010102"      # fully transparent key color (must be unused elsewhere)
 WIN_ALPHA = 0.86        # whole-window opacity: solid SOLID dark panels (no dotty
+# BACKGROUND-ONLY TRANSPARENCY. The panel windows are chroma-keyed with a
+# whole-window -alpha, which fades TEXT as much as the background — so it
+# cannot be used to make only the backgrounds see-through. Tk has no per-item
+# alpha either; a stipple is the one mechanism that punches real holes in a
+# fill and leaves text untouched. "gray75" paints 75% of the pixels, i.e. the
+# game shows through the remaining quarter. Set to "" for solid panels.
+BG_STIPPLE = "gray75"
 PANEL_STIPPLE = ""        # solid panel backgrounds (stipple looked pixelated behind
 PANEL_ALPHA = 0.55        # (legacy whole-window alpha; superseded by stipple+CHROMA)
 PANEL_BG = "#0c1014"

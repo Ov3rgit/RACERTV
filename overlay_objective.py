@@ -361,10 +361,25 @@ class ObjectiveMixin:
             self._obj["_prog"] = self._obj_progress(s, order)
             self._obj["_laps_left"] = max(
                 0, self._obj["laps"] - (me.completed_laps - self._obj["lap0"]))
-            self._obj["_gap"] = (self.interval.get(vslot)
-                                 if self._obj["kind"] in
-                                 ("chase", "position", "defend", "damage")
-                                 else None)
+            _gap = (self.interval.get(vslot)
+                    if self._obj["kind"] in
+                    ("chase", "position", "defend", "damage") else None)
+            # trend for the HUD arrow: is the gap actually coming down?
+            _prev = self._obj.get("_gap")
+            if _gap is not None and _prev is not None:
+                if _gap < _prev - 0.05:
+                    self._obj["_trend"] = -1        # closing
+                elif _gap > _prev + 0.05:
+                    self._obj["_trend"] = 1         # slipping away
+            self._obj["_gap"] = _gap
+            # badge shown in the chip's accent flash: the position being raced
+            # for, or a short tag for the situational targets
+            k = self._obj["kind"]
+            gp = self._obj.get("goal_pos")
+            self._obj["_badge"] = (
+                f"P{gp}" if gp and k in ("position", "chase", "defend",
+                                         "damage", "recover")
+                else "LIM" if k == "clean" else "TYR" if k == "tyres" else "GO")
             return self._obj_check(s, order, placemap, now)
 
         if me.completed_laps < OBJ_SETTLE_LAPS:

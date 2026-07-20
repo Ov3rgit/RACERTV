@@ -11,7 +11,7 @@ they live in changed.
 import r3e_data as R
 import time
 from overlay_panel import _Panel
-from overlay_common import (_BUBBLE_H, ACCENT, CARD_BG, CARD_BG2, CARD_BORDER,
+from overlay_common import (BG_STIPPLE, _BUBBLE_H, ACCENT, CARD_BG, CARD_BG2, CARD_BORDER,
     COMMENTATOR_COLOR, CYAN, DIM, GREEN, HEADER_ACCENT, LEADER, MAX_ROWS,
     PANEL_BG, PANEL_OUTLINE, PANEL_STIPPLE, PURPLE, TEXT, _RADIO_LOCK)
 from lines import (COMMENTATOR_NAME, PUNDIT_NAME)
@@ -57,9 +57,14 @@ class DrawMixin:
         (`r` kept for call-site compatibility; it just sets the notch size.)"""
         n = max(2, min(4, int(r / 2)))          # corner notch, in pixels
         c = self.canvas
-        # body as a notched-corner cross (two overlapping rects)
-        c.create_rectangle(x + n, y, x + w - n, y + h, fill=fill, outline="")
-        c.create_rectangle(x, y + n, x + w, y + h - n, fill=fill, outline="")
+        # body as a notched-corner cross (two overlapping rects). BG_STIPPLE
+        # makes the BODY only semi-opaque — the border, accent and every bit
+        # of text stay fully solid, which whole-window alpha could not do.
+        _st = {"stipple": BG_STIPPLE} if BG_STIPPLE else {}
+        c.create_rectangle(x + n, y, x + w - n, y + h, fill=fill, outline="",
+                           **_st)
+        c.create_rectangle(x, y + n, x + w, y + h - n, fill=fill, outline="",
+                           **_st)
         # chunky 2px pixel border traced around the notched outline
         bd = CARD_BORDER
         c.create_rectangle(x + n, y, x + w - n, y + 2, fill=bd, outline="")
@@ -547,60 +552,87 @@ class DrawMixin:
                   fill=fg, font=self.f_row_b, anchor="e")
 
     def draw_objective(self, s):
-        """The active race objective, as a broadcast-style target chip with a
-        progress bar. Only ever shows while an objective is live, and shows
-        the RESULT briefly when one resolves — so the screen always agrees
-        with what the engineer just said on the radio."""
+        """The active race objective as a COMPETITIVE broadcast target chip.
+
+        Deliberately not a plain box: a skewed motorsport chip with a solid
+        accent flash carrying the goal position, the target on its own line,
+        a live gap with a trend arrow, and a SEGMENTED progress strip that
+        fills like a rev bar and turns amber then green as you close it out.
+        Shows the verdict for a few seconds when a target resolves, so the
+        screen always agrees with what the engineer just said.
+        """
         now = time.time()
         res = getattr(self, "_obj_result", None)
         obj = getattr(self, "_obj", None)
         if not obj and not (res and now < res.get("until", 0)):
             return
-        w, h = 300, 34
+        w, h = 348, 52
+        sk = 10                                  # skew: the motorsport slant
         x = (self.sw - w) // 2
-        y = self.sh - 148                       # sits above the fastest-lap slot
-        self._begin_panel("objective", x, y, w, h)
+        y = self.sh - 162
+        self._begin_panel("objective", x, y, w + sk, h)
+
         if obj:
             label, col = "TARGET", HEADER_ACCENT
             txt = obj.get("hud", "")
             prog = obj.get("_prog")
-        else:                                   # briefly show met/missed
+            badge = obj.get("_badge") or "GO"
+        else:
             ok = res.get("ok")
             label = "TARGET MET" if ok else "TARGET MISSED"
             col = GREEN if ok else "#ff6b6b"
             txt = res.get("hud", "")
             prog = 1.0 if ok else None
-        self.canvas.create_rectangle(x, y, x + w, y + h,
-                                     fill=CARD_BG, outline=col)
-        self.text(x + 10, y + 11, label, fill=col, font=self.f_small_b,
-                  anchor="w")
-        # right-hand status: laps left on the target, and the live gap when the
-        # objective is about a gap — so the chip answers "how am I doing?"
-        # without needing the radio to say it.
-        status = ""
+            badge = "✓" if ok else "✕"
+
+        # --- skewed body (parallelogram) + hard accent edge down the left
+        body = [x + sk, y, x + w + sk, y, x + w, y + h, x, y + h]
+        self.canvas.create_polygon(*body, fill=CARD_BG, outline=CARD_BORDER,
+                                   width=2)
+        flash = [x + sk, y, x + sk + 58, y, x + 58, y + h, x, y + h]
+        self.canvas.create_polygon(*flash, fill=col, outline="")
+        # goal badge sits in the accent flash — the "what am I racing for"
+        self.text(x + sk + 22, y + h // 2 - 1, str(badge)[:3], fill="#080c11",
+                  font=self.f_row_b, anchor="center")
+
+        # --- label + live status on the top line
+        tx = x + sk + 68
+        self.text(tx, y + 14, label, fill=col, font=self.f_small_b, anchor="w")
+        status, scol = "", DIM
         if obj:
             left = obj.get("_laps_left")
             if left is not None:
-                status = f"{left} lap{'s' if left != 1 else ''}"
+                status = f"{left} LAP{'S' if left != 1 else ''}"
+                if left <= 1:
+                    scol = "#ff6b6b"             # last chance — make it shout
             g = obj.get("_gap")
             if g is not None:
-                status = (status + "  ·  " if status else "") + f"{g:.1f}s"
+                trend = obj.get("_trend")        # -1 closing, +1 slipping
+                arrow = "▼" if trend == -1 else "▲" if trend == 1 else "•"
+                status = (status + "   " if status else "") + f"{arrow} {g:.1f}s"
         if status:
-            self.text(x + w - 10, y + 11, status, fill=DIM,
+            self.text(x + w - 14, y + 14, status, fill=scol,
                       font=self.f_small_b, anchor="e")
-            self.text(x + 78, y + 11, txt[:26], fill=TEXT, font=self.f_row,
-                      anchor="w")
-        else:
-            self.text(x + w - 10, y + 11, txt[:34], fill=TEXT, font=self.f_row,
-                      anchor="e")
-        # progress bar along the bottom edge of the chip
-        by, bh = y + h - 6, 3
-        self.canvas.create_rectangle(x + 10, by, x + w - 10, by + bh,
-                                     fill="#1c2530", outline="")
-        if prog:
-            fw = (w - 20) * max(0.0, min(1.0, prog))
-            self.canvas.create_rectangle(x + 10, by, x + 10 + fw, by + bh,
-                                         fill=col, outline="")
+
+        # --- the objective itself
+        self.text(tx, y + 32, txt[:34], fill=TEXT, font=self.f_row, anchor="w")
+
+        # --- SEGMENTED progress strip (rev-bar feel), amber then green
+        segs, sw_, gap_ = 14, 16, 3
+        bx = tx
+        by, bh = y + h - 12, 5
+        lit = int(round((prog or 0.0) * segs))
+        for i in range(segs):
+            sx = bx + i * (sw_ + gap_)
+            if sx + sw_ > x + w - 14:
+                break
+            if i < lit:
+                c2 = (GREEN if prog and prog >= 0.85
+                      else "#ffb000" if prog and prog >= 0.5 else col)
+            else:
+                c2 = "#1c2530"
+            self.canvas.create_rectangle(sx, by, sx + sw_, by + bh,
+                                         fill=c2, outline="")
 
     def draw_settings(self):
         """Clickable '≡ SETTINGS' chip pinned to the game's top-left (under
@@ -661,7 +693,7 @@ class DrawMixin:
         # sized for the mono pixel font: longest label + state column
         w = max(360, max(self.f_row.measure(r[0]) for r in rows) + 96)
         rh = 28
-        h = 14 + rh * len(rows)
+        h = 14 + rh * (len(rows) + 1)          # +1 for the volume slider
         x, y = gx, gy + gh + 6
         self._begin_panel("menu", x, y, w, h)
         self._card(x, y, w, h, fill=CARD_BG, accent=HEADER_ACCENT, side="left")
@@ -674,6 +706,62 @@ class DrawMixin:
                       anchor="e")
             self._menu_hits.append(((x + 2, ry, w - 4, rh), action))
             ry += rh
+        self._draw_volume_row(x, ry, w, rh)
+
+    def _draw_volume_row(self, x, ry, w, rh):
+        """Master VOICE VOLUME slider in the settings menu.
+
+        The overlay is click-through and its mouse events are POLLED, so this
+        isn't a drag control: clicking anywhere along the track jumps the level
+        to that point, which works fine with a single sampled click per tick.
+        """
+        vol = getattr(self.tts, "volume", 1.0) if self.tts else 1.0
+        self.text(x + 14, ry + 12, "Voice volume", fill=TEXT,
+                  font=self.f_row, anchor="w")
+        pct = f"{int(round(vol * 100))}%"
+        self.text(x + w - 14, ry + 12, pct,
+                  fill=(GREEN if vol > 0 else DIM), font=self.f_row_b,
+                  anchor="e")
+        # track sits between the label and the percentage readout
+        tx0 = x + 14 + self.f_row.measure("Voice volume") + 14
+        tx1 = x + w - 14 - self.f_row_b.measure("100%") - 12
+        ty = ry + 12
+        if tx1 - tx0 > 40:
+            self.canvas.create_rectangle(tx0, ty - 3, tx1, ty + 3,
+                                         fill="#1c2530", outline="")
+            fw = (tx1 - tx0) * max(0.0, min(1.0, vol))
+            if fw > 0:
+                self.canvas.create_rectangle(tx0, ty - 3, tx0 + fw, ty + 3,
+                                             fill=HEADER_ACCENT, outline="")
+            # knob
+            kx = tx0 + fw
+            self.canvas.create_oval(kx - 5, ty - 6, kx + 5, ty + 6,
+                                    fill=TEXT, outline="")
+            # clicking the track sets the level; a tall hit box so it's easy
+            # to hit while the game is moving underneath
+            self._menu_hits.append(
+                ((tx0 - 6, ry, (tx1 - tx0) + 12, rh),
+                 lambda: self._set_volume_from_click(tx0, tx1)))
+
+    def _set_volume_from_click(self, tx0, tx1):
+        """Set master volume from where the track was clicked."""
+        click = getattr(self, "_click", None)
+        if not click or not self.tts or tx1 <= tx0:
+            return
+        v = (click[0] - tx0) / float(tx1 - tx0)
+        v = max(0.0, min(1.0, v))
+        # snap the ends so full-off and full-on are easy to actually hit
+        if v < 0.04:
+            v = 0.0
+        elif v > 0.96:
+            v = 1.0
+        self.tts.volume = v
+        try:
+            import tts as _tts
+            _tts.save_volume(v)
+        except Exception:
+            pass
+        self._toast(f"VOICE VOLUME {int(round(v * 100))}%")
 
     def _toast(self, text, hold=3.5):
         """Transient hotkey feedback ('BOOTH OFF', 'UI HIDDEN…'). Drawn every

@@ -19,6 +19,7 @@ import struct
 import subprocess
 import threading
 import time
+import json
 import wave
 
 try:
@@ -174,6 +175,27 @@ def _soft(x):
     return math.copysign(0.8 + (1.0 - math.exp(-(a - 0.8) * 3.0)) * 0.199, x)
 
 
+_VOL_FILE = os.path.join(_DIR, "_volume.json")
+
+
+def _load_volume():
+    """Master voice level from disk, 0.0-1.0 (default full)."""
+    try:
+        with open(_VOL_FILE, encoding="utf-8") as f:
+            v = float(json.load(f).get("volume", 1.0))
+        return max(0.0, min(1.0, v))
+    except Exception:
+        return 1.0
+
+
+def save_volume(v):
+    try:
+        with open(_VOL_FILE, "w", encoding="utf-8") as f:
+            json.dump({"volume": round(float(v), 3)}, f)
+    except Exception:
+        pass
+
+
 # ----------------------------------------------------------------- wav helpers
 def _read_wav(path):
     with wave.open(path, "rb") as w:
@@ -188,9 +210,11 @@ def _read_wav(path):
     return rate, [s / 32768.0 for s in data]
 
 
-def _write_wav(path, rate, samples):
+def _write_wav(path, rate, samples, gain=1.0):
     frames = bytearray()
     for s in samples:
+        if gain != 1.0:
+            s *= gain
         frames += struct.pack("<h", int(max(-1.0, min(1.0, s)) * 32767))
     with wave.open(path, "wb") as w:
         w.setnchannels(1)
@@ -268,6 +292,10 @@ class Tts:
         except Exception:
             pass
         self.enabled = True
+        # MASTER VOLUME for every RacerTV voice (0.0-1.0). Applied as sample
+        # gain when the play wav is written, because winsound.PlaySound has no
+        # level control of its own. Persisted by the overlay's settings.
+        self.volume = _load_volume()
         self.engine = "edge" if _HAVE_EDGE else "sapi"
         # two-stage pipeline: the GENERATE thread renders the next line's audio
         # while the PLAY thread is still playing the current one, so there's no
@@ -471,7 +499,17 @@ class Tts:
                 pass
         try:
             dst = self._next_wav()                 # copy so play_loop can delete it
-            shutil.copyfile(src, dst)
+            if self.volume >= 0.999:
+                shutil.copyfile(src, dst)
+            else:
+                # the sting CACHE is rendered once at full level, so the
+                # user's volume has to be applied to this copy or stings
+                # would always play at 100% while everything else scaled
+                _rate, _smp = _read_wav(src)
+                if not _smp:
+                    shutil.copyfile(src, dst)
+                else:
+                    _write_wav(dst, _rate, _smp, gain=self.volume)
         except Exception:
             return False
         self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
@@ -687,7 +725,7 @@ class Tts:
                      + [c * 0.22 for c in _click(srate, 50)])
             mixed = [_soft(s * MASTER_VOL * LOUDNESS * 1.2) for s in mixed]
         wav = self._next_wav()
-        _write_wav(wav, srate, mixed)
+        _write_wav(wav, srate, mixed, gain=self.volume)
         # one last staleness check — an interrupt may have landed during the slow
         # render; if so, drop this rather than play it ahead of the incident
         if self._stale(persona, epoch):
