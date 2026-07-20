@@ -1670,13 +1670,44 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.root.mainloop()
 
 
+_INSTANCE_MUTEX = None          # kept alive for the life of the process
+
+
 def _single_instance():
-    """Return True if no other overlay instance is already running."""
-    kernel32.CreateMutexW(None, False, "R3EOverlay_singleton_mutex")
-    return ctypes.get_last_error() != 183  # 183 = ERROR_ALREADY_EXISTS
+    """Return True if no other overlay instance is already running.
+
+    NB the kernel32 handle has to be opened with use_last_error=True. Plain
+    ctypes.windll.kernel32 does NOT copy the Win32 last-error into ctypes'
+    thread-local storage, so ctypes.get_last_error() came back 0 instead of
+    183 and this guard silently passed EVERY time — which is how you end up
+    with two overlays running, hearing and seeing everything twice.
+    """
+    global _INSTANCE_MUTEX
+    try:
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        h = k32.CreateMutexW(None, False, "R3EOverlay_singleton_mutex")
+        err = ctypes.get_last_error()
+        if err == 183:                     # ERROR_ALREADY_EXISTS
+            return False
+        _INSTANCE_MUTEX = h                # hold it open, else the next
+        return True                        # launch would think it is free
+    except Exception:
+        return True                        # never block startup on this
 
 
 if __name__ == "__main__":
     if not _single_instance():
-        raise SystemExit("R3E overlay already running")
+        # The app is windowed, so a bare SystemExit would vanish without a
+        # trace and a second launch would look like nothing happened at all.
+        # Say so, otherwise the only symptom is doubled audio and visuals.
+        try:
+            ctypes.windll.user32.MessageBoxW(
+                None,
+                "RacerTV is already running.\n\n"
+                "Close the existing overlay first "
+                "(Ctrl+Shift+Q), then start it again.",
+                "RacerTV", 0x40)          # MB_ICONINFORMATION
+        except Exception:
+            pass
+        raise SystemExit("RacerTV already running")
     Overlay().run()
