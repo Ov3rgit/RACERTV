@@ -932,7 +932,6 @@ def _list_voices():
 
 
 if __name__ == "__main__":
-    import time
     t = Tts()
     print("engine:", t.engine)
     demo = [("ENGINEER", "", "Radio check. P3, gap behind two seconds, manage it."),
