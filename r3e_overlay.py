@@ -33,13 +33,14 @@ from lines import (   # dialogue pools (moved out of this file for size)
     COMMENTATOR_NAME, PUNDIT_NAME, COMMENTATOR_FULL, PUNDIT_FULL,
     COMMENTARY_LINES, CROSSTALK, CROSSTALK_ACK, CROSSTALK_ANSWERS,
     DRIVER_FINISH, EASTER_EGGS, ENGINEER_LINES, ENGINEER_PRACTICE, ENGINEER_QUALI,
-    EXTRA_LINES, LEAD, LORE_COMM_BY_TRACK, LORE_PUNDIT_BY_TRACK,
+    EXTRA_LINES, LEAD, LORE_COMM_BY_TRACK, LORE_PUNDIT_BY_TRACK, LORE_TOPICS,
     MOOD_FRUSTRATED, MOOD_PUMPED, NATIVE_RADIO,
     NATIVE_RADIO_QUALI,
     PERSONAS, PERSONA_KEYS,
     PUNDIT_LINES, PUNDIT_PICK, REVENGE, RIVAL_QUALI,
     SECTOR_COACH,
-    SHORT_TRACK, TRACK_COACH, TRACK_FACTS, TRACK_PUNDIT, TRACK_PUNDIT_BY_TRACK,
+    SHORT_TRACK, STORY_REPORT, TRACK_COACH, TRACK_FACTS, TRACK_PUNDIT,
+    TRACK_PUNDIT_BY_TRACK,
     TRACK_SECTOR_TIPS, TRACK_TIPS, CORNER_NAMES)
 
 import sys as _sys
@@ -3518,6 +3519,16 @@ class Overlay:
                 and (self.tts is None or self.tts._pending() < 2)):
             self._crosstalk_t = now
             story_d = self._story_pick(order)
+            if story_d is None and random.random() < 0.3:
+                # quiet race, nobody's swung much — a "steady afternoon" recap
+                # of a front-runner still beats never mentioning anyone's race.
+                told = getattr(self, "_story_told", set())
+                cand = [d for d in order[:8]
+                        if d.driver_info.slot_id not in told
+                        and d.driver_info.slot_id in self._race_story
+                        and self.grid_place.get(d.driver_info.slot_id) is not None]
+                if cand:
+                    story_d = random.choice(cand)
             if story_d is not None and random.random() < 0.6:
                 # data-driven recap of THIS driver's race so far (grid -> now)
                 self._storyq_d = story_d
@@ -4072,10 +4083,12 @@ class Overlay:
                   line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
                   drv=self._crosstalk_drv, pos=d.place)
             elif pick == "lore":                         # racing-past banter
-                if random.random() < 0.6:
-                    L("lore_q", 6, persona="COMMENTATOR")     # Miles asks Brett
-                else:
-                    L("lore_q_rally", 6, persona="PUNDIT")    # Brett asks Miles
+                if random.random() < 0.6:                # Miles asks Brett
+                    L("lore_q", 6, persona="COMMENTATOR",
+                      line=self._lore_pick_topic("pundit"))
+                else:                                    # Brett asks Miles
+                    L("lore_q_rally", 6, persona="PUNDIT",
+                      line=self._lore_pick_topic("comm"))
             elif pick == "stat":                         # fill space with real numbers
                 txt = self._stat_line(placemap, n1, n2)
                 if txt:
@@ -4223,9 +4236,11 @@ class Overlay:
                     L("booth_joke", 6, persona=who2())
                 elif pick == "lore":
                     if random.random() < 0.6:
-                        L("lore_q", 6, persona="COMMENTATOR")
+                        L("lore_q", 6, persona="COMMENTATOR",
+                          line=self._lore_pick_topic("pundit"))
                     else:
-                        L("lore_q_rally", 6, persona="PUNDIT")
+                        L("lore_q_rally", 6, persona="PUNDIT",
+                          line=self._lore_pick_topic("comm"))
                 elif pick == "qsolo":
                     L("quali_solo", 6, persona=who2(), drv=pname)
                 elif pick == "qopen":
@@ -4604,7 +4619,10 @@ class Overlay:
                 continue
             net = grid - st["now"]          # + climbed / - dropped
             dip = st["worst"] - grid        # how far below the start they fell
-            if abs(net) >= 3 or dip >= 4:
+            # a 2-place net swing or a 3-place dip is already a story worth
+            # telling (the old >=3/>=4 bar meant a normal race produced NO
+            # eligible drivers and the recap never aired at all)
+            if abs(net) >= 2 or dip >= 3:
                 elig.append((d, abs(net) + dip))
         if not elig:
             return None
@@ -4622,34 +4640,23 @@ class Overlay:
         nm, now, best, worst = self._dname(d), st["now"], st["best"], st["worst"]
         net = grid - now
         dip = worst - grid
-        if net >= 3:                        # net climber
-            if dip >= 3:
-                return random.choice([
-                    f"{nm} started P{grid}, dropped as low as P{worst}, but he's recovered superbly to P{now}.",
-                    f"Rough start for {nm} — down to P{worst} from P{grid} — but he's fought all the way back to P{now}.",
-                ])
-            return random.choice([
-                f"{nm} started P{grid} and has climbed to P{now} — a brilliant drive.",
-                f"{nm} has been on a charge — up from P{grid} to P{now}.",
-            ])
-        if net <= -3:                       # net loser
+        if net >= 2:                        # net climber
+            arc = "comeback" if dip >= 3 else "climber"
+        elif net <= -2:                     # net loser
             if worst > now + 2:             # fell further, then clawed some back
-                return random.choice([
-                    f"{nm} started P{grid}, dropped as low as P{worst}, and has recovered to P{now} — still down on the start, but fighting back.",
-                    f"Tough race for {nm} — P{grid} to as low as P{worst} — but he's climbing again, up to P{now} now. Hopefully more to come.",
-                ])
-            if best <= grid - 1:
-                return f"{nm} started P{grid}, ran as high as P{best}, but has slipped back to P{now} — a tough watch."
-            return random.choice([
-                f"{nm} started P{grid} but has slid back to P{now} — not the race he'd have wanted.",
-                f"It's gone the wrong way for {nm} — from P{grid} down to P{now}.",
-            ])
-        if dip >= 4:                        # steady net, but a mid-race scare
-            return f"{nm} started P{grid}, had a scare down to P{worst}, but fought back to hold P{now}."
-        return random.choice([
-            f"{nm} has run a steady race, holding around P{now} since starting P{grid}.",
-            f"Quietly solid from {nm} — P{grid} at the start, P{now} now.",
-        ])
+                arc = "faller_clawing"
+            elif best <= grid - 1:          # ran higher than the grid, then sank
+                arc = "peaked_slipped"
+            else:
+                arc = "faller"
+        elif dip >= 3:                      # steady net, but a mid-race scare
+            arc = "scare_held"
+        else:
+            arc = "steady"
+        return _safe_format(
+            self._pick(STORY_REPORT[arc], ("STORY", arc)),
+            {"nm": nm, "grid": grid, "best": best, "worst": worst, "now": now,
+             "comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME})
 
     def _fmt_gap(self, g):
         """Speak a gap naturally: 'under a second' / '1.8 seconds'."""
@@ -4803,21 +4810,39 @@ class Overlay:
                 return self._pick(TRACK_PUNDIT, ("TPUN",))
         return self._pick(TRACK_PUNDIT, ("TPUN",))
 
+    def _lore_pick_topic(self, who):
+        """Choose a lore TOPIC for the given answerer ('pundit' = Brett is
+        asked, 'comm' = Miles is asked) and remember it, so the answer that
+        airs actually responds to the question that was asked — the same
+        Q/A pairing crosstalk uses. Returns the question text."""
+        topics = LORE_TOPICS[who]
+        topic = random.choice(list(topics))
+        self._lore_topic = (who, topic)
+        return self._pick(topics[topic]["q"], ("LOREQ", who, topic))
+
     def _lore_answer(self, persona, trk):
-        """A booth lore answer drawing on the speaker's real racing past. A
-        track-SPECIFIC memory if we have one for this circuit (Miles' F1-title
-        battles / Brett's WEC easter eggs), else a varied generic one named with
-        the track — so the lore stops being the same story every race."""
+        """The booth lore answer, PAIRED to the topic of the question that was
+        just asked. Track-flavoured topics may substitute a track-SPECIFIC
+        memory (Miles' F1-title battles / Brett's WEC easter eggs) when we have
+        one for this circuit — those are still on-topic, since the question was
+        about the track."""
+        who = "PUNDIT" if persona == "PUNDIT" else "COMM"
         low = (trk or "").lower()
-        if persona == "PUNDIT":                       # Brett: Le Mans / WEC champ
-            for key, pool in LORE_PUNDIT_BY_TRACK.items():
+        twho, topic = getattr(self, "_lore_topic", (None, None))
+        tdef = LORE_TOPICS.get(twho, {}).get(topic) if topic else None
+        # a track-specific war story only replaces the answer when the QUESTION
+        # was about the track (topic marked "track") — never on personal topics
+        if tdef is None or tdef.get("track"):
+            by_track = (LORE_PUNDIT_BY_TRACK if who == "PUNDIT"
+                        else LORE_COMM_BY_TRACK)
+            for key, pool in by_track.items():
                 if key in low and random.random() < 0.7:
-                    return self._pick(pool, ("LOREPK", key))
-            return self._pick(COMMENTARY_LINES["lore_a"], ("COMM", "lore_a"))
-        for key, pool in LORE_COMM_BY_TRACK.items():  # Miles: F1 champ -> rally
-            if key in low and random.random() < 0.7:
-                return self._pick(pool, ("LORECK", key))
-        return self._pick(COMMENTARY_LINES["lore_a_rally"], ("COMM", "lore_a_rally"))
+                    return self._pick(pool, ("LOREPK", who, key))
+        if tdef is not None:
+            return self._pick(tdef["a"], ("LOREA", twho, topic))
+        # no stored topic (shouldn't happen) — fall back to the generic pools
+        cat = "lore_a" if who == "PUNDIT" else "lore_a_rally"
+        return self._pick(COMMENTARY_LINES[cat], ("COMM", cat))
 
     # ---- corner LEARNING: place an overtake on track ('into Turn 6' / a named
     # corner / the sector). The shared memory has no corner data, so the overlay

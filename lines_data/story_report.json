@@ -1,0 +1,55 @@
+{
+  "comeback": [
+    "{nm} started P{grid}, dropped as low as P{worst}, but he's recovered superbly to P{now}.",
+    "Rough start for {nm} — down to P{worst} from P{grid} — but he's fought all the way back to P{now}.",
+    "This has been two races in one for {nm}, {comm} — buried down in P{worst} early on, and now look: P{now}. That's proper racing.",
+    "If you've just joined us, you've missed a film — {nm} from P{grid} down to P{worst}, and now carved back up to P{now}. All heart, that drive.",
+    "The comeback of the afternoon belongs to {nm} — a nightmare spell down in P{worst}, answered with pure pace. P{now} now and still hungry.",
+    "{nm}'s race fell apart and he's rebuilt it lap by lap — P{grid} on the grid, P{worst} at the low point, P{now} as we speak. Take a bow.",
+    "Whatever went wrong for {nm} early on, the response has been magnificent — from P{worst} at the worst of it back to P{now}."
+  ],
+  "climber": [
+    "{nm} started P{grid} and has climbed to P{now} — a brilliant drive.",
+    "{nm} has been on a charge — up from P{grid} to P{now}.",
+    "Quietly, methodically, {nm} has picked his way from P{grid} to P{now}. Nothing flashy — just relentless.",
+    "The timing screens tell the story on {nm}: P{grid} at the start, P{now} now, and every one of those positions earned on track.",
+    "{nm} is having the afternoon he'll want to remember — P{grid} to P{now}, and he's driving like there's more coming.",
+    "Keep an eye on {nm}, {comm} — started P{grid}, up to P{now} already, and the pace hasn't dropped a tenth.",
+    "One of the drives of the day so far — {nm} from P{grid} on the grid up into P{now}."
+  ],
+  "faller_clawing": [
+    "{nm} started P{grid}, dropped as low as P{worst}, and has recovered to P{now} — still down on the start, but fighting back.",
+    "Tough race for {nm} — P{grid} to as low as P{worst} — but he's climbing again, up to P{now} now. Hopefully more to come.",
+    "The damage was done early for {nm} — down to P{worst} at one point — but credit where it's due, he's dragged it back to P{now}.",
+    "It's been salvage work for {nm} since that drop to P{worst} — P{now} at the moment, and every place from here is a small victory.",
+    "{nm} won't call this a good day — P{grid} at the start, P{worst} at the bottom of it — but the recovery to P{now} shows the fight's still there."
+  ],
+  "peaked_slipped": [
+    "{nm} started P{grid}, ran as high as P{best}, but has slipped back to P{now} — a tough watch.",
+    "The high point for {nm} was P{best} — since then it's gone quiet, and he's drifted back to P{now}.",
+    "{nm} will be frustrated with this one — he had it up at P{best} at one stage, and it's slipped away to P{now}.",
+    "Promising early, painful late for {nm} — as high as P{best}, now back in P{now}. Somewhere in the middle of that is a story we'll hear after the flag.",
+    "{nm} touched P{best} and couldn't hold it — P{now} now, and the body language of that car says the grip went with the positions."
+  ],
+  "faller": [
+    "{nm} started P{grid} but has slid back to P{now} — not the race he'd have wanted.",
+    "It's gone the wrong way for {nm} — from P{grid} down to P{now}.",
+    "No headlines for {nm} today, and that's the problem — P{grid} at the start has quietly become P{now}.",
+    "{nm} has been going backwards almost from the green flag — P{grid} to P{now}, and no obvious answer out there.",
+    "One to forget so far for {nm} — started P{grid}, running P{now}, and the cars around him keep getting away."
+  ],
+  "scare_held": [
+    "{nm} started P{grid}, had a scare down to P{worst}, but fought back to hold P{now}.",
+    "A wobble mid-race for {nm} — briefly down in P{worst} — but he's steadied it and holds P{now}, right about where he started.",
+    "{nm}'s kept his head today — one bad moment dropped him to P{worst}, and he's calmly rebuilt to P{now}. That's experience talking.",
+    "There was a spell where {nm}'s race hung by a thread — P{worst} at the low point — but it's back under control at P{now}."
+  ],
+  "steady": [
+    "{nm} has run a steady race, holding around P{now} since starting P{grid}.",
+    "Quietly solid from {nm} — P{grid} at the start, P{now} now.",
+    "{nm}'s been the invisible man today, {comm} — and in racing that's often a compliment. P{grid} to P{now}, barely a moment of drama.",
+    "Nothing spectacular, nothing wrong — {nm} has parked it in P{now} and dared the others to come and get him.",
+    "{nm}'s race has been all about discipline — same lap, same lines, P{now} on the board. The mistakes are happening around him, not to him.",
+    "Metronome stuff from {nm} — started P{grid}, sitting P{now}, and every lap within a tenth or two. That consistency wins championships."
+  ]
+}

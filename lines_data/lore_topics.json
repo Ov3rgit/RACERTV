@@ -1,0 +1,212 @@
+{
+  "pundit": {
+    "track_test": {
+      "track": true,
+      "q": [
+        "{pundit}, you've won Le Mans, battled the endurance greats — what does a place like {trk} ask of a driver?",
+        "Be honest with me, {pundit} — how would a circuit like {trk} test YOU, back in your prototype days?",
+        "Take us back, {pundit} — you raced the endurance era's very best. What's the trick to {trk}?",
+        "{pundit}, from one champion to a room full of hopefuls — what's the secret this circuit demands?",
+        "You've felt places like {trk} at the limit in a prototype, {pundit}. What separates the quick from the rest here?"
+      ],
+      "a": [
+        "Honesty, {comm}. {trk} finds out anyone who lies to themselves about where the grip is. You have to drive the lap you've actually got, not the one you want.",
+        "Commitment in the fast stuff and patience in the slow stuff — and the discipline to never mix the two up. That's {trk} in one sentence.",
+        "It asks you the same question every lap, mate — how much do you trust the car? The drivers answering 'completely' are the ones at the top of the screen.",
+        "Rhythm. You can't bully {trk}, I tried for years. The moment you start forcing it, the lap time goes backwards.",
+        "A place like this tests the space between your ears more than your hands. Every mistake here breeds the next one — the trick is stopping the bleeding after one error, not three.",
+        "It would have tested me plenty, mate — circuits like {trk} punish greed. Take ninety-five percent every lap and the hundred-percent lap comes to you at the end."
+      ]
+    },
+    "where_won": {
+      "track": true,
+      "q": [
+        "You raced prototypes against Kristensen and McNish, {pundit}. Where's the lap really won at {trk}?",
+        "Drawing on all those Le Mans years, {pundit} — where would you be finding the time around {trk}?",
+        "{pundit}, put your engineer's hat on — where's the time hiding at {trk}?",
+        "For the viewers with the timing screens open, {pundit} — which part of {trk} decides the lap?",
+        "One sector to get right at {trk}, {pundit} — which one and why?"
+      ],
+      "a": [
+        "The slow corners, {comm}, always the slow corners. Everyone's flat where it's easy to be flat — the lap lives where the car is hardest to place.",
+        "Corner exit onto the longest straight — that's the only overtaking currency there is. Sacrifice the entry, get the exit, bank the time all the way down the straight.",
+        "Wherever the track drops away and your brain says lift — that's where it's won. The ones who keep their foot in through there gain for free.",
+        "Braking, mate. Not the latest braker — the one who's off the brakes EARLIEST and back to throttle first. It looks slower and it's quicker.",
+        "The corner nobody talks about. Every circuit has a glamour corner and a money corner, and they're never the same one.",
+        "It's won in the head on lap one and in the tyres on the last lap. In between you're just trying not to give it away."
+      ]
+    },
+    "compare_greats": {
+      "q": [
+        "{pundit}, with a Le Mans crown to your name — how does this lot compare to the WEC legends you raced?",
+        "You shared a track with Kristensen, Pirro, McNish, {pundit}. Anyone out there today remind you of them?",
+        "Honest answer, {pundit} — would the greats you raced against be beating this field?",
+        "Measure this grid against your era, {pundit} — better, worse, or just different?",
+        "{pundit}, you knew what the very best looked like from six inches behind them. See anything like it out there today?"
+      ],
+      "a": [
+        "There are flashes, {comm}. What made Kristensen special wasn't speed — everyone was fast — it was that he never had a bad Tuesday. Consistency was the superpower. A couple out there are learning that.",
+        "Different animals, mate. We managed cars for hours; these drivers sprint from lights to flag. But class is class in any era — you can see it in how calm the quick ones look.",
+        "The greats would be at the front here too, no question — but they'd have to work for it harder than people think. The overall level today is frighteningly high.",
+        "What I look for is what McNish had — total aggression under total control. Sounds like a contradiction. When you see a driver make it look calm AND fast, that's the lineage.",
+        "Some of these would have survived our era, and I mean that as a real compliment — ours ate people alive. The ones who take care of the car while pushing? They'd have thrived.",
+        "You never compare eras straight up, {comm}, you compare gaps. How far ahead of your teammate are you in the same car? The greats were always half a second clear. Watch for that out there."
+      ]
+    },
+    "endurance_brain": {
+      "q": [
+        "{pundit}, endurance racing is a different discipline — what did those Le Mans years teach you that sprint racing never could?",
+        "Twenty-four hours flat out, {pundit} — what does that actually do to a driver's mind?",
+        "What's the one endurance-racing habit you wish every sprint driver out there had, {pundit}?",
+        "You did triple stints at Le Mans in the dark, {pundit}. What did that teach you about yourself?",
+        "{pundit} — sprint drivers chase the perfect lap, endurance drivers chase what, exactly?"
+      ],
+      "a": [
+        "Patience as a weapon, {comm}. In endurance racing the race comes TO you if you're still there at the end. Half the battles you see out there today don't need fighting.",
+        "It teaches you that the car is a teammate, not a tool. Abuse it in hour two and it abandons you in hour twenty-two. The drivers out there being kind to their tyres learned that lesson somewhere.",
+        "Lift before the kerb, mate. One habit. The kerb takes a hundredth and pays you back with a broken damper at the worst possible moment.",
+        "The dark stints teach you the difference between fear and information. Your body screams all night — you learn to hear only the messages that matter. That skill wins races in any discipline.",
+        "The perfect AVERAGE, {comm}. Anyone can do one great lap. Doing a hundred good ones in a row, that's the endurance art — and honestly, that's what wins sprint races too.",
+        "That speed is a decision, not a talent. At three in the morning at Le Mans nobody's talented — the ones still quick are the ones who DECIDED to be. You can see who's decided out there today."
+      ]
+    },
+    "unseen": {
+      "q": [
+        "{pundit}, you did this in anger for twenty years — what's the one thing the onboard cameras never show you?",
+        "For everyone watching at home, {pundit} — what does it actually FEEL like out there that the TV can't convey?",
+        "The broadcast makes it look smooth, {pundit}. What's the reality inside the cockpit?",
+        "{pundit}, what would surprise people most if they could sit in that car for a single lap?",
+        "Tell the truth, {pundit} — how violent is it really, out there?"
+      ],
+      "a": [
+        "The violence, {comm}. TV smooths everything. A 'gentle' lap out there is your head slamming the headrest, hands fighting the wheel every metre, and a fire behind you making noise you feel in your teeth.",
+        "How BUSY it is. On television a straight looks like a rest. In the car a straight is where you're checking dashes, managing switches, planning the next three corners — the rest never comes.",
+        "The heat, mate. Nobody talks about the heat. An hour in that cockpit and you've lost two kilos. The last ten laps aren't a driving contest, they're a fitness one.",
+        "How much the car moves. From the outside it looks on rails. From the seat it's alive under you every single corner — the skill isn't stopping the movement, it's letting it happen without panicking.",
+        "The margins. From the couch a metre looks like nothing. At three hundred an hour a metre is your whole life. What these drivers do casually would terrify a normal person into next week.",
+        "The silence in your head when it's going well. Sounds odd — but the great laps are quiet, everything slows down. The moment the lap gets loud in your mind, you're already slow."
+      ]
+    },
+    "pit_wall": {
+      "q": [
+        "{pundit}, you've been on both ends of the radio — what makes a great race engineer, from the driver's seat?",
+        "When you were mid-battle at Le Mans, {pundit}, what did you actually WANT to hear from the pit wall?",
+        "{pundit} — how much of a driver's race is really decided by the voice in their ear?",
+        "Best thing an engineer ever said to you in a race, {pundit}?",
+        "And the radio, {pundit} — friend or distraction when you're at the limit?"
+      ],
+      "a": [
+        "Economy, {comm}. A great engineer gives you the one number that changes what you do next, and nothing else. The bad ones narrate. The good ones inform.",
+        "Silence, mostly! When it mattered — one calm sentence. If the voice in your ear is calm, you're calm. Engineers set the driver's heart rate, they don't just set the strategy.",
+        "More than the viewers ever know. A good engineer places you in gaps you can't see, wins you positions in the pit window. I'd say two or three positions a race live and die on that radio.",
+        "'He's struggling more than you are.' Middle of the night, Le Mans, me hanging on by a thread — and that one line put me back in the fight. The best radio calls are psychology, not data.",
+        "A friend with strict visiting hours, mate. In the braking zone, nobody speaks — that's sacred. On the straight, tell me everything. Engineers who understand that timing are worth gold.",
+        "Everything, honestly. Drivers get the trophies but the race is a duet. When it clicks between a driver and their engineer you can hear it — the whole car sounds more decisive."
+      ]
+    }
+  },
+  "comm": {
+    "remind_greats": {
+      "q": [
+        "You raced Schumacher and Häkkinen for a title, {comm}. Does this lot have what those greats had?",
+        "You raced wheel to wheel with Schumacher, {comm}. Does anything on this grid remind you of him?",
+        "Straight question, {comm} — anyone out there today you'd have worried about in your championship year?",
+        "You've seen greatness from a car length away, {comm}. Spot any of it on this grid?",
+        "{comm}, does anyone out there have that thing Mika had — whatever it was?"
+      ],
+      "a": [
+        "What Michael had, {pundit}, was relentlessness — every lap of every session attacked like it was for the title. And yes, I see one or two out there driving in-laps like they matter. That's the tell.",
+        "Mika's gift was silence under pressure — you'd throw everything at him and get nothing back, no wobble, no mistake. Watch the leaders here under pressure; the ones who go QUIETER are the real ones.",
+        "One or two would have worried me, honestly. Not for their speed — everyone's fast — for their decision-making. The greats made the right call at two hundred miles an hour, every time.",
+        "Greatness looks boring from the outside, mate — that's the secret. No drama, no hero saves, just lap after lap exactly where they intend. There's some suspiciously boring driving at the front today, and I mean that as high praise.",
+        "The thing Mika had was that he only showed you his real pace when it counted. Sandbagger of the century! So ask me again in the final five laps — that's when you find out who's got it.",
+        "They're missing the fear, {pundit}, and I envy them for it. We drove circuits that punished mistakes with hospitals. But raw craft? Some of these would have lived with us, no question."
+      ]
+    },
+    "title_fight": {
+      "q": [
+        "{comm}, you won a world championship — what does a title fight actually do to a driver, week after week?",
+        "Take us inside it, {comm} — the pressure of a championship run. What's it really like?",
+        "{comm}, the season your title went to the wire — how did you sleep?",
+        "What's the moment you knew you were going to be champion, {comm}?",
+        "Championship pressure, {comm} — does it make you faster or slower?"
+      ],
+      "a": [
+        "It shrinks your whole life to a points table, {pundit}. You brush your teeth thinking about the gap. The skill isn't handling the car — it's handling the maths without letting it drive for you.",
+        "Everyone imagines it's fear of losing. It isn't — it's the exhaustion of never being allowed an ordinary day. Champions aren't the fastest, they're the ones with the deepest reserves in November.",
+        "Sleep? Ha! I didn't sleep from summer onwards. You lie there running scenarios — what if it rains, what if I DNF. The title's won at three in the morning as much as on Sunday afternoon.",
+        "There wasn't one moment — that's the honest answer. There was a Tuesday, mid-season, when I stopped checking the standings. The moment you stop counting is the moment you're actually quick enough to win it.",
+        "Faster, if you let it. Pressure is just fuel with bad PR. The ones it slows down were never going to be champions — the ones it sharpens, you can see it from the grandstands.",
+        "It changes how you race everyone else, {pundit}. Suddenly there are drivers you CANNOT crash with and points you cannot risk. Racing with a calculator in your head — that's the real test."
+      ]
+    },
+    "rally_leap": {
+      "q": [
+        "{comm}, you won a world title and then went and threw yourself down forest roads for fun. Explain yourself.",
+        "F1 champion turned rally man, {comm} — why on earth did you do it?",
+        "{comm}, you were World Champion before you ever went rallying — bet the forests were a culture shock?",
+        "What did rallying teach a Formula One world champion, {comm}?",
+        "Circuit racing versus the stages, {comm} — which one is the truer test?"
+      ],
+      "a": [
+        "Because the title answered every question except one, {pundit} — could I drive, or could I just drive THAT? The forests don't care about your CV. Best decision I ever made, and the most humbling.",
+        "I wanted to be a beginner again, honestly. When you've reached the top of one mountain you either defend the view or find a taller mountain. Gravel at a hundred and forty through trees? Taller mountain.",
+        "Culture shock doesn't cover it! In F1 I knew every bump for a decade. In rally the road is a stranger doing its best to kill you, and your only friend is a voice reading pace notes. I loved it beyond reason.",
+        "That grip is a rumour, mate! Circuit racing teaches you to use grip; rallying teaches you to live happily without it. Every save you see me admire on this broadcast — that's the rally education talking.",
+        "They test different organs, {pundit}. Circuits test the head — precision, repetition. The stages test the heart — commitment into the unseen. The complete driver needs both, and I got to fail at both spectacularly.",
+        "The stages taught me that the car is never truly under control — you're just negotiating. Once you accept that, funnily enough, you're faster everywhere. Even on a billiard-table circuit like this."
+      ]
+    },
+    "old_vs_new": {
+      "q": [
+        "Come on, {comm} — one lap in your old Grand Prix car versus the modern stuff. Where's your money?",
+        "Your championship car against today's machinery, {comm} — honestly, which is faster where it matters?",
+        "{comm}, would today's drivers cope with what you drove, and would you cope with theirs?",
+        "Miss the old cars, {comm}, or is that just nostalgia doing its work?",
+        "Modern racing versus your era, {comm} — better, or just different?"
+      ],
+      "a": [
+        "The modern car takes the lap time, no argument — physics moved on. But put both on a damp track with worn tyres and I'll back the old warrior, because MY car demanded a driver and today's cars merely request one.",
+        "Today's car is faster everywhere, {pundit}, and I'd still choose mine. Lap time isn't the only measurement — my car frightened me every single day, and I miss being frightened.",
+        "They'd cope with ours after a week of respect and one big scare — talent transfers. Me in theirs? Give me a month. The speed I'd manage; it's trusting the grip I'd have to learn. My instincts say 'lift' where these cars say 'flat'.",
+        "Of course it's nostalgia — and nostalgia is underrated! But here's what's real: our cars showed you the driver working. If some of that visible struggle came back, nobody would change channel, put it that way.",
+        "The racing today is closer and the driving is better — I'll say it plainly. What we had was consequence, and consequence made legends. Different currencies, {pundit}. Both valuable.",
+        "My money's on the modern car and my heart's in the old one — and if those ever agree with each other, I'll retire from this booth on the spot."
+      ]
+    },
+    "track_take": {
+      "track": true,
+      "q": [
+        "{comm}, F1 champion turned rally man — what does {trk} take, in your book?",
+        "From a world title to the rally stages, {comm} — how would you be tackling {trk}?",
+        "Your read on this circuit, {comm} — what's {trk} really asking of them today?",
+        "{comm}, you've raced everything with wheels — where does a place like {trk} rank as a test?",
+        "One piece of advice for every driver out there at {trk} right now, {comm} — go."
+      ],
+      "a": [
+        "Precision first, bravery second — most drivers get that ordering wrong, {pundit}. {trk} pays you for being boringly accurate for ninety percent of the lap so you can be brave where it counts.",
+        "I'd be treating it like a rally stage, honestly — learn where the track FORGIVES you before spending anything where it doesn't. Every circuit has a corner that lets you off. Find it, use it, bank the rest.",
+        "It's asking for honesty about the brakes. Watch the good ones — the braking is where {trk} sorts the field, and the trick is doing it straight, calm and slightly early. Drama into the corner is time out of it.",
+        "Higher than people think. The famous circuits get the poetry, but a lap of {trk} done properly requires everything in the toolbox. There's nowhere to hide out there today.",
+        "Stop steering so much! That's my advice for half this field. The fewer inputs you make at a place like this, the faster it goes. The steering wheel is for requests, not arguments.",
+        "Respect it for three laps, then attack it forever. The drivers who go the other way round — brave early, careful late — are the ones we'll be talking about for the wrong reasons."
+      ]
+    },
+    "booth_life": {
+      "q": [
+        "{comm}, hand on heart — is calling the race harder or easier than driving it?",
+        "Do you miss it terribly when you watch them go wheel to wheel, {comm}?",
+        "{comm}, what do you see from up here that you never saw from the cockpit?",
+        "Be honest, {comm} — do your hands still move when they go through the fast stuff?",
+        "If they gave you one race back, {comm} — which one and why?"
+      ],
+      "a": [
+        "Easier on the body, harder on the soul, {pundit}. In the car you can DO something about what's going wrong. Up here I can only describe it — beautifully, of course.",
+        "Every single lap, mate. It fades to a hum most days — then someone pulls a move like we saw earlier and the hum becomes a roar. You never stop being a racing driver. You just stop being paid for it.",
+        "The whole story at once — that's the gift of the booth. In the car your race is three metres of track and one mirror. Up here I watch twenty stories collide in real time. Honestly, it's a better view. Don't tell the drivers.",
+        "They're moving right now, {pundit}! Left hand's been dancing since the green flag. My wife says I drive the whole race from the sofa on Sundays too. No apologies.",
+        "The one I lost, obviously — champions never replay the wins. There's a race from my title year I've re-driven ten thousand times in my head, and I win it in all of them. That's retirement for you."
+      ]
+    }
+  }
+}
