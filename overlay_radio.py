@@ -105,12 +105,18 @@ class RadioMixin:
 
         who = self._dname(focused) if focused is not None else ""
 
-        # OPENING LAP: mute rival driver radio so the start is clean — the
-        # commentator sets the scene ("lights out, P1 defending into turn 1") and
-        # the engineer reacts to the launch. Rivals chime in from lap two.
-        lap1 = (s.session_type == 2 and focused is not None
-                and focused.completed_laps < 1)
-        radio_open = self._racing and not lap1
+        # Rival radio stays quiet only until the LIGHTS-OUT call has aired, so
+        # the start itself is clean. It used to be muted for the whole of lap
+        # one, which silenced them through turn one — the moment most worth
+        # hearing about. The booth latches _comm_flags['start'] when that call
+        # goes out; a few seconds past the green covers the case where the
+        # booth is disabled entirely.
+        # getattr: _comm_flags is created by update_commentary, which runs
+        # AFTER update_radio in the tick, so it does not exist on the very
+        # first tick of a session (the same ordering trap _green_t hit).
+        _started = (getattr(self, "_comm_flags", {}).get("start")
+                    or now - getattr(self, "_green_t", 1e18) > 6.0)
+        radio_open = self._racing and (s.session_type != 2 or _started)
 
         # update each driver's momentum (decays; +gain / -loss) BEFORE building
         # lines, so _radio_line can flavour them frustrated/pumped
@@ -734,10 +740,14 @@ class RadioMixin:
                            "ENGINEER", "worried"))
             return
 
-        # only the START call until the race is green AND the opening lap is done
-        # — no "he's catching you" on the grid or during the lap-one scramble
-        if not self._racing or focused.completed_laps < 1:
+        # Silent until the race is GREEN — no "he's catching you" on the grid.
+        # After that he is free the moment his own opening line has aired: the
+        # old rule held him until lap 2, which left the most eventful minute
+        # of the race (the lap-one scramble) with no engineer at all.
+        if not self._racing:
             return
+        if not self._eng_flags.get("start") and focused.completed_laps < 1:
+            return          # opening line hasn't gone out yet — let it lead
         if (self.fastest.get("slot") == vslot and self.fastest.get("time")
                 and not self._eng_flags.get("fastest")):
             self._eng_flags["fastest"] = True

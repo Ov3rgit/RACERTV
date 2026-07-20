@@ -141,7 +141,10 @@ NATIVE_VOICE_LANG = {}
 # strongly-accented voices on purpose: a clean RP-English read is the easiest
 # to clock as TTS, whereas natural regional accents carry prosody that masks it
 COMMENTATOR_VOICE = "en-GB-RyanNeural"      # lead play-by-play (British)
-PUNDIT_VOICE = "en-AU-WilliamNeural"        # colour/analysis man (Australian)
+PUNDIT_VOICE = "en-AU-WilliamMultilingualNeural"   # colour man (Australian)
+# NB verify any voice change against edge_tts.list_voices(). The old
+# "en-AU-WilliamNeural" does NOT exist, so every pundit line silently
+# fell back to offline SAPI — which is why Brett sounded robotic.
 CLEAN_PERSONAS = ("COMMENTATOR", "PUNDIT")
 
 # how long a queued line stays AIRABLE (seconds). Play-by-play goes stale fast —
@@ -816,14 +819,14 @@ class Tts:
         else:
             # team radio: the band-pass FX drops the level, so peak-normalise the
             # VOICE first then drive it harder — otherwise it's too quiet to hear
-            if persona == "ENGINEER":
-                # NO band-pass at all: even the gentle intercom chain was
-                # flattening the neural prosody ("too robotic"). The engineer
-                # is now the CLEAN voice — only the radio-click bookends below
-                # say "intercom"; the voice itself is untouched.
-                vs = list(samples)
-            else:
-                vs = _radioize(samples, srate)
+            # NO band-pass for ANY radio voice. This fix was applied to the
+            # engineer and demonstrably solved his "too robotic" problem — the
+            # intercom chain flattens neural prosody and, worse, takes the
+            # ACCENT with it, which is the whole point of the foreign-voice
+            # cast. The drivers were left on the old chain and so kept
+            # sounding synthetic. The radio-click bookends below still carry
+            # the intercom character; the voice itself is untouched.
+            vs = list(samples)
             vpk = max((abs(x) for x in vs), default=0.0) or 1.0
             vs = [x * (0.95 / vpk) for x in vs]
             # softer radio beep: the click sat much louder than the voice and was
@@ -1083,13 +1086,24 @@ class Tts:
         that's mid-render or already queued (rendered under the old epoch), so the
         incident truly CUTS IN instead of waiting for that audio to finish first.
         SND_PURGE stops the wav that's actually playing mid-file. Stays enabled.
-        Queued ENGINEER lines survive the cut (see _purge)."""
+        Queued ENGINEER lines survive the cut (see _purge).
+
+        ONE EXCEPTION: if YOUR ENGINEER is mid-sentence, his audio is left
+        alone. _purge already spared his QUEUED lines, but SND_PURGE was still
+        chopping the one actually playing, so a booth call landing at the wrong
+        moment truncated the most useful voice in the game — and left his card
+        on screen next to half a sentence. The booth line simply queues behind
+        him; engineer jobs already outrank booth colour in the play queue, so
+        nothing is lost by waiting the second or two."""
+        speaking_eng = (self._speaking and self._speaking_persona == "ENGINEER")
         self._purge(keep_engineer=True)
-        if winsound:
+        if winsound and not speaking_eng:
             try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
             except Exception:
                 pass
+        elif speaking_eng:
+            _log("interrupt HELD — engineer mid-sentence, not cutting him")
 
     def close(self):
         try:

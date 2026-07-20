@@ -139,3 +139,28 @@ _tts._cue_drop(("w.wav", _tts._Cue(None, lambda: _log.append("p")),
 assert _log == ["g", "p"], _log
 print("  cue found at the right index in both payload shapes: OK")
 print("\nALL DRAW + CUE CHECKS PASSED")
+
+
+print("\n===== VOICE NAMES ARE REAL =====")
+# An invalid edge-tts voice name doesn't error loudly — the render fails and
+# the engine silently falls back to offline SAPI, which sounds robotic. That
+# is exactly how the PUNDIT ran on "en-AU-WilliamNeural" (a name that does
+# not exist) without anything looking wrong. Names are checked offline here
+# against a known-good pattern; run tools/checkvoices.py for a live check.
+import re as _re                                          # noqa: E402
+_VOICE_RE = _re.compile(r"^[a-z]{2}-[A-Z]{2}-[A-Za-z]+Neural$")
+_bad = [v for v in (_tts.NEURAL_VOICES
+                    + [_tts.ENGINEER_VOICE, _tts.COMMENTATOR_VOICE,
+                       _tts.PUNDIT_VOICE])
+        if not _VOICE_RE.match(v)]
+assert not _bad, f"malformed voice names: {_bad}"
+print(f"  {len(_tts.NEURAL_VOICES)} rival + 3 named voices, all well-formed: OK")
+
+# and the radio path must not band-pass the voice — it eats the accents
+import inspect as _inspect                                # noqa: E402
+_src = _inspect.getsource(_tts.Tts._render)
+assert "_radioize(samples" not in _src, (
+    "the band-pass is back on the radio voices — it flattens neural prosody "
+    "and strips the accents the foreign-voice cast exists for")
+print("  no band-pass on radio voices (accents preserved): OK")
+print("\nALL DRAW + CUE + VOICE CHECKS PASSED")

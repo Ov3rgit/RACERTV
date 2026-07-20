@@ -934,8 +934,12 @@ class BoothMixin:
                 sp = self.tts.speaking_persona()
                 if signature:
                     self.tts.interrupt()                  # land it on the moment
-                elif sp is not None and sp not in ("COMMENTATOR", "PUNDIT"):
-                    self.tts.interrupt()                  # cut team radio
+                elif sp is not None and sp not in ("COMMENTATOR", "PUNDIT",
+                                                   "ENGINEER"):
+                    # cut a RIVAL's radio for a live call — but never your own
+                    # engineer. He is talking to you and is the one voice
+                    # actually worth protecting; the booth waits its turn.
+                    self.tts.interrupt()
                 elif (sp in ("COMMENTATOR", "PUNDIT")
                       and now < getattr(self, "_filler_until", 0.0)):
                     # a LIVE moment (overtake / lead change / spin) trumps the

@@ -688,13 +688,21 @@ class DrawMixin:
         self.text(tx, y + 32, txt[:34], fill=TEXT, font=self.f_row, anchor="w")
 
         # --- SEGMENTED progress strip (rev-bar feel), amber then green
-        segs, sw_, gap_ = 14, 16, 3
+        # Segments are sized to the space AVAILABLE, not fixed at 19px each.
+        # They used to be fixed, so once the chip was docked under the
+        # (narrower) relative tower only ~10 of the 14 fitted and the rest were
+        # clipped by the break below — the bar could never fill past ~70%
+        # however complete the objective was, which is why it looked like it
+        # wasn't tracking.
+        segs, gap_ = 14, 3
         bx = tx
+        bx_end = x + w - 14
+        sw_ = max(4, int((bx_end - bx - gap_ * (segs - 1)) / segs))
         by, bh = y + h - 12, 5
         lit = int(round((prog or 0.0) * segs))
         for i in range(segs):
             sx = bx + i * (sw_ + gap_)
-            if sx + sw_ > x + w - 14:
+            if sx + sw_ > bx_end + 1:
                 break
             if i < lit:
                 c2 = (GREEN if prog and prog >= 0.85
