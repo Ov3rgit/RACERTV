@@ -75,12 +75,22 @@ is skipped by the broadcast-logo loader.
 
 | Path | What it is |
 |---|---|
-| `r3e_overlay.py` | The overlay engine (window, graphics, events, commentary direction) |
+| `r3e_overlay.py` | The engine: session/telemetry state, the tick loop, and the `Overlay` class the mixins compose into |
+| `overlay_booth.py` | `BoothMixin` — commentary direction: what the booth says and when, crosstalk, lore, race-story recaps, the finish |
+| `overlay_radio.py` | `RadioMixin` — the race engineer (fuel, tyres, damage, limits, sector coaching) and rival driver radio |
+| `overlay_draw.py` | `DrawMixin` — every drawn panel: tower, relative, sectors, flags, map, podium, settings, captions |
+| `overlay_common.py` | Theme colours, tuning tables, small pure helpers. Imports nothing of the others (keeps the split acyclic) |
+| `overlay_panel.py` | Click-through always-on-top window plumbing (tk + win32) |
 | `tts.py` | Voice engine: edge-tts neural voices + radio FX, SAPI fallback |
 | `lines.py` + `lines_data/` | All dialogue: booth commentary, driver personas, track lore |
 | `r3e_data.py` | RaceRoom shared-memory reader (matches Sector3's spec) |
-| `avatars.py` | Driver avatar generation |
+| `avatars.py` | Radio-card icons: user PNG art if present, built-in vectors otherwise |
 | `tests/` | Headless test suite (`python tests/<name>.py` from `tests/`) |
+
+The mixins are a file-level split only: they take the same `self` and call each
+other freely, so behaviour is identical to the single-class version. Adding a
+method to two mixins would let Python silently shadow one by MRO —
+`tests/structuretest.py` guards against that and pins the full method list.
 
 ## License
 

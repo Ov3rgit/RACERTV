@@ -116,3 +116,20 @@ VK_D = 0x44
 VK_C = 0x43
 VK_R = 0x52
 VK_LBUTTON = 0x01
+
+
+def _safe_format(tmpl, kw):
+    """str.format that never raises on a missing/extra key (blanks missing)."""
+    class _D(dict):
+        def __missing__(self, k):
+            return ""
+    try:
+        return tmpl.format_map(_D(kw))
+    except Exception:
+        return tmpl
+
+
+def _BUBBLE_H(n_lines):
+    """Radio bubble height for n message lines (shared by draw_radio + _draw_bubble
+    so the stacking maths and the drawn box always agree)."""
+    return 40 + 18 * n_lines

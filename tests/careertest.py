@@ -7,7 +7,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.pop("RACERTV_EPHEMERAL", None)      # this test drives real persistence
-from r3e_overlay import Overlay, _safe_format
+from r3e_overlay import Overlay
+from overlay_common import _safe_format
 from lines import COMMENTARY_LINES
 
 TMP = tempfile.mkdtemp()
