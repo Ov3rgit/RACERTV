@@ -108,3 +108,34 @@ check("draw_objective (result chip)", lambda: o.draw_objective(None))
 assert not fails, "draw stages raised:\n  " + "\n  ".join(fails)
 print("\nALL DRAW CHECKS PASSED")
 _root.destroy()
+
+
+print("\n===== TTS CUE CONTRACT (card/audio sync) =====")
+# The radio card's fate is decided by the cue: on_play when audio starts,
+# on_drop the instant it can't. Exactly one must ever fire — if both could,
+# a card would either double-air or never air.
+import tts as _tts                                       # noqa: E402
+
+_log = []
+_c = _tts._Cue(lambda t, p: _log.append("play"), lambda: _log.append("drop"))
+_c.play("x", "ENGINEER"); _c.play("x", "ENGINEER"); _c.drop()
+assert _log == ["play"], f"play path fired {_log}"
+_log = []
+_c = _tts._Cue(lambda t, p: _log.append("play"), lambda: _log.append("drop"))
+_c.drop(); _c.drop(); _c.play("x", "ENGINEER")
+assert _log == ["drop"], f"drop path fired {_log}"
+print("  exactly one of play/drop, exactly once: OK")
+
+_tts._Cue(None, lambda: 1 / 0).drop()      # must not escape to the audio thread
+print("  a raising drop callback is contained: OK")
+
+# _purge tells gen jobs from play jobs by LENGTH, so the cue had to fit in the
+# existing on_play slot rather than widen either tuple. Pin that.
+_log = []
+_tts._cue_drop(("t", "p", "v", 0, _tts._Cue(None, lambda: _log.append("g")),
+                0, None, None, 1), True)
+_tts._cue_drop(("w.wav", _tts._Cue(None, lambda: _log.append("p")),
+                "t", "p", 0, None, None, 1), False)
+assert _log == ["g", "p"], _log
+print("  cue found at the right index in both payload shapes: OK")
+print("\nALL DRAW + CUE CHECKS PASSED")

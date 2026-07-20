@@ -436,24 +436,33 @@ class RadioMixin:
                     _ttl = self.RADIO_HOLD + 2.0
                 st = {"aired": False}
 
-                def _onp(_t, _p, _m=msg, _st=st):
-                    # runs on the TTS play thread at audio start
+                def _air(_m=msg, _st=st):
                     with self._bubble_lock:
                         if _st["aired"]:
                             return
                         _st["aired"] = True
                     self._air_bubble(_m)
+
+                def _onp(_t, _p):
+                    _air()                     # audio STARTED — card lands with it
+
+                def _ondrop():
+                    # the line will never sound (queue full, TTL expired,
+                    # interrupted, render failed). Show the card NOW rather
+                    # than leaving the driver staring at nothing while a
+                    # timeout runs down.
+                    _air()
                 self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
-                               on_play=_onp)
-                if not st["aired"]:      # (FakeTts fires on_play synchronously)
-                    # SHORT fallback. This deadline is how long a card waits
-                    # for its audio before airing silently. It was derived
-                    # from the TTL, and bypass lines now have NO ttl — so
-                    # those cards sat invisible for 11s, which reads as "the
-                    # cards don't show up at all". 3s covers a normal render;
-                    # beyond that the card is more useful on screen than
-                    # perfectly synced.
-                    self._pending_bubbles.append((msg, now + 3.0, st))
+                               on_play=_onp, on_drop=_ondrop)
+                if not st["aired"]:
+                    # SAFETY NET ONLY. The card's fate is now decided by the
+                    # cue — on_play when the audio starts, on_drop the moment
+                    # it can't. This timer only covers a path that somehow
+                    # reports neither, so it is long and should never fire.
+                    # (The old 3s timer was the primary mechanism, which is
+                    # why cards led their audio: it guessed instead of being
+                    # told.)
+                    self._pending_bubbles.append((msg, now + 20.0, st))
                 spoke = "spoke"
             else:
                 self._air_bubble(msg)    # no audio coming — show it right away

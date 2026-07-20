@@ -210,6 +210,51 @@ def _seed_hash(seed):
     return sum((seed or "").encode("utf-8", "ignore"))
 
 
+class _Cue:
+    """Carries a caller's on_play AND on_drop through the pipeline in ONE
+    payload slot.
+
+    Deliberately not two separate tuple fields: _purge() tells gen jobs from
+    play jobs by their LENGTH (9 vs 8), so widening either tuple would break
+    it in a way nothing would catch. Keeping the arity identical means the
+    queue plumbing is untouched.
+
+    Exactly one of play()/drop() ever fires — whichever happens first — so a
+    caller can rely on being told the line's fate precisely once.
+    """
+    __slots__ = ("play_cb", "drop_cb", "done")
+
+    def __init__(self, play_cb=None, drop_cb=None):
+        self.play_cb, self.drop_cb, self.done = play_cb, drop_cb, False
+
+    def play(self, text, persona):
+        if self.done:
+            return
+        self.done = True
+        if self.play_cb:
+            self.play_cb(text, persona)
+
+    def drop(self):
+        if self.done:
+            return
+        self.done = True
+        if self.drop_cb:
+            try:
+                self.drop_cb()
+            except Exception:
+                pass
+
+
+def _cue_drop(payload, is_gen):
+    """Fire the drop callback on a purged queue payload."""
+    try:
+        c = payload[4] if is_gen else payload[1]
+        if isinstance(c, _Cue):
+            c.drop()
+    except Exception:
+        pass
+
+
 # ----------------------------------------------------------------- wav helpers
 def _read_wav(path):
     with wave.open(path, "rb") as w:
@@ -407,6 +452,7 @@ class Tts:
                         kept.append((q, per, payload))
                     else:
                         _log(f"purge DROP persona={per}")
+                        _cue_drop(payload, len(payload) == 9)
             except Exception:
                 pass
         self._topics.clear()               # purged lines can't hold their topic
@@ -552,8 +598,8 @@ class Tts:
         except Exception:
             return False
         self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
-                   (dst, on_play, text, persona, self._epoch, None, None, -1),
-                   prio=-1)
+                   (dst, _Cue(on_play), text, persona, self._epoch, None,
+                    None, -1), prio=-1)
         return True
 
     # ---- voice selection ----
@@ -577,9 +623,21 @@ class Tts:
         return self.names[idx]
 
     def speak(self, text, persona="ENGINEER", seed="", intensity=0, on_play=None,
-              force=False, urgent=False, ttl=None, topic=None, exchange=False):
+              force=False, urgent=False, ttl=None, topic=None, exchange=False,
+              on_drop=None):
+        """`on_drop` fires if the line will NEVER sound (queue too busy, TTL
+        expired, interrupted, render failed). Callers that put something on
+        screen with the audio use it to react immediately rather than waiting
+        out a fixed timeout."""
+        def _dropped():
+            if on_drop:
+                try:
+                    on_drop()
+                except Exception:
+                    pass
         if not self.enabled or not text:
             _log(f"speak SKIP enabled={self.enabled} text={bool(text)}")
+            _dropped()
             return
         # keep the booth CURRENT: commentary is play-by-play, so a line that
         # can't be spoken promptly is stale (you hear "takes the lead" seconds
@@ -596,12 +654,14 @@ class Tts:
             if self._pending() >= cap:
                 _log(f"speak DROP-busy persona={persona} urgent={urgent} "
                      f"pending={self._pending()}")
+                _dropped()
                 return
         # topic dedup: only one line per topic may be pending at a time, so a
         # busy moment can't stack near-identical calls (two winner lines, two
         # "gap closing" reads) that then air back to back
         if topic and self._topics.get(topic, 0) > 0:
             _log(f"speak DROP-dupe topic={topic} :: {text[:40]}")
+            _dropped()
             return
         if ttl is None and not force:
             ttl = TTL_BOOTH if persona in CLEAN_PERSONAS else TTL_RADIO
@@ -617,7 +677,8 @@ class Tts:
         prio = -1 if exchange else (1 if persona in CLEAN_PERSONAS else 0)
         self._qput(self.gen_q, persona,
                    (text, persona, self._voice_for(persona, seed), intensity,
-                    on_play, self._epoch, deadline, topic, prio), prio=prio)
+                    _Cue(on_play, on_drop), self._epoch, deadline, topic,
+                    prio), prio=prio)
         _log(f"speak QUEUE persona={persona} i={intensity} pending={self._pending()} "
              f":: {text[:40]}")
 
@@ -650,7 +711,7 @@ class Tts:
                 self.play_q.put((_prio, _seq, job))
                 time.sleep(0.12)
                 continue
-            wav, on_play, text, persona, epoch, deadline, topic, _prio = job
+            wav, cue, text, persona, epoch, deadline, topic, _prio = job
             # stale (an interrupt happened after this was rendered, or the line
             # outlived its TTL waiting in the queue — e.g. "5 minutes remaining"
             # after the flag) or stopped — drop without playing
@@ -665,18 +726,21 @@ class Tts:
                 except Exception:
                     pass
                 self._topic_done(topic)
+                if cue:
+                    cue.drop()          # tell the caller it will never sound
                 continue
             try:
                 playable = bool(winsound) and os.path.exists(wav)
-                if on_play and playable:
+                if cue and playable:
                     # Caption/bubble fires ONLY when audio is actually about to
                     # sound. It used to fire unconditionally, one line earlier —
                     # so a line whose render had failed (no wav on disk) still
                     # put a caption on screen with nothing to hear, which reads
                     # exactly like "captions not matching the audio".
-                    on_play(text, persona)             # caption/bubble IN SYNC
-                elif on_play:
+                    cue.play(text, persona)            # caption/bubble IN SYNC
+                elif cue:
                     _log(f"play NO-WAV (caption suppressed) :: {text[:40]}")
+                    cue.drop()          # nothing to hear — say so immediately
                 if playable:
                     _log(f"play START :: {text[:30]}")
                     # SND_NODEFAULT: if the file can't be played, stay SILENT
@@ -702,7 +766,7 @@ class Tts:
                 except Exception:
                     pass
 
-    def _render(self, text, persona, voice, intensity=0, on_play=None, epoch=0,
+    def _render(self, text, persona, voice, intensity=0, cue=None, epoch=0,
                 deadline=None, topic=None, prio=1):
         # already superseded before we even started rendering — skip the (slow)
         # synthesis entirely so the queue clears fast after an interrupt
@@ -710,12 +774,16 @@ class Tts:
             if self.enabled:
                 _log(f"render DROP-old persona={persona} :: {text[:40]}")
             self._topic_done(topic)
+            if cue:
+                cue.drop()
             return
         # gone stale in the gen queue (a backlog built up) — don't waste a slow
         # network synth on a line that will be dropped at play time anyway
         if deadline and time.time() > deadline:
             _log(f"render DROP-stale persona={persona} :: {text[:40]}")
             self._topic_done(topic)
+            if cue:
+                cue.drop()
             return
         samples, srate, prebuilt = None, 24000, False
         if self.engine == "edge":
@@ -774,10 +842,12 @@ class Tts:
             except Exception:
                 pass
             self._topic_done(topic)
+            if cue:
+                cue.drop()
             return
         # blocks if behind
         self._qput(self.play_q, persona,
-                   (wav, on_play, text, persona, epoch, deadline, topic, prio),
+                   (wav, cue, text, persona, epoch, deadline, topic, prio),
                    prio=prio)
 
     # ---- neural generation ----
