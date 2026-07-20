@@ -50,6 +50,79 @@ _PNG_SRC = {}      # kind -> PIL.Image | None (miss)
 _PNG_CACHE = {}    # (kind, color, size) -> ImageTk.PhotoImage (also GC anchor)
 
 
+def helmet_variants():
+    """Paths of the user's pre-coloured helmet PNGs — `icon_helmet_*.png`
+    next to the app, natural-sorted (so _10 follows _9). Empty when none.
+    These are used AS DRAWN (no tinting); the plain `icon_helmet.png`
+    single-file form stays tint-mode, see custom_icon()."""
+    v = _PNG_SRC.get("__variants__")
+    if v is None:
+        import glob
+        import re as _re
+
+        def natkey(p):
+            m = _re.findall(r"\d+", os.path.basename(p))
+            return (int(m[-1]) if m else 0, p)
+        v = sorted(glob.glob(os.path.join(_DIR, "icon_helmet_*.png")),
+                   key=natkey)
+        _PNG_SRC["__variants__"] = v
+    return v
+
+
+def variant_color(i):
+    """The dominant SATURATED colour of helmet variant `i`, as '#rrggbb' —
+    so the card accent strip, driver name and timing tower all match the
+    helmet the user drew. Ignores near-white/near-black pixels (stripes,
+    visor, outline) which would otherwise wash the average out to grey."""
+    key = ("__vcol__", i)
+    if key in _PNG_CACHE:
+        return _PNG_CACHE[key]
+    col = None
+    try:
+        from PIL import Image
+        vs = helmet_variants()
+        img = Image.open(vs[i % len(vs)]).convert("RGBA")
+        img.thumbnail((64, 64))
+        best, bw = (0, 0, 0), -1.0
+        counts = {}
+        for r, g, b, a in img.getdata():
+            if a < 128:
+                continue
+            mx, mn = max(r, g, b), min(r, g, b)
+            sat = (mx - mn) / 255.0
+            if sat < 0.25 or mx < 60:          # grey/white/black — skip
+                continue
+            q = (r // 32 * 32, g // 32 * 32, b // 32 * 32)
+            counts[q] = counts.get(q, 0) + 1
+        for q, n in counts.items():
+            w = n * (max(q) - min(q))          # frequency x colourfulness
+            if w > bw:
+                best, bw = q, w
+        if bw > 0:
+            col = "#%02x%02x%02x" % tuple(min(255, v + 16) for v in best)
+    except Exception:
+        col = None
+    _PNG_CACHE[key] = col
+    return col
+
+
+def variant_icon(i, size):
+    """PhotoImage of helmet variant `i` at `size` (used as drawn), or None."""
+    key = ("__var__", i, int(size))
+    if key in _PNG_CACHE:
+        return _PNG_CACHE[key]
+    try:
+        from PIL import Image, ImageTk
+        vs = helmet_variants()
+        img = Image.open(vs[i % len(vs)]).convert("RGBA")
+        ph = ImageTk.PhotoImage(img.resize((int(size), int(size)),
+                                           Image.LANCZOS))
+    except Exception:
+        ph = None
+    _PNG_CACHE[key] = ph                       # ref kept or tk drops the image
+    return ph
+
+
 def custom_icon(kind, size, color=None):
     """Tinted PhotoImage of the user's icon_<kind>.png at `size`, or None if
     there's no such file / no Pillow. Cached per (kind, colour, size)."""

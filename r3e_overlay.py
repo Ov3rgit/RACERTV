@@ -562,6 +562,7 @@ class Overlay:
         self._pron = {}              # display name -> TTS pronunciation
         self._dcolor = {}            # driver name -> assigned colour (unique-ish)
         self._dcolor_n = 0           # next colour index to hand out
+        self._dvariant = {}          # driver name -> helmet PNG variant index
 
         # diagnostics (Ctrl+Shift+D toggles an on-screen HUD)
         self.debug = False
@@ -1841,7 +1842,19 @@ class Overlay:
         # well before 20 on a typical ~15-car grid)
         c = self._dcolor.get(name)
         if c is None:
-            c = DRIVER_COLORS[self._dcolor_n % len(DRIVER_COLORS)]
+            # USER HELMET ART drives the palette when present: each driver is
+            # assigned the next helmet variant (same sequential scheme), and
+            # their colour is sampled FROM that helmet — so the card accent,
+            # the name and the timing tower always match the helmet on screen
+            # instead of clashing with a fixed palette entry.
+            n = self._dcolor_n
+            vs = avatars.helmet_variants()
+            c = None
+            if vs:
+                self._dvariant[name] = n % len(vs)
+                c = avatars.variant_color(n % len(vs))
+            if c is None:                      # no art (or unreadable) — palette
+                c = DRIVER_COLORS[n % len(DRIVER_COLORS)]
             self._dcolor[name] = c
             self._dcolor_n += 1
         return c
@@ -3180,10 +3193,20 @@ class Overlay:
         av = min(h - 22, 36)
         ax = x + 11
         ay = y + (h - av) // 2
-        # user-drawn PNG icon takes priority when present (icon_helmet.png /
-        # icon_engineer.png next to the app); vector drawing is the fallback
-        ph = avatars.custom_icon("engineer" if is_eng else "helmet", av,
-                                 None if is_eng else col)
+        # user-drawn PNG icon takes priority when present. Drivers: the
+        # PRE-COLOURED variant assigned to them (icon_helmet_*.png, used as
+        # drawn); else the single tintable icon_helmet.png; else vectors.
+        ph = None
+        if not is_eng:
+            vi = self._dvariant.get(m["name"])
+            if vi is None:                     # colour not assigned yet
+                self._color_for_name(m["name"])
+                vi = self._dvariant.get(m["name"])
+            if vi is not None:
+                ph = avatars.variant_icon(vi, av)
+        if ph is None:
+            ph = avatars.custom_icon("engineer" if is_eng else "helmet", av,
+                                     None if is_eng else col)
         if ph is not None:
             self._cv_real.create_image(ax - self._ox, ay - self._oy,
                                        image=ph, anchor="nw")
