@@ -371,13 +371,13 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.commentary_on = True
         self._c_prev = False
         self._r_prev = False
-        # Minimum spacing between URGENT booth calls (overtakes, lead changes,
-        # incidents). They skip COMMENTARY_CD so reactions land promptly, but
-        # without a floor they retried every tick — 20Hz — and the queue cap
-        # discarded the overflow, making it luck rather than importance which
-        # call actually aired. A strictly more important call still pre-empts
-        # this immediately; see _emit_commentary.
-        self.COMMENTARY_URGENT_CD = 1.2
+        # How long a blocked booth call may WAIT for a free queue slot before
+        # it is abandoned (see the arbitration buffer in _emit_commentary).
+        # Short on purpose: play-by-play rots, and "takes P3" a few seconds
+        # late is wrong rather than merely old. Airing a stale call is worse
+        # than staying quiet, so this errs towards dropping.
+        self.COMMENTARY_HOLD_TTL = 4.0
+        self._comm_hold = None       # the one deferred call, or None
         self.COMMENTARY_CD = 4.0     # min seconds between commentary lines (the
                                      # "breather" — keeps the booth lively but not
                                      # a wall of noise; incidents bypass this)

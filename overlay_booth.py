@@ -940,6 +940,28 @@ class BoothMixin:
         cands, cur, is_race, now = c.cands, c.cur, c.is_race, c.now
         trk = c.trk
         self._comm_prev = cur
+        # ---- ARBITRATION BUFFER -------------------------------------------
+        # A booth line exists only on the tick the moment happens. If the queue
+        # is full right then, the old code threw it away — so under saturation
+        # WHICH call aired was decided by timing, not importance: a midfield
+        # scrap could take the slot a beat before a lead change, and the lead
+        # change was simply lost.
+        #
+        # So a blocked call is now HELD and re-entered as a candidate on the
+        # following ticks, competing on priority like anything else. Exactly
+        # one is held: a better call replaces it (the worse one is genuinely
+        # gone, which is correct — the booth can't say everything), an equal or
+        # worse call leaves it alone.
+        #
+        # It EXPIRES. Play-by-play rots: "takes P3" is wrong a few seconds
+        # later once they've lost it again, and airing a stale call is worse
+        # than silence. HOLD_TTL is deliberately short for that reason. This is
+        # the one thing the buffer must not get wrong.
+        held = getattr(self, "_comm_hold", None)
+        if held is not None and now >= held[5]:
+            held = self._comm_hold = None          # went stale — let it go
+        if held is not None:
+            cands = list(cands) + [held[:5]]
         if not cands:
             return
         cands.sort(key=lambda c: c[0])
@@ -974,17 +996,23 @@ class BoothMixin:
             # pegged at its cap: urgent lines skip COMMENTARY_CD, and the tick
             # loop runs at 20Hz, so it attempted a call every 50ms.
             #
-            # NOTE THIS IS NOT THE WHOLE PROBLEM. Under saturation, WHICH line
-            # airs is still arbitrary — whichever candidate happens to arrive
-            # when a slot frees wins, so a midfield scrap can beat a lead
-            # change. Fixing that properly needs the best pending candidate to
-            # be HELD and retried, not dropped. An earlier attempt here added a
-            # minimum spacing between urgent calls instead, which silently
-            # threw away real overtake and crosstalk calls: a booth line is
-            # generated once, at the moment it happens, so blocking it loses it
-            # for good. Any real fix must defer, never discard.
+            # The line is not lost: it goes into the hold above and comes back
+            # as a candidate next tick. An earlier attempt here BLOCKED urgent
+            # calls behind a minimum spacing instead, which silently destroyed
+            # real overtake and crosstalk lines. Defer, never discard.
             if self.tts is not None and self.tts._pending() >= 4:
+                cur_hold = getattr(self, "_comm_hold", None)
+                # keep the MORE important of the two (lower prio wins). On a
+                # tie the incumbent stays, so the older call — already waiting,
+                # already closer to expiry — gets its chance first.
+                if cur_hold is None or _prio < cur_hold[0]:
+                    self._comm_hold = (_prio, text, cat, inten, persona,
+                                       now + self.COMMENTARY_HOLD_TTL)
                 return
+        # this line is airing — release the hold. If the winner WAS the held
+        # call it has now had its turn; if it was beaten by something live,
+        # the hold is stale by definition (the booth has moved on).
+        self._comm_hold = None
         self._comm_cd = now
         if is_race and cat == "track_fact":
             # the one-shot race track intro made it to air — latch it now

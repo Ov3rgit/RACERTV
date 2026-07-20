@@ -45,10 +45,36 @@ for _ln in _CL["start"]:
 lights = [t for p, t in spoken if p == "COMMENTATOR"
           and "racertv" not in t.lower()
           and any(k in t.lower() for k in _STKW)]
-goneoff = [t for p, t in spoken if "gone off" in t.lower()
-           or "trouble" in t.lower() or "someone's off" in t.lower()
-           or "off the track" in t.lower() or "spun" in t.lower()
-           or "into the gravel" in t.lower() or "lost it" in t.lower()]
+# Match INCIDENT REPORTS by deriving the patterns from the actual line pools,
+# rather than guessing keywords.
+#
+# The old hand-written keyword list was wrong in BOTH directions. Too loose:
+# it matched the bare word "trouble", which is all over ordinary colour --
+# midpack ("out of trouble"), analysis ("who is in trouble and who has more in
+# reserve"), and the crosstalk prediction "someone in the top five hits
+# trouble". That made this check fail ~7% of runs on lines that are not
+# incident calls at all. Too tight: it had "spun" but not "spin", "gone off"
+# but not "went off", so it missed most of the pools it was meant to police --
+# 61 of the 91 real incident lines went unmatched.
+#
+# Building the patterns from the pools themselves means it stays correct when
+# lines are added, which a keyword list never does.
+import re as _re                                             # noqa: E402
+from lines import COMMENTARY_LINES as _CL                    # noqa: E402
+
+_INCIDENT_POOLS = ("offtrack", "offtrack_more", "offtrack_cut",
+                   "offtrack_chaos", "offtrack_late", "spin")
+_INCIDENT_RE = []
+for _pool in _INCIDENT_POOLS:
+    for _tmpl in _CL.get(_pool, []):
+        # {drv}/{comm} -> wildcard, everything else literal
+        _pat = "".join(r".+?" if _p.startswith("{") else _re.escape(_p)
+                       for _p in _re.split(r"(\{\w+\})", _tmpl) if _p)
+        _INCIDENT_RE.append(_re.compile(_pat, _re.I))
+assert len(_INCIDENT_RE) >= 80, (
+    f"only {len(_INCIDENT_RE)} incident patterns built — the pools moved, and "
+    "this check would silently police nothing")
+goneoff = [t for _p, t in spoken if any(r.search(t) for r in _INCIDENT_RE)]
 print(f"  lights-out lines: {len(lights)}")
 for t in lights[:2]: print(f"    [lights] {t[:60]}")
 print(f"  spurious 'gone off' during grid sort: {len(goneoff)}")
