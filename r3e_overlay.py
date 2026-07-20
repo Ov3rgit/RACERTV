@@ -3180,7 +3180,14 @@ class Overlay:
         av = min(h - 22, 36)
         ax = x + 11
         ay = y + (h - av) // 2
-        if is_eng:
+        # user-drawn PNG icon takes priority when present (icon_helmet.png /
+        # icon_engineer.png next to the app); vector drawing is the fallback
+        ph = avatars.custom_icon("engineer" if is_eng else "helmet", av,
+                                 None if is_eng else col)
+        if ph is not None:
+            self._cv_real.create_image(ax - self._ox, ay - self._oy,
+                                       image=ph, anchor="nw")
+        elif is_eng:
             avatars.draw_headset(self._cv_real, ax - self._ox, ay - self._oy, av)
         else:
             avatars.draw_helmet(self._cv_real, ax - self._ox, ay - self._oy,
@@ -4826,11 +4833,26 @@ class Overlay:
         except Exception:
             return {}
 
+    @staticmethod
+    def _short_car(nm):
+        """Broadcast-friendly short car name. RaceRoom's full names can run to
+        40+ characters ('AMG-Mercedes 190 E 2.5-16 Evolution II 1992') and the
+        booth was reading them out in FULL — a commentator says 'the Porsche
+        911 GT3 Cup', never '(991.2) Endurance'. Strips parentheticals, years
+        and series/spec suffixes, then caps at 4 words."""
+        if not nm:
+            return nm
+        nm = re.sub(r"\([^)]*\)", " ", nm)              # (2019), (991.2)...
+        words = [w for w in nm.split()
+                 if not re.fullmatch(r"(19|20)\d\d", w)  # bare years
+                 and w not in ("Endurance", "Esports", "eDTM", "GTM15")]
+        return " ".join(words[:4]) or nm.strip()
+
     def _player_car(self, s):
-        """Friendly name of the car being viewed/driven, or None if unknown."""
+        """Friendly SHORT name of the car being viewed/driven, or None."""
         if not self._car_names:
             return None
-        return self._car_names.get(int(s.vehicle_info.model_id))
+        return self._short_car(self._car_names.get(int(s.vehicle_info.model_id)))
 
     def _short_track(self, trk):
         """Broadcast-friendly short name for a track (RaceRoom's track_name is

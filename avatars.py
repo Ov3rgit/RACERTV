@@ -5,7 +5,14 @@ the driver's own colour) and a white race-engineer headset.
 draw_helmet(canvas, ox, oy, size, color, seed) / draw_headset(canvas, ox, oy, size)
 Run this file directly to preview every variant.
 """
+import os
+import sys
 import tkinter as tk
+
+if getattr(sys, "frozen", False):        # PyInstaller: assets sit next to the exe
+    _DIR = os.path.dirname(sys.executable)
+else:
+    _DIR = os.path.dirname(os.path.abspath(__file__))
 
 SKIN = "#e8b98c"
 DARK = "#15191e"
@@ -30,6 +37,50 @@ def _rr(c, x1, y1, x2, y2, fill, r):
     c.create_rectangle(x1, y1 + r, x2, y2 - r, fill=fill, outline=fill)
     for cx, cy in ((x1, y1), (x2 - 2 * r, y1), (x1, y2 - 2 * r), (x2 - 2 * r, y2 - 2 * r)):
         c.create_oval(cx, cy, cx + 2 * r, cy + 2 * r, fill=fill, outline=fill)
+
+
+# ---- OPTIONAL user-drawn PNG icons --------------------------------------
+# Drop `icon_helmet.png` and/or `icon_engineer.png` next to the app (the exe
+# when frozen, avatars.py otherwise) and the radio cards use THEM instead of
+# the vector drawings. Square, transparent background. The helmet PNG should
+# be drawn in WHITE/greys — it gets multiplied by each driver's colour at
+# runtime, so one file covers every driver tint. The engineer PNG is used
+# as-is. Requires Pillow; silently falls back to vectors without it.
+_PNG_SRC = {}      # kind -> PIL.Image | None (miss)
+_PNG_CACHE = {}    # (kind, color, size) -> ImageTk.PhotoImage (also GC anchor)
+
+
+def custom_icon(kind, size, color=None):
+    """Tinted PhotoImage of the user's icon_<kind>.png at `size`, or None if
+    there's no such file / no Pillow. Cached per (kind, colour, size)."""
+    key = (kind, color, int(size))
+    if key in _PNG_CACHE:
+        return _PNG_CACHE[key]
+    try:
+        from PIL import Image, ImageTk
+    except Exception:
+        return None
+    if kind not in _PNG_SRC:
+        p = os.path.join(_DIR, f"icon_{kind}.png")
+        try:
+            _PNG_SRC[kind] = Image.open(p).convert("RGBA") \
+                if os.path.exists(p) else None
+        except Exception:
+            _PNG_SRC[kind] = None
+    src = _PNG_SRC[kind]
+    if src is None:
+        return None
+    img = src.resize((int(size), int(size)), Image.LANCZOS)
+    if color:                                # multiply by the driver colour
+        h = color.lstrip("#")
+        cr, cg, cb = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+        r, g, b, a = img.split()
+        img = Image.merge("RGBA", (r.point(lambda v: v * cr // 255),
+                                   g.point(lambda v: v * cg // 255),
+                                   b.point(lambda v: v * cb // 255), a))
+    ph = ImageTk.PhotoImage(img)
+    _PNG_CACHE[key] = ph                     # keep a ref or tk drops the image
+    return ph
 
 
 def draw_helmet(c, ox, oy, s, color, seed=""):
