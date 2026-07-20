@@ -183,7 +183,7 @@ def _load_volume():
     try:
         with open(_VOL_FILE, encoding="utf-8") as f:
             v = float(json.load(f).get("volume", 1.0))
-        return max(0.0, min(1.0, v))
+        return max(0.0, min(VOL_MAX, v))
     except Exception:
         return 1.0
 
@@ -210,11 +210,36 @@ def _read_wav(path):
     return rate, [s / 32768.0 for s in data]
 
 
+# Master volume can exceed unity so quiet neural voices can be pushed above
+# the game. Anything over 1.0 risks clipping, so boosted audio is SOFT
+# limited rather than hard clamped — see _write_wav.
+VOL_MAX = 1.3
+_SOFT_KNEE = 0.82        # below this, boosted samples pass through untouched
+
+
+def _soft_limit(x):
+    """Smoothly tame peaks above the knee instead of squaring them off.
+
+    A plain clamp turns every over-unity peak into a flat top, which is
+    audible as crunch on exactly the loud, excited lines you boosted the
+    volume to hear. This leaves everything under the knee alone and
+    compresses the rest into the remaining headroom."""
+    a = abs(x)
+    if a <= _SOFT_KNEE:
+        return x
+    over = (a - _SOFT_KNEE) / (1.0 - _SOFT_KNEE)
+    a = _SOFT_KNEE + (1.0 - _SOFT_KNEE) * math.tanh(over)
+    return a if x >= 0 else -a
+
+
 def _write_wav(path, rate, samples, gain=1.0):
     frames = bytearray()
+    boost = gain > 1.0
     for s in samples:
         if gain != 1.0:
             s *= gain
+            if boost:
+                s = _soft_limit(s)
         frames += struct.pack("<h", int(max(-1.0, min(1.0, s)) * 32767))
     with wave.open(path, "wb") as w:
         w.setnchannels(1)

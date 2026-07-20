@@ -748,11 +748,13 @@ class DrawMixin:
         to that point, which works fine with a single sampled click per tick.
         """
         vol = getattr(self.tts, "volume", 1.0) if self.tts else 1.0
+        vmax = getattr(self.tts, "VOL_MAX", 1.3) if self.tts else 1.3
         self.text(x + 14, ry + 12, "Voice volume", fill=TEXT,
                   font=self.f_row, anchor="w")
         pct = f"{int(round(vol * 100))}%"
-        self.text(x + w - 14, ry + 12, pct,
-                  fill=(GREEN if vol > 0 else DIM), font=self.f_row_b,
+        # amber above unity: that range is a real boost, and worth flagging
+        pcol = (DIM if vol <= 0 else "#ffb000" if vol > 1.0 else GREEN)
+        self.text(x + w - 14, ry + 12, pct, fill=pcol, font=self.f_row_b,
                   anchor="e")
         # track sits between the label and the percentage readout
         tx0 = x + 14 + self.f_row.measure("Voice volume") + 14
@@ -761,10 +763,22 @@ class DrawMixin:
         if tx1 - tx0 > 40:
             self.canvas.create_rectangle(tx0, ty - 3, tx1, ty + 3,
                                          fill="#1c2530", outline="")
-            fw = (tx1 - tx0) * max(0.0, min(1.0, vol))
+            span = tx1 - tx0
+            fw = span * max(0.0, min(1.0, vol / vmax))
             if fw > 0:
-                self.canvas.create_rectangle(tx0, ty - 3, tx0 + fw, ty + 3,
-                                             fill=HEADER_ACCENT, outline="")
+                # the over-unity part is drawn amber, so a boost is obvious
+                unity = span * (1.0 / vmax)
+                self.canvas.create_rectangle(tx0, ty - 3, tx0 + min(fw, unity),
+                                             ty + 3, fill=HEADER_ACCENT,
+                                             outline="")
+                if fw > unity:
+                    self.canvas.create_rectangle(tx0 + unity, ty - 3,
+                                                 tx0 + fw, ty + 3,
+                                                 fill="#ffb000", outline="")
+            # 100% tick, so unity gain is findable by eye
+            ux = tx0 + span * (1.0 / vmax)
+            self.canvas.create_rectangle(ux - 1, ty - 6, ux + 1, ty + 6,
+                                         fill=DIM, outline="")
             # knob
             kx = tx0 + fw
             self.canvas.create_oval(kx - 5, ty - 6, kx + 5, ty + 6,
@@ -780,13 +794,16 @@ class DrawMixin:
         click = getattr(self, "_click", None)
         if not click or not self.tts or tx1 <= tx0:
             return
-        v = (click[0] - tx0) / float(tx1 - tx0)
-        v = max(0.0, min(1.0, v))
-        # snap the ends so full-off and full-on are easy to actually hit
-        if v < 0.04:
+        vmax = getattr(self.tts, "VOL_MAX", 1.3)
+        v = (click[0] - tx0) / float(tx1 - tx0) * vmax
+        v = max(0.0, min(vmax, v))
+        # snap to the meaningful stops: silence, unity, and full boost
+        if v < 0.04 * vmax:
             v = 0.0
-        elif v > 0.96:
-            v = 1.0
+        elif abs(v - 1.0) < 0.05:
+            v = 1.0                      # unity is worth landing on exactly
+        elif v > vmax - 0.04 * vmax:
+            v = vmax
         self.tts.volume = v
         try:
             import tts as _tts
