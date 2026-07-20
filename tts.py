@@ -806,6 +806,18 @@ class Tts:
                 rate=f"{2 + random.randint(-2, 2):+d}%",
                 pitch=f"{-4 + random.randint(-2, 2):+d}Hz",
                 volume="+18%")
+        elif persona == "ENGINEER":
+            # YOUR ENGINEER IS NOT ONE OF THE RIVALS. He is a single fixed
+            # character, so the per-driver prosody spread below does nothing
+            # for him — and the PITCH SHIFT it applied actively wrecked him:
+            # shifting a neural voice off its natural pitch introduces
+            # artefacts and strips the accent, which is the "completely
+            # robotic, no accent" regression. He gets his natural pitch, a
+            # near-natural rate, and only a hair of per-line movement.
+            com = edge_tts.Communicate(
+                text, voice,
+                rate=f"{2 + random.randint(-1, 1):+d}%",
+                volume="+12%")
         else:
             # RADIO VOICES. A fixed rate per persona meant every driver on a
             # given voice delivered every line identically — the flat, sampled
@@ -827,9 +839,11 @@ class Tts:
             # AND the same offsets and still sound like one person
             h = (_seed_hash(seed or persona) * 2654435761) & 0xFFFFFFFF
             drv_rate = (h % 7) - 3            # -3..+3 %
-            drv_pitch = ((h >> 8) % 9) - 4    # -4..+4 Hz
+            drv_pitch = ((h >> 8) % 5) - 2    # -2..+2 Hz (small:
+                                              # bigger shifts add
+                                              # synthetic artefacts)
             rate = f"{b + drv_rate + random.randint(-2, 2):+d}%"
-            pitch = f"{drv_pitch + random.randint(-2, 2):+d}Hz"
+            pitch = f"{drv_pitch + random.randint(-1, 1):+d}Hz"
             com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
         asyncio.run(com.save(_MP3))
         return _decode_mp3(_MP3)

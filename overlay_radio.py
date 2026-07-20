@@ -1268,7 +1268,14 @@ class RadioMixin:
         h = _BUBBLE_H(len(lines))
         # broadcast card: dark rounded box, thin border, accent strip in the
         # driver's colour (cyan for the engineer)
-        self._card(x, y, w, h, fill=CARD_BG, accent=accent, side="top")
+        # SOLID (glass=False) on purpose. The icons are PNGs flattened onto
+        # CARD_BG to kill their colour-key fringe, so each carries an opaque
+        # CARD_BG square. Against a TRANSLUCENT glass body that square read as
+        # a darker rectangle — the visible "image border". Drawing the radio
+        # card solid in the SAME colour makes icon background and card
+        # identical, so the artwork reads as fully transparent again.
+        self._card(x, y, w, h, fill=CARD_BG, accent=accent, side="top",
+                   glass=False)
         # avatar in a SQUARE region (so it's never stretched), vertically centred.
         # Drawn on the panel's real canvas — avatars use polygon/arc, which the
         # translating canvas wrapper doesn't proxy — at panel-local coords.
