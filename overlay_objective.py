@@ -15,6 +15,8 @@ retiring, or the race running out of laps.
 Mixed into Overlay; see r3e_overlay.py.
 """
 
+import r3e_data as R
+
 # --- tuning ---------------------------------------------------------------
 OBJ_MIN_GAP_S = 25.0     # min seconds between one objective resolving and the next
 OBJ_SETTLE_LAPS = 2      # no objectives until the race has settled down
@@ -348,7 +350,9 @@ class ObjectiveMixin:
         setting a target you cannot resolve is the thing we are avoiding."""
         if getattr(self, "_obj", "missing") == "missing":
             self._obj_reset()
-        if s.session_type != 2 or not getattr(self, "_racing", False):
+        if s.session_type != 2:
+            return self._obj_quali(s, order, now)
+        if not getattr(self, "_racing", False):
             return None
         vslot = s.vehicle_info.slot_id
         me = next((d for d in order if d.driver_info.slot_id == vslot), None)
@@ -402,6 +406,80 @@ class ObjectiveMixin:
               "pos": o.get("goal_pos") or me.place,
               "gap": f"{o['gap_target']:.0f}s" if o.get("gap_target") else "a second"}
         return (f"obj_set_{o['kind']}", kw)
+
+    # ---- practice / qualifying -----------------------------------------
+    def _obj_quali(self, s, order, now):
+        """Objectives for a session against the clock rather than the field:
+        beat your own best, or close on pole. Same contract as the race
+        version — offered only when the numbers say it is realistic, always
+        resolved, exactly one at a time."""
+        vslot = s.vehicle_info.slot_id
+        me = next((d for d in order if d.driver_info.slot_id == vslot), None)
+        if me is None:
+            return None
+        pb = self.best_lap.get(vslot)
+        laps = me.completed_laps
+
+        if self._obj:                              # resolve the live one
+            o = self._obj
+            o["_laps_left"] = max(0, o["laps"] - (laps - o["lap0"]))
+            o["_gap"] = None
+            o["_badge"] = "PB" if o["kind"] == "pb" else "POLE"
+            done = laps - o["lap0"]
+            if o["kind"] == "pb":
+                if pb and pb <= o["target_t"]:
+                    return self._obj_done(now, "obj_met_pb",
+                                          {"t": R.fmt_time(pb)})
+                if done >= o["laps"]:
+                    return self._obj_fail(now, "obj_miss_pb", {})
+            elif o["kind"] == "pole":
+                pt = self._obj_pole_time(order, vslot)
+                if pb and pt and (pb - pt) <= o["gap_target"]:
+                    return self._obj_done(now, "obj_met_pole",
+                                          {"gap": f"{max(0.0, pb - pt):.2f}s"})
+                if done >= o["laps"]:
+                    return self._obj_fail(now, "obj_miss_pole", {})
+            return None
+
+        # need a couple of laps banked before a target means anything
+        if not pb or laps < 2 or now - self._obj_last_t < OBJ_MIN_GAP_S:
+            return None
+        # a clock session can run out too — don't set what can't be resolved
+        rem = getattr(s, "session_time_remaining", 0.0)
+        if 0 < rem < 180:
+            return None
+
+        pole_t = self._obj_pole_time(order, vslot)
+        # CLOSE ON POLE — only when the gap is small enough to be real
+        if (pole_t and pb - pole_t > 0.05 and pb - pole_t < 1.5
+                and not self._obj_seen("pole")):
+            want = round(max(0.15, (pb - pole_t) * 0.5), 2)
+            self._obj = {"kind": "pole", "target_slot": vslot,
+                         "target_name": "", "goal_pos": None,
+                         "gap_target": want, "laps": 4, "lap0": laps,
+                         "hud": f"Within {want:.2f}s of pole"}
+            self._obj_count += 1
+            self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"pole"}
+            return ("obj_set_pole", {"gap": f"{want:.2f}s", "laps": 4})
+
+        # BEAT YOUR BEST — a couple of tenths is a real but fair ask
+        if not self._obj_seen("pb"):
+            want = round(pb - 0.20, 3)
+            self._obj = {"kind": "pb", "target_slot": vslot,
+                         "target_name": "", "goal_pos": None,
+                         "gap_target": None, "target_t": want, "laps": 4,
+                         "lap0": laps, "hud": "Beat your best by 0.2s"}
+            self._obj_count += 1
+            self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"pb"}
+            return ("obj_set_pb", {"t": R.fmt_time(want), "laps": 4})
+        return None
+
+    def _obj_pole_time(self, order, vslot):
+        """Best lap set by anyone other than the player, or None."""
+        ts = [self.best_lap.get(d.driver_info.slot_id) for d in order
+              if d.driver_info.slot_id != vslot]
+        ts = [t for t in ts if t and t > 0]
+        return min(ts) if ts else None
 
     def objective_form(self):
         """PHASE 3: the player's recent objective form from the career file, as

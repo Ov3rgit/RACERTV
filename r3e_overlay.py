@@ -341,7 +341,11 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.RADIO_FAR_CHANCE = 0.6  # chance a far-away crash gets a reaction
         self.RADIO_MAX_BUBBLES = 4   # max bubbles on screen at once (no flooding;
                                      # simultaneous driver+engineer calls stack)
-        self.RADIO_MAX_BURST = 3     # max new messages from one big incident
+        # ONE radio line per tick. Three at once queued three voices back to
+        # back, and anything that then missed its TTL was dropped while its
+        # card still aired — silent cards. A genuine multi-car incident still
+        # gets its extra lines, just on the following ticks.
+        self.RADIO_MAX_BURST = 1     # max new messages per tick
         # card/audio sync: cards waiting for their audio's on_play; tick()
         # airs any whose deadline passed without the audio ever starting
         self._pending_bubbles = []

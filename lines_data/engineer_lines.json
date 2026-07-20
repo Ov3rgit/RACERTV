@@ -734,5 +734,39 @@
   "obj_form_poor": [
     "We've been coming up short lately, {fmet} of {fset}. Let's put that right today.",
     "Only {fmet} from {fset} in recent races. Time to turn that around."
+  ],
+  "obj_set_pb": [
+    "Right, target for you: a {t} or better in the next {laps} laps. The car's got it.",
+    "Let's chase a number — {t} inside {laps} laps. Build up to it, don't force the first one.",
+    "Target is {t}, {laps} laps to find it. Tidy sectors, that's all it takes.",
+    "Give me a {t} in the next {laps} laps and we're where we need to be.",
+    "New benchmark: {t}. You've got {laps} laps. Nice and clean."
+  ],
+  "obj_met_pb": [
+    "THAT'S the one — {t}. Target smashed, lovely lap.",
+    "{t}! Exactly what we wanted. Brilliant driving.",
+    "Got it. {t} on the board — that's the target done.",
+    "Beautiful lap, {t}. Bank that one."
+  ],
+  "obj_miss_pb": [
+    "Didn't quite find it that time. No drama — the pace is there, we just need it all on one lap.",
+    "Target's gone, but you weren't far off. Cool the tyres and we'll go again.",
+    "Couldn't get there. Happens. Reset and build another run."
+  ],
+  "obj_set_pole": [
+    "Pole's in reach — get within {gap} of it in the next {laps} laps. That's the job.",
+    "Target: {gap} off pole, {laps} laps. You're closer than you think.",
+    "Let's go after the benchmark — within {gap} in {laps} laps.",
+    "{gap} to pole is the target, {laps} laps to do it. Clean lap and it's yours."
+  ],
+  "obj_met_pole": [
+    "That's it — {gap} off pole. Target met, superb lap.",
+    "{gap} to the benchmark. Exactly what we asked for. Great work.",
+    "Right on it, {gap} off pole. That's the target done."
+  ],
+  "obj_miss_pole": [
+    "Came up short of that one. The lap's in the car, we just haven't put it together yet.",
+    "Not this time. Don't chase it — build it. We'll get another run in.",
+    "Missed the target, but the sectors are getting closer. Keep going."
   ]
 }

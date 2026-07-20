@@ -526,7 +526,11 @@ class DrawMixin:
         w, rh = 300, 24
         x = self.sw - w - 30
         y = 110
-        self._begin_panel("relative", x, y, w, 22 + rh * len(window))
+        _h = 22 + rh * len(window)
+        # remember the footprint so the objective chip can dock beneath it
+        # instead of sitting centre-screen over the sectors and captions
+        self._rel_box = (x, y, w, _h)
+        self._begin_panel("relative", x, y, w, _h)
         c = self.canvas
         c.create_rectangle(x, y, x + w, y + 22, fill="#0a0d12",
                            outline=PANEL_OUTLINE)
@@ -598,10 +602,22 @@ class DrawMixin:
         obj = getattr(self, "_obj", None)
         if not obj and not (res and now < res.get("until", 0)):
             return
-        w, h = 348, 52
+        # DOCKED UNDER THE RELATIVE TOWER. Centre-screen it overlapped the
+        # sector-time block and the lower-third caption; here it sits in the
+        # right-hand column with the rest of the timing information, and
+        # follows the tower as it grows and shrinks with the field.
         sk = 10                                  # skew: the motorsport slant
-        x = (self.sw - w) // 2
-        y = self.sh - 162
+        rel = getattr(self, "_rel_box", None)
+        if rel:
+            rx, ry_, rw, rh_ = rel
+            w = rw - sk                          # match the tower's width
+            x = rx
+            y = ry_ + rh_ + 8
+        else:                                    # relative hidden — fall back
+            w = 290
+            x = self.sw - (w + sk) - 30
+            y = 110
+        h = 52
         self._begin_panel("objective", x, y, w + sk, h)
 
         if obj:

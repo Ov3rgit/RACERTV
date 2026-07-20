@@ -119,6 +119,23 @@ def variant_color(i):
     return col
 
 
+# The radio card sits on a colour-keyed window, so any pixel left PARTIALLY
+# transparent blends toward the key colour and shows up as a dirty halo round
+# the artwork. Flattening onto the card background first removes every
+# partial alpha, so edges land clean instead of fringed.
+FLATTEN_BG = "#0d1320"          # CARD_BG — what the icons actually sit on
+
+
+def _flatten(img, bg=FLATTEN_BG):
+    """Composite RGBA art onto an opaque background, killing partial alpha."""
+    from PIL import Image
+    h = bg.lstrip("#")
+    rgb = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    flat = Image.new("RGB", img.size, rgb)
+    flat.paste(img, mask=img.split()[3])
+    return flat
+
+
 def variant_icon(i, size):
     """PhotoImage of helmet variant `i` at `size` (used as drawn), or None."""
     key = ("__var__", i, int(size))
@@ -128,8 +145,8 @@ def variant_icon(i, size):
         from PIL import Image, ImageTk
         vs = helmet_variants()
         img = Image.open(vs[i % len(vs)]).convert("RGBA")
-        ph = ImageTk.PhotoImage(img.resize((int(size), int(size)),
-                                           Image.LANCZOS))
+        img = img.resize((int(size), int(size)), Image.LANCZOS)
+        ph = ImageTk.PhotoImage(_flatten(img))
     except Exception:
         ph = None
     _PNG_CACHE[key] = ph                       # ref kept or tk drops the image
@@ -174,7 +191,7 @@ def custom_icon(kind, size, color=None):
         img = Image.merge("RGBA", (r.point(lambda v: v * cr // 255),
                                    g.point(lambda v: v * cg // 255),
                                    b.point(lambda v: v * cb // 255), a))
-    ph = ImageTk.PhotoImage(img)
+    ph = ImageTk.PhotoImage(_flatten(img))   # opaque: no key-colour fringe
     _PNG_CACHE[key] = ph                     # keep a ref or tk drops the image
     return ph
 

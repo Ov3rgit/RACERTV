@@ -332,7 +332,11 @@ class RadioMixin:
 
         if not events or (now - self.last_radio_t) < self.RADIO_GLOBAL_CD:
             return
-        events.sort(key=lambda e: e[0])
+        # ENGINEER FIRST at equal priority. He talks to YOU; a rival's chatter
+        # is colour. With ~15 rivals each on a 25s cooldown the field
+        # collectively out-talked him many times over, which is why the radio
+        # sounded like drivers with an occasional engineer.
+        events.sort(key=lambda e: (e[0], 0 if e[5] == "ENGINEER" else 1))
         emitted = 0
         for _prio, sl, nm, txt, bypass, persona, emotion in events:
             if emitted >= self.RADIO_MAX_BURST:
@@ -341,6 +345,14 @@ class RadioMixin:
             # the event killed the bubble too, which is why radio "vanished" in
             # busy races. Voiced-vs-ticker is decided at the speak site below;
             # a backlogged queue just means the line airs as a silent ticker.
+            # PIPELINE GATE: if speech is already backed up, don't add more.
+            # A queued line that outlives its TTL is dropped, and the card then
+            # airs with nothing to hear ("the card showed up, the audio never
+            # played"). Skipping is free — the conditions that produced this
+            # event are still true next tick, so it simply airs a moment later.
+            if (not bypass and self.tts is not None
+                    and self.tts._pending() >= 2):
+                continue
             if persona == "ENGINEER":
                 # bypass lines (overtake acks, severe damage, incident points,
                 # session intro) skip the 14s spacing — they're one-shot, must
@@ -388,7 +400,17 @@ class RadioMixin:
                 # WHILE its card is visible or drops cleanly (no orphan audio
                 # over a card that's already gone). The engineer keeps the
                 # longer radio TTL — he's talking to YOU and must be heard.
-                if persona == "ENGINEER":
+                if bypass:
+                    # ONE-SHOT lines (lights-out start call, severe damage,
+                    # incident points, objective set/met) must not carry the
+                    # short "numbers go stale" TTL. The start call says "P5",
+                    # so it got a 9s deadline — and lights-out is the single
+                    # busiest moment for the booth queue, so it routinely
+                    # expired before it could play and the card aired silently.
+                    # For these, being heard matters more than the number
+                    # being seconds fresh.
+                    _ttl = None
+                elif persona == "ENGINEER":
                     _ttl = 9.0 if any(c.isdigit() for c in say_text) else None
                 else:
                     _ttl = self.RADIO_HOLD + 2.0
@@ -458,6 +480,17 @@ class RadioMixin:
         # provisional pole, a slow lap, a deleted lap — plus a real track tip to
         # help you find time. No more random filler.
         if s.session_type != 2:
+            # SESSION OBJECTIVES (practice / qualifying) — checked FIRST in
+            # this branch. The lap-report ladder below returns on almost every
+            # completed lap, so anything after it is unreachable in a busy
+            # session, which is why quali targets never aired.
+            _q_order = sorted((d for d in placemap.values() if d.place > 0),
+                              key=lambda d: d.place)
+            qobj = self.objective_event(s, _q_order, placemap, now)
+            if qobj:
+                qcat, qkw = qobj
+                if qcat in ENGINEER_LINES:
+                    return add(qcat, 1, bypass=True, **qkw)
             is_quali = (s.session_type == 1)
             trk = self._short_track(R.u8_to_str(s.track_name))
             pb = self.best_lap.get(vslot)
@@ -832,7 +865,13 @@ class RadioMixin:
         if obj:
             ocat, okw = obj
             if ocat in ENGINEER_LINES:
-                return add(ocat, 1, **okw)
+                # bypass=True is ESSENTIAL here. objective_event() has already
+                # mutated state by the time it returns — the target is set, or
+                # met, or withdrawn. If the line were then dropped by the 14s
+                # engineer spacing the whole system would run silently: targets
+                # set and resolved that the driver never hears. These are rare
+                # and carry their own spacing, so they can't machine-gun.
+                return add(ocat, 1, bypass=True, **okw)
 
         # directional gap calls (only when the gap is actually moving)
         if ahead and gap and pgap is not None:
