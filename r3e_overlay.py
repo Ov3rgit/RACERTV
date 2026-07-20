@@ -1256,7 +1256,10 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
     def _career(self):
         c = getattr(self, "_career_data", None)
         if c is None:
-            c = {"races": 0, "wins": 0, "podiums": 0, "tracks": {}}
+            c = {"races": 0, "wins": 0, "podiums": 0, "tracks": {},
+                 # PHASE 3: race-objective record, so the engineer can refer to
+                 # your form across sessions ("that's four targets in five")
+                 "obj_set": 0, "obj_met": 0, "obj_races": []}
             try:
                 if not os.environ.get("RACERTV_EPHEMERAL"):
                     with open(self._CAREER_FILE, encoding="utf-8") as f:
@@ -1274,6 +1277,17 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             return
         c = self._career()
         c["races"] += 1
+        # fold this race's objective record into the career file. obj_races is
+        # a short rolling window (last 8) so "targets in recent races" stays
+        # about CURRENT form rather than a lifetime average.
+        n_set = getattr(self, "_obj_count", 0)
+        if n_set:
+            n_met = getattr(self, "_obj_met", 0)
+            c["obj_set"] = c.get("obj_set", 0) + n_set
+            c["obj_met"] = c.get("obj_met", 0) + n_met
+            hist = list(c.get("obj_races") or [])
+            hist.append([n_met, n_set])
+            c["obj_races"] = hist[-8:]
         if pos == 1:
             c["wins"] += 1
         if pos <= 3:

@@ -174,3 +174,88 @@ n = sum(len(ENGINEER_LINES[k]) for k in ENGINEER_LINES if k.startswith("obj_"))
 print(f"  all {n} objective lines format cleanly: OK")
 
 print("\nALL OBJECTIVE CHECKS PASSED")
+
+
+print("\n===== PHASE 2: SITUATION-BASED TARGETS =====")
+
+# CLEAN RUNNING — triggered by the engineer's own limits tally
+o, s, you = race(my_place=5)
+pace(o, you.driver_info.slot_id, 90.0)
+o._own_cuts = 3
+got = offer(o, s)
+assert got and got[0] == "obj_set_clean", f"no clean-running target at 3 cuts: {got}"
+print(f"  3 limits warnings -> {got[0]}: {o._obj['hud']!r}")
+# another warning fails it
+o._own_cuts = 4
+res = offer(o, s)
+assert res and res[0] == "obj_miss_clean", f"another cut should fail it: {res}"
+print(f"  a further warning fails it -> {res[0]}: OK")
+# and it is one-shot: not re-offered immediately
+o._own_cuts = 4
+assert o._obj_seen("clean"), "clean objective not recorded as used"
+print("  one-shot (won't nag): OK")
+
+# RECOVERY — lost real ground vs the grid
+o, s, you = race(my_place=9)
+pace(o, you.driver_info.slot_id, 90.0)
+o.grid_place = {you.driver_info.slot_id: 4}
+o._race_story = {you.driver_info.slot_id: {"best": 4, "worst": 9, "now": 9}}
+got = offer(o, s)
+assert got and got[0] == "obj_set_recover", f"no recovery target after dropping: {got}"
+print(f"  dropped P4->P9 -> {got[0]}: {o._obj['hud']!r}")
+you.place = o._obj["goal_pos"]
+res = offer(o, s)
+assert res and res[0] == "obj_met_recover", f"recovery not detected: {res}"
+print(f"  regaining the ground -> {res[0]}: OK")
+
+# TYRES — worn rubber, stint to run
+o, s, you = race(my_place=5)
+pace(o, you.driver_info.slot_id, 90.0)
+s.tire_wear_active = 1
+o._eng_tyre_base = [1.0, 1.0, 1.0, 1.0]
+for i in range(4):
+    s.tire_wear[i] = 0.35                 # 0.65 worn
+got = offer(o, s)
+assert got and got[0] == "obj_set_tyres", f"no tyre target on worn rubber: {got}"
+print(f"  tyres 65% worn -> {got[0]}: {o._obj['hud']!r}")
+
+# tyre wear must be IGNORED when the game isn't publishing it
+o2, s2, you2 = race(my_place=5)
+pace(o2, you2.driver_info.slot_id, 90.0)
+s2.tire_wear_active = 0
+o2._eng_tyre_base = [1.0, 1.0, 1.0, 1.0]
+assert o2._obj_tyre_worn(s2) is None, "read tyre wear while tire_wear_active was off"
+print("  wear ignored when the game reports N/A: OK")
+
+
+print("\n===== PHASE 3: CAREER FORM + WRAP =====")
+o, s, you = race()
+o._career_data = {"races": 5, "wins": 0, "podiums": 1, "tracks": {},
+                  "obj_set": 12, "obj_met": 8,
+                  "obj_races": [[2, 3], [1, 2], [3, 3], [2, 4]]}
+form = o.objective_form()
+assert form, "no form returned despite 4 races of history"
+met, setn, races = form
+assert (met, setn, races) == (8, 12, 4), form
+print(f"  recent form: {met} of {setn} over {races} races: OK")
+
+# too little history -> stays quiet rather than inventing a trend
+o._career_data["obj_races"] = [[1, 2]]
+assert o.objective_form() is None, "claimed form from a single race"
+print("  <3 races -> no form claim: OK")
+
+# end-of-race wrap
+for n_set, n_met, want in ((3, 3, "obj_wrap_all"), (3, 1, "obj_wrap_some"),
+                           (2, 0, "obj_wrap_none")):
+    o._obj_count, o._obj_met = n_set, n_met
+    cat, kw = o.objective_summary()
+    assert cat == want, f"{n_met}/{n_set} -> {cat}, expected {want}"
+    out = _safe_format(ENGINEER_LINES[cat][0], kw)
+    assert "{" not in out, out
+print("  wrap picks all/some/none correctly and formats: OK")
+
+o._obj_count = 0
+assert o.objective_summary() is None, "wrapped up a race with no targets set"
+print("  no targets set -> no wrap: OK")
+
+print("\nALL PHASE 2/3 OBJECTIVE CHECKS PASSED")

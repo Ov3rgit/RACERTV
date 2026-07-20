@@ -34,6 +34,7 @@ class ObjectiveMixin:
         self._obj_count = 0         # how many set this session
         self._obj_met = 0
         self._obj_result = None     # last outcome, for the HUD chip
+        self._obj_kinds = set()     # kinds used this race (one-shot ones)
 
     # ---- helpers --------------------------------------------------------
     def _obj_pace(self, slot):
@@ -86,6 +87,25 @@ class ObjectiveMixin:
     def _obj_driver(self, order, place):
         return next((d for d in order if d.place == place), None)
 
+    def _obj_seen(self, kind):
+        """True once this KIND has already been set this race. The one-shot
+        objectives (clean running, recovery, tyre management) describe a
+        situation rather than a moment, so re-offering them would nag."""
+        return kind in getattr(self, "_obj_kinds", set())
+
+    def _obj_tyre_worn(self, s):
+        """Worst tyre wear as 0.0 (fresh) - 1.0 (gone), or None when the game
+        isn't publishing wear (tire_wear_active off = -1 = N/A)."""
+        if not getattr(s, "tire_wear_active", 0):
+            return None
+        tw = [t for t in list(s.tire_wear)[:4] if t is not None and t >= 0]
+        if len(tw) != 4:
+            return None
+        base = getattr(self, "_eng_tyre_base", None)
+        if not base:
+            return None
+        return max(abs(base[i] - tw[i]) for i in range(4))
+
     # ---- offering -------------------------------------------------------
     def _obj_offer(self, s, order, placemap, now):
         """Pick a credible objective, or None. Ordered by how much it matters
@@ -101,6 +121,44 @@ class ObjectiveMixin:
         if not mine:
             return None                       # no pace read yet — stay quiet
         pos = me.place
+
+        # --- CLEAN RUNNING: you're close to a limits penalty. This one matters
+        # more than any position target, because it is the one that can take
+        # the whole result away. Uses the engineer's own limits tally.
+        cuts = getattr(self, "_own_cuts", 0)
+        if cuts >= 3 and not self._obj_seen("clean"):
+            return {
+                "kind": "clean", "target_slot": vslot,
+                "target_name": "", "goal_pos": None, "gap_target": None,
+                "cuts0": cuts, "laps": min(laps_left, 6),
+                "hud": f"No more limits warnings ({cuts})",
+            }
+
+        # --- RECOVERY: you lost real ground after an incident. Gives a bad
+        # race a purpose instead of leaving it flat.
+        grid = self.grid_place.get(vslot)
+        st = getattr(self, "_race_story", {}).get(vslot)
+        if (grid and st and pos > grid + 2 and st.get("worst", pos) >= pos
+                and not self._obj_seen("recover") and laps_left >= 4):
+            goal = max(1, min(grid, pos - 2))
+            return {
+                "kind": "recover", "target_slot": vslot, "target_name": "",
+                "goal_pos": goal, "gap_target": None,
+                "laps": min(laps_left, 8),
+                "hud": f"Recover to P{goal} (from P{pos})",
+            }
+
+        # --- TYRE MANAGEMENT: worn rubber and a stint still to run. Not a
+        # position goal at all — the target is arriving at the flag with
+        # something left, which is a real racing skill.
+        tw = self._obj_tyre_worn(s)
+        if tw is not None and tw > 0.55 and laps_left >= 4 and not self._obj_seen("tyres"):
+            return {
+                "kind": "tyres", "target_slot": vslot, "target_name": "",
+                "goal_pos": pos, "gap_target": None,
+                "laps": min(laps_left, 8),
+                "hud": f"Nurse the tyres, hold P{pos}",
+            }
 
         # --- DAMAGE LIMITATION: the race changed, so the goal changes.
         # Offered regardless of pace edge — this is about salvage, and it is
@@ -203,13 +261,15 @@ class ObjectiveMixin:
 
         # WITHDRAW: the objective stopped making sense. Always spoken — a
         # silently vanishing target is worse than one that was never set.
+        self_kinds = ("clean", "recover", "tyres")
         tgt = next((d for d in order
                     if d.driver_info.slot_id == o["target_slot"]), None)
-        if tgt is None:
+        if tgt is None and o["kind"] not in self_kinds:
             self._obj = None                  # withdrawn: no verdict on the HUD
             self._obj_last_t = now
             return ("obj_withdraw_gone", {"drv": nm})
-        if o["kind"] != "damage" and getattr(self, "_obj_damaged", False):
+        if (o["kind"] not in ("damage",) + self_kinds
+                and getattr(self, "_obj_damaged", False)):
             self._obj = None
             self._obj_last_t = now
             return ("obj_withdraw_damage", {"drv": nm})
@@ -239,10 +299,26 @@ class ObjectiveMixin:
                 return self._obj_done(now, "obj_met_damage",
                                       {"drv": nm, "pos": pos})
 
+        elif o["kind"] == "clean":
+            # failed the moment another limits warning lands
+            if getattr(self, "_own_cuts", 0) > o["cuts0"]:
+                return self._obj_fail(now, "obj_miss_clean", {"drv": nm})
+            if laps_done >= o["laps"]:
+                return self._obj_done(now, "obj_met_clean", {"pos": pos})
+        elif o["kind"] == "recover":
+            if pos <= o["goal_pos"]:
+                return self._obj_done(now, "obj_met_recover", {"pos": pos})
+        elif o["kind"] == "tyres":
+            if pos > o["goal_pos"]:                      # dropped a place
+                return self._obj_fail(now, "obj_miss_tyres", {"pos": pos})
+            if laps_done >= o["laps"]:
+                return self._obj_done(now, "obj_met_tyres", {"pos": pos})
+
         if laps_done >= o["laps"]:                       # ran out of laps
             cat = ("obj_miss_pass" if o["kind"] in ("chase", "position")
+                   else "obj_miss_recover" if o["kind"] == "recover"
                    else "obj_miss_defend")
-            return self._obj_fail(now, cat, {"drv": nm})
+            return self._obj_fail(now, cat, {"drv": nm, "pos": pos})
         return None
 
     def _obj_result_set(self, ok, now):
@@ -280,7 +356,15 @@ class ObjectiveMixin:
             return None
 
         if self._obj:                                 # one active at a time
+            # live HUD fields: progress, laps remaining on the target and the
+            # current gap, so the chip answers "how am I doing?" on its own
             self._obj["_prog"] = self._obj_progress(s, order)
+            self._obj["_laps_left"] = max(
+                0, self._obj["laps"] - (me.completed_laps - self._obj["lap0"]))
+            self._obj["_gap"] = (self.interval.get(vslot)
+                                 if self._obj["kind"] in
+                                 ("chase", "position", "defend", "damage")
+                                 else None)
             return self._obj_check(s, order, placemap, now)
 
         if me.completed_laps < OBJ_SETTLE_LAPS:
@@ -298,10 +382,45 @@ class ObjectiveMixin:
         o["set_at"] = now
         self._obj = o
         self._obj_count += 1
+        self._obj_kinds = getattr(self, "_obj_kinds", set()) | {o["kind"]}
         kw = {"drv": o["target_name"], "laps": o["laps"],
               "pos": o.get("goal_pos") or me.place,
               "gap": f"{o['gap_target']:.0f}s" if o.get("gap_target") else "a second"}
         return (f"obj_set_{o['kind']}", kw)
+
+    def objective_form(self):
+        """PHASE 3: the player's recent objective form from the career file, as
+        (met, set) over the last few races — or None when there isn't enough
+        history to be worth mentioning. Lets the engineer refer to how you've
+        been going lately instead of treating every race as the first."""
+        try:
+            hist = (self._career().get("obj_races") or [])[-5:]
+        except Exception:
+            return None
+        if len(hist) < 3:                  # too little history to mean anything
+            return None
+        met = sum(h[0] for h in hist)
+        setn = sum(h[1] for h in hist)
+        if setn < 3:
+            return None
+        return (met, setn, len(hist))
+
+    def objective_summary(self):
+        """PHASE 3: end-of-race verdict on the targets set today, as
+        (category, kwargs) — spoken by the engineer in the finish wrap."""
+        n = getattr(self, "_obj_count", 0)
+        if not n:
+            return None
+        met = getattr(self, "_obj_met", 0)
+        kw = {"met": met, "total": n}
+        form = self.objective_form()
+        if form:
+            kw["fmet"], kw["fset"], kw["fraces"] = form
+        if met == n:
+            return ("obj_wrap_all", kw)
+        if met == 0:
+            return ("obj_wrap_none", kw)
+        return ("obj_wrap_some", kw)
 
     def objective_hud(self):
         """(text, progress) for the on-screen objective, or None."""

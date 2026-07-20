@@ -625,7 +625,20 @@ class RadioMixin:
                     cat = "finish_points"     # decent points
                 else:
                     cat = "finish_low"        # tough day
+                self._eng_obj_wrap_due = now + 6.0   # objective verdict after
                 return add(cat, 0)
+
+        # PHASE 3 — OBJECTIVE WRAP: a few seconds after the finish verdict, how
+        # the targets went today, with recent form when there's enough history.
+        # Sits here (before the post-flag gate below) because it is the one
+        # thing still worth saying once the race is over.
+        _wrap_due = getattr(self, "_eng_obj_wrap_due", None)
+        if (_wrap_due and now >= _wrap_due
+                and not self._eng_flags.get("objwrap")):
+            self._eng_flags["objwrap"] = True
+            summ = self.objective_summary()
+            if summ and summ[0] in ENGINEER_LINES:
+                return add(summ[0], 1, bypass=True, **summ[1])
 
         # the flag is out: nothing below is news any more. The cool-down lap
         # naturally slows, cuts corners and invalidates — without this gate the

@@ -657,5 +657,82 @@
     "{drv} is out of the picture, so forget that target. New plan shortly.",
     "Scratch that — {drv} is gone. I'll give you a new target in a moment.",
     "That target's void, {drv} is out. Just drive your race for now."
+  ],
+  "obj_set_clean": [
+    "Right, new target and it's the important one: no more limits warnings for {laps} laps. One more and the stewards take this out of our hands.",
+    "Forget the cars around us — target is clean laps. Not one more warning for the next {laps} laps.",
+    "This is the one that matters now: keep it inside the white lines for {laps} laps. No exceptions.",
+    "Target: zero limits warnings, next {laps} laps. Give me a tenth back on entry, I don't care, just keep it clean.",
+    "We're one away from real trouble. Clean running for {laps} laps — that's the whole job."
+  ],
+  "obj_met_clean": [
+    "Perfect. Not a wheel out of line — that's the target done and the penalty risk gone. Superb discipline.",
+    "That's it, clean as you like. Threat's behind us now. Excellent driving.",
+    "Target complete — no more warnings. That took real discipline, mate. Well done.",
+    "Beautifully judged. We're out of the danger zone. Now you can race again."
+  ],
+  "obj_miss_clean": [
+    "Another warning. That's the one thing we couldn't afford — rein it right in now.",
+    "We've gone over again. Forget lap time for a lap or two and get the car back inside the lines.",
+    "That's another. I know it's tight out there, but we cannot keep doing that."
+  ],
+  "obj_set_recover": [
+    "Right, damage is done — new target: get us back to P{pos}. You've got {laps} laps. Chip away at it.",
+    "Reset your head. Target is P{pos} in {laps} laps. One car at a time, no heroics.",
+    "This race isn't over. P{pos} in {laps} laps — that's the recovery we're going for.",
+    "Forget what just happened. New goal: P{pos} inside {laps} laps. Clean, fast, patient.",
+    "We rebuild from here. P{pos} is the target, {laps} laps to do it."
+  ],
+  "obj_met_recover": [
+    "THAT is a recovery. Back to P{pos} after all that. Outstanding drive, mate.",
+    "P{pos} — you've clawed it all back. Brilliant response to a bad moment.",
+    "Target met, P{pos}. Nobody would know you'd had a moment. Superb.",
+    "Back where we belong, P{pos}. That's the mark of a proper racer."
+  ],
+  "obj_miss_recover": [
+    "We didn't get all the way back this time. You drove well — the damage was just too much to undo.",
+    "Came up short on the recovery. Nothing wrong with the effort, mate. Bank it and move on.",
+    "Couldn't quite claw it all back. That's racing. Bring it home clean."
+  ],
+  "obj_set_tyres": [
+    "Tyres are going off. New target: hold P{pos} to the flag by looking after them — {laps} laps of smooth driving.",
+    "Change of plan — nurse these tyres and keep P{pos}. {laps} laps. Smooth hands, early throttle.",
+    "The rubber's had it. Target is P{pos} at the flag, managing what's left for {laps} laps.",
+    "Manage the tyres now. Hold P{pos} for {laps} laps — pace comes second to keeping them alive."
+  ],
+  "obj_met_tyres": [
+    "Superbly managed. P{pos} held and you nursed those tyres home. That's a proper drive.",
+    "Target met — P{pos}, and the tyres lasted. Excellent management, mate.",
+    "That's how you do it. P{pos} with nothing left on the tyres. Beautifully judged."
+  ],
+  "obj_miss_tyres": [
+    "Lost the place — the tyres just gave up. Nothing more you could have done there.",
+    "They're gone, and so is the position. Not your fault, mate. Bring it home."
+  ],
+  "obj_wrap_all": [
+    "And every target we set today, you hit. All {total}. That's a complete drive, mate.",
+    "{met} from {total} on the targets — a perfect day on that front. Superb work.",
+    "You delivered on all {total} targets. Doesn't get much better than that.",
+    "Full marks on the targets today, {met} from {total}. Outstanding."
+  ],
+  "obj_wrap_some": [
+    "{met} of {total} targets today. Plenty to build on there.",
+    "We got {met} out of {total}. Solid — we'll take that and sharpen up next time.",
+    "{met} from {total} on the day. The pace was there, just not everywhere.",
+    "Targets: {met} of {total}. Not a bad afternoon's work at all."
+  ],
+  "obj_wrap_none": [
+    "None of the targets came off today. It happens — the pace just wasn't there. We go again.",
+    "We missed all {total} today. Don't read too much into it, mate. Some days the car just isn't with you.",
+    "Zero from {total} on the targets. Frustrating, but you drove it as well as it would go."
+  ],
+  "obj_form_good": [
+    "You've been hitting these lately — {fmet} of {fset} across the last {fraces} races. Let's keep that going.",
+    "Form's good, {fmet} from {fset} recently. No reason today's any different.",
+    "{fmet} of your last {fset} targets done. You're in the groove, mate."
+  ],
+  "obj_form_poor": [
+    "We've been coming up short lately, {fmet} of {fset}. Let's put that right today.",
+    "Only {fmet} from {fset} in recent races. Time to turn that around."
   ]
 }

@@ -574,8 +574,25 @@ class DrawMixin:
                                      fill=CARD_BG, outline=col)
         self.text(x + 10, y + 11, label, fill=col, font=self.f_small_b,
                   anchor="w")
-        self.text(x + w - 10, y + 11, txt[:34], fill=TEXT, font=self.f_row,
-                  anchor="e")
+        # right-hand status: laps left on the target, and the live gap when the
+        # objective is about a gap — so the chip answers "how am I doing?"
+        # without needing the radio to say it.
+        status = ""
+        if obj:
+            left = obj.get("_laps_left")
+            if left is not None:
+                status = f"{left} lap{'s' if left != 1 else ''}"
+            g = obj.get("_gap")
+            if g is not None:
+                status = (status + "  ·  " if status else "") + f"{g:.1f}s"
+        if status:
+            self.text(x + w - 10, y + 11, status, fill=DIM,
+                      font=self.f_small_b, anchor="e")
+            self.text(x + 78, y + 11, txt[:26], fill=TEXT, font=self.f_row,
+                      anchor="w")
+        else:
+            self.text(x + w - 10, y + 11, txt[:34], fill=TEXT, font=self.f_row,
+                      anchor="e")
         # progress bar along the bottom edge of the chip
         by, bh = y + h - 6, 3
         self.canvas.create_rectangle(x + 10, by, x + w - 10, by + bh,
