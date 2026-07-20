@@ -121,4 +121,71 @@ wide = [t for t in booth_new if any(k in t.lower() for k in WIDEKW)]
 assert not wide, "booth wrongly narrated a clean kerb clip: %r" % wide
 print("  booth stayed quiet on the clean clip: OK")
 
+
+# ---- DUPLICATE REPORTS ----------------------------------------------------
+# From a real debug log, ten seconds of broadcast:
+#   22:10:17  It was Marco Wittmann, off the track and ...
+#   22:10:25  It was Marco Wittmann off the road - a ...
+#   22:10:27  Make that two - Marco Wittmann has gone ...
+# One car, one incident, three calls -- and the third names him as his OWN
+# second car. The coalescing window keyed on TIME but never asked WHO, and the
+# per-driver re-detect gap (6s) was shorter than the window (7s), so one spin
+# could be reported afresh the moment the window lapsed. Rivals are detected by
+# position loss and a spinning car sheds places for seconds, so a single
+# incident trips the detector repeatedly.
+print("\n===== DUPLICATE OFF-TRACK REPORTS =====")
+
+
+def _fresh():
+    o = headless_overlay(fake_tts=True)
+    o._show_caption = lambda *a, **k: None
+    o.radio_msgs = []
+    o._incident_until = 0.0
+    o._incident_names = set()
+    return o
+
+
+# A) the same driver inside one window is named ONCE
+o = _fresh()
+t0 = time.time()
+o._report_offtrack("Marco Wittmann", t0)
+o._report_offtrack("Marco Wittmann", t0 + 2.0)
+o._report_offtrack("Marco Wittmann", t0 + 4.0)
+named = [t for _p, t in o.tts.spoken if "Marco Wittmann" in t]
+assert len(named) == 1, (
+    "one incident produced %d calls naming the same driver:\n  %s"
+    % (len(named), "\n  ".join(named)))
+print("  same driver in one window -> 1 call: OK -> %s" % named[0][:56])
+
+# B) ...and is never folded in as his own "second car"
+assert not any(k in t.lower() for t in named
+               for k in ("that two", "as well", "another", "too!")), (
+    "the same driver was announced as a SECOND car going off:\n  %s"
+    % "\n  ".join(named))
+print("  never announced as his own second car: OK")
+
+# C) a genuinely DIFFERENT car in the window is still folded in
+o = _fresh()
+t0 = time.time()
+o._report_offtrack("Marco Wittmann", t0)
+o._report_offtrack("Rene Rast", t0 + 2.0)
+allsaid = [t for _p, t in o.tts.spoken]
+assert any("Rene Rast" in t for t in allsaid), (
+    "a second, genuinely different car going off was swallowed:\n  %s"
+    % "\n  ".join(allsaid))
+print("  a different driver is still folded in: OK")
+
+# D) the per-driver re-detect gap must OUTLAST the incident window, or the
+#    window lapsing re-opens the same incident (the 22:10:17 -> :25 repeat)
+import re as _re                                            # noqa: E402
+import inspect as _inspect                                  # noqa: E402
+import overlay_booth as _ob                                 # noqa: E402
+_gapsrc = _inspect.getsource(_ob.BoothMixin.update_commentary)
+_m = _re.search(r"_offtrack_cd\.get\(sl, -1e9\) > ([\d.]+)", _gapsrc)
+assert _m, "the per-driver off-track re-detect gap moved -- check this test"
+assert float(_m.group(1)) > 7.0, (
+    "the per-driver re-detect gap (%ss) is shorter than the 7s incident "
+    "window, so one spin can be reported twice again" % _m.group(1))
+print("  re-detect gap (%ss) outlasts the 7s window: OK" % _m.group(1))
+
 print("\nALL OFF-TRACK COVERAGE CHECKS PASSED")

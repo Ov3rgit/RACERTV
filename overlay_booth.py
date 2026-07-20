@@ -592,7 +592,12 @@ class BoothMixin:
                     and not grid_sort                        # not the grid sorting out
                     and d.in_pitlane != 1                    # not a car in the pits
                     and now - self._pit_t.get(sl, -1e9) > 12.0   # nor a pit rejoin
-                    and now - self._offtrack_cd.get(sl, -1e9) > 6.0):
+                    # 6s was shorter than the 7s incident window, so ONE spin
+                    # could be re-detected and reported as a second incident
+                    # the moment the window lapsed. A car losing places after
+                    # an off keeps tripping this detector while it recovers, so
+                    # the gap has to outlast the recovery, not just the call.
+                    and now - self._offtrack_cd.get(sl, -1e9) > 20.0):
                 # Routed through _report_offtrack so it can't cut off another
                 # incident mid-call and multi-car pile-ups are coalesced. _focus()
                 # intentionally NOT applied — an incident matters regardless of

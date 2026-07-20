@@ -1421,6 +1421,24 @@ class RadioMixin:
                            on_play=self._show_caption, force=True)
 
         active = now < getattr(self, "_incident_until", 0.0)
+        # ONE INCIDENT PER DRIVER. The window above coalesces by TIME but never
+        # asked WHO, so the same car could be reported over and over: a real log
+        # had Marco Wittmann called three times in ten seconds — a full report,
+        # then a second full report once the 7s window lapsed, then folded in as
+        # "Make that two — Marco Wittmann has gone off", which names him as his
+        # own second car. Rivals are detected by position loss, and one spin
+        # sheds places over several seconds, so a single incident readily
+        # triggers the detector more than once.
+        #
+        # Anyone already named in this incident is done: a driver going off does
+        # not go off again a heartbeat later, and saying so is worse than
+        # silence because it invents cars that never crashed.
+        seen = getattr(self, "_incident_names", None)
+        if seen is None or not active:
+            seen = self._incident_names = set()
+        if name in seen and active:
+            return
+        seen.add(name)
         if primary or not active:                            # FULL named report
             cutting_lead = self.tts.speaking_persona() == "COMMENTATOR"
             # INSTANT bridging sting ("Oh, trouble — looks like someone's gone
