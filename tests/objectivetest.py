@@ -62,13 +62,17 @@ o.interval = {you.driver_info.slot_id: 3.0}
 assert offer(o, s) is None, "offered a chase with NO pace advantage"
 print("  no pace edge -> silent: OK")
 
-# 2. plenty of pace, but the gap is absurd
+# 2. plenty of pace, but the gap is absurd — must NOT offer a chase (it may now
+# offer a clean-air consistency target instead, which is fine; just never a
+# doomed chase across 45s)
 o, s, you = race()
 pace(o, you.driver_info.slot_id, 88.0)
 pace(o, s.all_drivers_data_1[1].driver_info.slot_id, 90.0)
 o.interval = {you.driver_info.slot_id: 45.0}
-assert offer(o, s) is None, "offered a chase across a 45s gap"
-print("  gap far too large -> silent: OK")
+g2 = offer(o, s)
+assert g2 is None or g2[0] not in ("obj_set_chase", "obj_set_position"), (
+    f"offered a chase across a 45s gap: {g2}")
+print("  gap far too large -> no chase: OK")
 
 # 3. good pace, small gap, but the race is nearly over
 o, s, you = race(laps=20)
@@ -462,3 +466,83 @@ for _c in ("obj_advice_chase", "obj_advice_defend", "obj_advice_tyres",
 print("  all advice/withdraw pools format cleanly: OK")
 
 print("\nALL PHASE 6 OBJECTIVE CHECKS PASSED")
+
+print("\n===== PHASE 7: CONSISTENCY OBJECTIVE =====")
+
+
+def opm3(s):
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    return order, {d.place: d for d in order}
+
+
+# 1. offered in CLEAN AIR (nothing to chase or defend)
+o, s, you = race(my_place=6)
+vs = you.driver_info.slot_id
+pace(o, vs, 92.0)                              # steady pace, some data
+o.recent_laps[vs] = [92.0, 92.1, 92.0]
+o.interval = {vs: 30.0}                        # nobody near ahead
+# nobody near behind either (all cars spread out)
+for d in s.all_drivers_data_1[:s.num_cars]:
+    if d.driver_info.slot_id != vs:
+        o.interval[d.driver_info.slot_id] = 30.0
+got = offer(o, s)
+assert got and got[0] == "obj_set_consistency", (
+    f"clean air did not produce a consistency target: {got}")
+assert o._obj["kind"] == "consistency" and o._obj["_ref"] == 92.0
+print(f"  clean air -> consistency target: OK -> {o._obj['hud']!r}")
+
+# 2. a lap INSIDE the band counts; a full run is MET
+o._obj["laps"] = 2
+o._obj["_ok_laps"] = 0
+o._obj["_last_lap_n"] = you.completed_laps
+you.completed_laps += 1
+o.recent_laps[vs].append(92.2)                # within +-0.6s of 92.0 ref
+order, pm = opm3(s)
+r1 = o._obj_check(s, order, pm, time.time())
+assert r1 is None and o._obj["_ok_laps"] == 1, f"good lap not counted: {o._obj.get('_ok_laps')}"
+you.completed_laps += 1
+o.recent_laps[vs].append(91.9)
+r2 = o._obj_check(s, order, pm, time.time())
+assert r2 and r2[0] == "obj_met_consistency", f"consistent run not met: {r2}"
+print("  two laps in the band -> met: OK")
+
+# 3. a lap OUTSIDE the band fails it
+o, s, you = race(my_place=6)
+vs = you.driver_info.slot_id
+o._obj = {"kind": "consistency", "target_slot": vs, "target_name": "",
+          "goal_pos": 6, "gap_target": None, "laps": 4, "_ref": 92.0,
+          "_band": 0.6, "_last_lap_n": you.completed_laps, "_ok_laps": 0,
+          "lap0": you.completed_laps, "hud": "Consistent laps"}
+you.completed_laps += 1
+o.recent_laps[vs] = [92.0, 94.5]              # 2.5s off — way outside
+order, pm = opm3(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_miss_consistency", f"off-band lap not failed: {res}"
+print("  a lap outside the band -> missed: OK")
+
+# 4. progress fills with laps kept in the band
+o._obj = {"kind": "consistency", "laps": 5, "_ok_laps": 3, "lap0": 0}
+prog = o._obj_progress(s, [d for d in s.all_drivers_data_1[:s.num_cars]])
+assert prog is not None and abs(prog - 0.6) < 0.01, f"progress wrong: {prog}"
+print(f"  progress tracks laps-in-band: OK ({prog:.1f})")
+
+print("\nALL PHASE 7 CONSISTENCY CHECKS PASSED")
+
+# PHASE 7 addendum: the clean-air gate is 5s ahead / 4s behind (RaceRoom 5s is
+# a big gap; a car behind matters more, so it's tighter).
+def _consistency_offered(ahead_gap, behind_gap):
+    o, s, you = race(my_place=6)
+    vs = you.driver_info.slot_id
+    o.recent_laps[vs] = [92.0, 92.0, 92.0]
+    for d in s.all_drivers_data_1[:s.num_cars]:
+        o.interval[d.driver_info.slot_id] = 30.0
+    o.interval[vs] = ahead_gap                        # gap to car ahead
+    o.interval[s.all_drivers_data_1[6].driver_info.slot_id] = behind_gap  # P7
+    g = offer(o, s)
+    return bool(g and g[0] == "obj_set_consistency")
+
+assert not _consistency_offered(4.5, 30.0), "fired with a car 4.5s ahead (<5s)"
+assert not _consistency_offered(30.0, 3.5), "fired with a car 3.5s behind (<4s)"
+assert _consistency_offered(6.0, 5.0), "did NOT fire in genuine clean air"
+print("  clean-air gate holds at 5s ahead / 4s behind: OK")

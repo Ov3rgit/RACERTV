@@ -99,6 +99,7 @@ OBJ_BRIEF = {
     "recover":  "to start making places back",
     "tyres":    "to look after those tyres",
     "leadhome": "to bring it home in front",
+    "consistency": "to string together consistent laps",
 }
 OBJ_BRIEF_DEFAULT = "for something specific over these next few laps"
 PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",
@@ -143,6 +144,8 @@ ENG_EMOTION = {
     "obj_advice_chase": "fired", "obj_advice_defend": "worried",
     "obj_advice_tyres": "neutral", "obj_advice_clean": "worried",
     "obj_advice_leadhome": "neutral",
+    "obj_set_consistency": "neutral", "obj_met_consistency": "happy",
+    "obj_miss_consistency": "sad", "obj_advice_consistency": "neutral",
 }
 DRIVER_COLORS = [
     "#ff3b3b", "#ff7a1a", "#ffb000", "#ffe24d", "#b6e02e",

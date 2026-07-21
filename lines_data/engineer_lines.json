@@ -948,5 +948,29 @@
   "You've got a cushion — wind it back a notch and bring it home safe.",
   "Hit your marks, no heroics. This is yours to lose now.",
   "Manage the gap, look after the car. Just be there at the flag."
+ ],
+ "obj_set_consistency": [
+  "Clean air now — let's work on rhythm. Keep the next {laps} laps within a couple of tenths of each other.",
+  "Nothing to chase for the moment, so here's the job: metronome laps. Consistency over the next {laps}.",
+  "Good chance to build a rhythm. String together {laps} consistent laps for me — same time, every lap.",
+  "Let's use this clear track — I want {laps} laps all within the window. Smooth and repeatable.",
+  "Head down, find your rhythm. {laps} laps as close to identical as you can make them."
+ ],
+ "obj_met_consistency": [
+  "That's textbook — lap after lap bang on the same time. Metronome stuff, brilliant.",
+  "Rhythm nailed. Every lap in the window — that's the mark of a real racer.",
+  "Beautiful consistency, right through. That's exactly what I wanted to see.",
+  "Job done — lap after lap on the money. Seriously impressive rhythm out there."
+ ],
+ "obj_miss_consistency": [
+  "Lost the rhythm there — that lap dropped out of the window. Reset and keep it smooth.",
+  "That one was off the pace band. Consistency's harder than it looks — shake it off.",
+  "Rhythm's gone for now, one lap too far off. No drama, we'll find it again."
+ ],
+ "obj_advice_consistency": [
+  "Same braking markers every lap — that's where consistency lives.",
+  "Don't chase the perfect lap, just repeat a good one. Smooth inputs.",
+  "Breathe, settle, hit the same apexes. Rhythm over heroics right now.",
+  "Ease off the kerbs and keep it repeatable — no wild laps."
  ]
 }

@@ -294,6 +294,36 @@ class ObjectiveMixin:
                     "laps": min(laps_left, 4),
                     "hud": f"Hold P{pos} from {self._dname(behind)}",
                 }
+
+        # --- CONSISTENCY: nothing to chase or defend (clean air), so the goal
+        # becomes a driving DISCIPLINE — string together laps within a tight
+        # window of each other. A real racecraft target, and it means clean air
+        # no longer produces silence. Needs a few laps of pace to set a
+        # reference off, and enough race left to be worth it.
+        recent = getattr(self, "recent_laps", {}).get(vslot) or []
+        recent = [l for l in recent if l and l > 0]
+        # GENUINE clean air only: no car within 5s ahead or 4s behind. In
+        # RaceRoom 5s is already a big gap, and a car behind is the more
+        # pressing concern than one the same distance up the road — so the
+        # behind threshold is tighter. With a car closer than this you're still
+        # in a fight, and "just do consistent laps" would read as the engineer
+        # ignoring it.
+        agap = self.interval.get(vslot)
+        bgap_c = (self.interval.get(behind.driver_info.slot_id)
+                  if behind is not None else None)
+        clear_ahead = ahead is None or (agap is not None and agap > 5.0)
+        clear_behind = behind is None or (bgap_c is not None and bgap_c > 4.0)
+        if (len(recent) >= 2 and laps_left >= 4 and clear_ahead and clear_behind
+                and not self._obj_seen("consistency")):
+            ref = mine                            # median recent pace = the mark
+            band = max(0.6, ref * 0.015)          # within ~1.5% (min 0.6s)
+            return {
+                "kind": "consistency", "target_slot": vslot,
+                "target_name": "", "goal_pos": pos, "gap_target": None,
+                "laps": min(laps_left, 5), "_ref": ref, "_band": band,
+                "_last_lap_n": me.completed_laps, "_ok_laps": 0,
+                "hud": f"Consistent laps (±{band:.1f}s)",
+            }
         return None
 
     # ---- progress / resolution ------------------------------------------
@@ -312,6 +342,12 @@ class ObjectiveMixin:
         if me is None:
             return None
         kind = o["kind"]
+
+        # CONSISTENCY: fills with the count of laps kept inside the band.
+        if kind == "consistency":
+            laps = o.get("laps") or 0
+            return (max(0.0, min(1.0, o.get("_ok_laps", 0) / laps))
+                    if laps > 0 else None)
 
         # CLOSING a gap: how much of the gap have you pulled back?
         if kind in ("chase", "position"):
@@ -453,10 +489,25 @@ class ObjectiveMixin:
                 return self._obj_fail(now, "obj_miss_tyres", {"pos": pos})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_tyres", {"pos": pos})
+        elif o["kind"] == "consistency":
+            # each completed lap, check the new lap against the reference. One
+            # lap outside the band fails it; a full run inside it is met.
+            if me.completed_laps > o.get("_last_lap_n", o["lap0"]):
+                o["_last_lap_n"] = me.completed_laps
+                recent = getattr(self, "recent_laps", {}).get(vslot) or []
+                last = recent[-1] if recent else None
+                if last and last > 0:
+                    if abs(last - o["_ref"]) > o["_band"]:
+                        return self._obj_fail(now, "obj_miss_consistency",
+                                              {"pos": pos})
+                    o["_ok_laps"] = o.get("_ok_laps", 0) + 1
+            if o.get("_ok_laps", 0) >= o["laps"]:
+                return self._obj_done(now, "obj_met_consistency", {"pos": pos})
 
         if laps_done >= o["laps"]:                       # ran out of laps
             cat = ("obj_miss_pass" if o["kind"] in ("chase", "position")
                    else "obj_miss_recover" if o["kind"] == "recover"
+                   else "obj_miss_consistency" if o["kind"] == "consistency"
                    else "obj_miss_defend")
             return self._obj_fail(now, cat, {"drv": nm, "pos": pos})
         return None
@@ -511,7 +562,8 @@ class ObjectiveMixin:
         advice = {"chase": "obj_advice_chase", "position": "obj_advice_chase",
                   "defend": "obj_advice_defend", "damage": "obj_advice_defend",
                   "tyres": "obj_advice_tyres", "clean": "obj_advice_clean",
-                  "leadhome": "obj_advice_leadhome"}
+                  "leadhome": "obj_advice_leadhome",
+                  "consistency": "obj_advice_consistency"}
         # last lap of any objective — always worth a "bring it home", and never
         # buried under coaching
         if laps_left is not None and laps_left <= 1:
@@ -525,7 +577,7 @@ class ObjectiveMixin:
         elif kind in ("defend", "damage"):
             cat = ("obj_nudge_threat" if gtrend == -1
                    else "obj_nudge_holding")     # steady: "looking comfortable"
-        elif kind in ("leadhome", "clean", "tyres", "recover"):
+        elif kind in ("leadhome", "clean", "tyres", "recover", "consistency"):
             cat = "obj_nudge_holding"            # a steady check-in on progress
         if cat is None:
             return None
@@ -599,7 +651,8 @@ class ObjectiveMixin:
             self._obj["_badge"] = (
                 f"P{gp}" if gp and k in ("position", "chase", "defend",
                                          "damage", "recover")
-                else "LIM" if k == "clean" else "TYR" if k == "tyres" else "GO")
+                else "LIM" if k == "clean" else "TYR" if k == "tyres"
+                else "=" if k == "consistency" else "GO")
             resolved = self._obj_check(s, order, placemap, now)
             if resolved is not None:
                 return resolved
