@@ -72,15 +72,23 @@ eng_fin = [t for t in eng if "P3" in t or "P4" in t or "podium" in t.lower()
            or "off the podium" in t.lower() or "points" in t.lower()]
 print(f"  engineer finish verdict: {eng_fin[-1][:64] if eng_fin else '(none)'}")
 
-# CLIMACTIC victory sign-off — the signature closing call names the winner AND
-# RacerTV (the combined victory + sign-off line).
+# SIGN-OFF is a proper send-off, NOT a fourth winner announcement. The win is
+# already called by the victory sting + the win line; the outro used to restate
+# "{winner} crosses the line to take victory" a further two times (summary +
+# signoff), which the user flagged as redundant. The signoff now thanks the
+# viewer and closes the broadcast without re-announcing the victory.
 signoff = [t for p, t in allt if p == "COMMENTATOR" and "racertv" in t.lower()]
-assert signoff, "victory sign-off (RacerTV) did not fire"
+assert signoff, "sign-off (RacerTV) did not fire"
 assert any(k in t.lower() for t in signoff for k in
-           ("victory", "crosses the line", "chequered flag", "seals victory",
-            "belongs to", "does it")), \
-    f"sign-off wasn't the climactic victory one: {signoff}"
-print(f"  climactic victory sign-off fired: OK -> {signoff[-1][:58]}")
+           ("next time", "thanks for watching", "goodbye", "so long",
+            "join us", "that's all", "that's our lot")), \
+    f"sign-off wasn't a proper send-off: {signoff}"
+# and it must NOT re-announce the win a fourth time
+assert not any(k in signoff[-1].lower() for k in
+               ("crosses the line", "seals victory", "takes the chequered",
+                "chequered flag and the win")), \
+    f"the sign-off still redundantly re-announces the win: {signoff[-1]}"
+print(f"  clean send-off (no redundant win restatement): OK -> {signoff[-1][:58]}")
 # podium snapshot
 o.sw = 1920; o.sh = 1080
 # capture podium by calling draw_podium with stubs

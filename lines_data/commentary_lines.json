@@ -390,15 +390,13 @@
   "{drv} completes the rostrum — third place and smiles all round."
  ],
  "summary": [
-  "What a thrilling race here at {trk}! Congratulations to {p1} on the win, with {p2} and {p3} completing the podium.",
-  "A cracking race from start to finish! {p1} the winner, ahead of {p2} and {p3} — a brilliant top three.",
-  "That's the chequered flag on a superb race! {p1} takes it, {p2} second and {p3} third. Hats off to all three.",
-  "A race to remember at {trk}! {p1} stands on the top step, joined by {p2} and {p3} — thoroughly deserved, the lot of them.",
-  "And that's the flag! {p1} the winner here at {trk}, {p2} second, {p3} third — a podium they can all be proud of.",
-  "What a contest that was! Victory {p1}, then {p2}, then {p3} — three drivers who left it all out on track.",
-  "The dust settles at {trk} — {p1} takes the win from {p2} and {p3}. Cracking entertainment from lights to flag.",
-  "A worthy winner in {p1}, backed up by {p2} and {p3} on the rostrum. That, ladies and gentlemen, was a race.",
-  "{p1} the deserved victor at {trk}, {p2} and {p3} completing a fine top three. We've been spoiled today."
+  "Behind the winner, {p2} takes second and {p3} rounds out the podium — a strong day for both.",
+  "The battle for the minor placings went the way of {p2} in second, {p3} third. Well earned.",
+  "Completing the podium: {p2} second, {p3} third — they made {p1} work for it.",
+  "{p2} hangs on for second, {p3} third — a podium the three of them can be proud of.",
+  "And spare a thought for the podium places: {p2} second, {p3} taking the final step.",
+  "Second to {p2}, third to {p3} — the supporting cast to {p1}'s win, and what a race they gave us.",
+  "That's {p2} home in second and {p3} third, completing the top three here at {trk}."
  ],
  "signoff": [
   "That's all from us here at {trk}. Join me and {pundit} next time on RacerTV for the next event — goodbye for now!",
@@ -410,12 +408,12 @@
   "Our work here is done at {trk}. Join me and {pundit} next time on RacerTV — thanks for watching, goodbye!"
  ],
  "victory_signoff": [
-  "And there it is — {p1} crosses the line to take victory here at {trk}! A worthy winner if ever there was one. From {comm} and {pundit}, join us next time on RacerTV. Goodbye!",
-  "{p1} takes the chequered flag and the win at {trk} — the end of a cracking race! That's all from {comm} and {pundit}. Join us next time, here on RacerTV. So long!",
-  "So {p1} seals victory at {trk}, capping a superb afternoon's racing! From all of us at RacerTV, thanks for watching — and we'll see you next time. Goodbye!",
-  "Victory belongs to {p1} here at {trk} — a brilliant drive from lights to flag! That wraps up our coverage. Join {comm} and {pundit} next time on RacerTV. Cheers!",
-  "And {p1} does it — across the line to win at {trk}, the perfect end to the race! From me, {comm}, and {pundit}, that's goodbye from RacerTV. Until next time!",
-  "{p1} crosses the line to take a famous victory at {trk}! What a way to finish. From {comm} and {pundit}, join us again next time on RacerTV — goodbye for now!"
+  "And that's where we'll leave it — a cracking race here at {trk}. From {comm} and {pundit}, thanks for watching. See you next time on RacerTV!",
+  "A fitting end to a fine afternoon at {trk}. That's all from {comm} and {pundit} — join us again next time on RacerTV. Goodbye!",
+  "What a race that was. From all of us at RacerTV, thanks for being with us — {comm} and {pundit} will see you next time. So long!",
+  "That brings the curtain down at {trk}. On behalf of {comm} and {pundit}, thanks for watching RacerTV — until next time, goodbye!",
+  "And on that note, we'll say goodbye from {trk}. Great racing, great drama — from {comm} and {pundit}, see you next time on RacerTV!",
+  "A race that had it all. That's our lot from {comm} and {pundit} — thanks for joining us, and we'll catch you next time on RacerTV!"
  ],
  "lap_milestone": [
   "We're on lap {lap} of {total} here at {trk}.",

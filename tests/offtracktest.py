@@ -46,25 +46,46 @@ def fresh_green_race():
     return o, s, you
 
 
-print("===== ENGINEER: full-speed kerb clip (lap invalid, no cut) stays SILENT =====")
+print("===== ENGINEER: full-speed lap-invalid IS called (track limits) =====")
+# CHANGED intent. This used to assert SILENCE on a full-speed lap-invalid,
+# treating it as a harmless clip. But RaceRoom only invalidates the lap when
+# you actually exceed track limits, and offline (cut_track_warnings = N/A) this
+# is the ONLY signal there is — so the old behaviour meant the engineer never
+# called track limits at all, which the user flagged. A lap-invalid at speed
+# now gets a LIGHT limits reminder (its own 15s cooldown, not scolding).
 o, s, you = fresh_green_race()
 assert s.cut_track_warnings == 0
 before = len(o.tts.spoken)
-you.current_lap_valid = 0        # lap goes invalid — full-speed paint clip
-you.car_speed = 55.0             # NO speed loss: not a real off
+you.current_lap_valid = 0        # lap goes invalid — a real track-limits cut
+you.car_speed = 55.0             # no spin, but limits WERE exceeded
 o._eng_cd -= 30.0
 drive(o, s, 1)
 o._eng_cd -= 30.0
 drive(o, s, 1)
 if o._eng_off_watch is not None:
-    o._eng_off_watch[0] -= 5.0   # push the confirm window into the past
+    o._eng_off_watch[0] -= 5.0   # push the confirm window past (no speed collapse)
 o._eng_cd -= 30.0
 drive(o, s, 1)
 eng_new = [t for p, t in o.tts.spoken[before:] if p == "ENGINEER"]
-clip_warn = [t for t in eng_new if any(k in t.lower() for k in OFFKW)]
-assert not clip_warn, \
-    "engineer scolded a harmless full-speed clip: %r" % clip_warn
-print("  engineer stayed quiet on the clean clip: OK")
+limit_warn = [t for t in eng_new if any(k in t.lower() for k in OFFKW)]
+assert limit_warn, \
+    "engineer stayed silent on a genuine track-limits cut: %r" % eng_new
+print("  engineer calls the track-limits cut: OK -> %s" % limit_warn[0][:50])
+
+# ...but it does NOT nag: a second clip inside the cooldown stays quiet
+before = len(o.tts.spoken)
+you.current_lap_valid = 0
+you.car_speed = 55.0
+o._eng_cd -= 30.0
+drive(o, s, 1)
+if o._eng_off_watch is not None:
+    o._eng_off_watch[0] -= 5.0
+o._eng_cd -= 30.0
+drive(o, s, 1)
+again = [t for p, t in o.tts.spoken[before:] if p == "ENGINEER"
+         and any(k in t.lower() for k in OFFKW)]
+assert not again, "limits warning nagged inside its cooldown: %r" % again
+print("  a second clip inside the cooldown stays quiet: OK")
 
 print("\n===== ENGINEER: lap-invalid off WITH a speed collapse (no cut-warning) =====")
 o, s, you = fresh_green_race()

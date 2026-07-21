@@ -126,7 +126,7 @@ class ObjectiveMixin:
         if me is None or me.in_pitlane == 1:
             return None
         laps_left = self._obj_laps_left(s, order)
-        if not laps_left or laps_left < 2:
+        if not laps_left or laps_left < 1:
             return None                       # nothing meaningful left to set
         mine = self._obj_pace(vslot)
         if not mine:
@@ -212,6 +212,37 @@ class ObjectiveMixin:
                 "laps": laps_left,
                 "hud": "Hold the lead to the flag",
             }
+
+        # --- CLOSING LAPS: the flag itself is the deadline, so drop the
+        # pace-edge maths. A car close ahead in the last few laps is a "go get
+        # them, this is your chance" whether or not your median lap is quicker
+        # — following at 0.3s for three corners IS the opportunity. This is the
+        # "I was right behind P3 in the last laps and got NO objective to
+        # secure the podium" gap. Mirror for a close car behind: "secure P{n}
+        # to the flag". Ahead takes priority — attacking beats defending.
+        ahead0 = self._obj_driver(order, pos - 1)
+        behind0 = self._obj_driver(order, pos + 1)
+        if laps_left <= 3:
+            if ahead0 is not None:
+                agap = self.interval.get(vslot)
+                if agap is not None and agap < 2.5:
+                    return {
+                        "kind": "position", "target_slot": ahead0.driver_info.slot_id,
+                        "target_name": self._dname(ahead0),
+                        "goal_pos": pos - 1, "gap_target": 0.0,
+                        "laps": laps_left,
+                        "hud": f"P{pos - 1} — last chance, pass {self._dname(ahead0)}",
+                    }
+            if behind0 is not None:
+                bg = self.interval.get(behind0.driver_info.slot_id)
+                if bg is not None and bg < 2.5:
+                    return {
+                        "kind": "defend", "target_slot": behind0.driver_info.slot_id,
+                        "target_name": self._dname(behind0),
+                        "gap_target": float(round(max(1.0, bg))), "goal_pos": pos,
+                        "laps": laps_left,
+                        "hud": f"Secure P{pos} to the flag",
+                    }
 
         # --- CHASE / POSITION: the car directly ahead.
         ahead = self._obj_driver(order, pos - 1)
@@ -371,6 +402,16 @@ class ObjectiveMixin:
         elif o["kind"] == "defend":
             if pos > o["goal_pos"]:                      # lost the place
                 return self._obj_fail(now, "obj_miss_defend", {"drv": nm})
+            # THREAT EVAPORATED: the car you were told to hold off has dropped
+            # well out of range, so "hold P5 from Marco" is meaningless — Marco
+            # is 10s back. Resolve it early as a comfortable win rather than
+            # keep nagging about a car that is no longer there. This is the
+            # "Marco fell back but the objective still said hold from Marco" bug.
+            bgap_now = self.interval.get(o["target_slot"])
+            if (tgt is not None and bgap_now is not None
+                    and bgap_now > OBJ_DEFEND_NEAR * 2.5):
+                return self._obj_done(now, "obj_met_defend_clear",
+                                      {"drv": nm, "pos": pos})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_defend",
                                       {"drv": nm, "pos": pos})
@@ -446,23 +487,22 @@ class ObjectiveMixin:
         gtrend = o.get("_trend")            # -1 closing gap, +1 gap slipping
         laps_left = o.get("_laps_left")
         cat = None
-        kw = {"drv": o.get("target_name") or "", "pos": me.place}
-        if kind in ("chase", "position"):
-            if gtrend == -1:
-                cat = "obj_nudge_closing"
-            elif gtrend == 1:
-                cat = "obj_nudge_slipping"
+        lap_word = ("1 more lap" if laps_left == 1
+                    else f"{laps_left} more laps" if laps_left else "a few laps")
+        kw = {"drv": o.get("target_name") or "", "pos": me.place,
+              "laps": lap_word}
+        # last lap of any objective — always worth a "bring it home"
+        if laps_left is not None and laps_left <= 1:
+            cat = "obj_nudge_nearly"
+        elif kind in ("chase", "position"):
+            cat = ("obj_nudge_closing" if gtrend == -1
+                   else "obj_nudge_slipping" if gtrend == 1
+                   else "obj_nudge_holding")     # steady: "keep chipping away"
         elif kind in ("defend", "damage"):
-            if gtrend == -1:                # threat closing on you
-                cat = "obj_nudge_threat"
-            elif laps_left is not None and laps_left <= 1:
-                cat = "obj_nudge_nearly"
-        elif kind == "leadhome":
-            if laps_left is not None and laps_left <= 1:
-                cat = "obj_nudge_nearly"
-        elif kind in ("clean", "tyres"):
-            if laps_left is not None and laps_left <= 1:
-                cat = "obj_nudge_nearly"
+            cat = ("obj_nudge_threat" if gtrend == -1
+                   else "obj_nudge_holding")     # steady: "looking comfortable"
+        elif kind in ("leadhome", "clean", "tyres", "recover"):
+            cat = "obj_nudge_holding"            # a steady check-in on progress
         if cat is None:
             return None
         self._obj_nudge_t = now
@@ -552,7 +592,10 @@ class ObjectiveMixin:
         if now - self._obj_last_t < OBJ_MIN_GAP_S:
             return None
         laps_left = self._obj_laps_left(s, order)
-        if not laps_left or laps_left < 2:
+        # allow a 1-lap objective now: the closing-laps push ("last chance, go
+        # get P3") is exactly a final-lap goal, and blocking at <2 was why the
+        # end-of-race podium chase never got a target.
+        if not laps_left or laps_left < 1:
             return None
         o = self._obj_offer(s, order, placemap, now)
         if not o:

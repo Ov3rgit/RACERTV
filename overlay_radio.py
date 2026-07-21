@@ -893,7 +893,19 @@ class RadioMixin:
                 self._eng_off_cd = now
                 return self._limits_warn(add, cuts_now)
             if now > deadline:
-                self._eng_off_watch = None       # clean clip — say nothing
+                self._eng_off_watch = None
+                # No speed collapse, so not a spin/gravel off — but the lap DID
+                # go invalid, and offline (cut_track_warnings = N/A) this is the
+                # ONLY way a plain track-limits cut is ever caught. The engineer
+                # was silent on all of them. Call it as a LIGHT limits warning
+                # on its own longer cooldown so it's a reminder, not nagging
+                # every painted kerb. Still counts toward _own_cuts, so the
+                # clean-running objective and incident tally see it too.
+                if (plv == 0 and self._racing
+                        and now - getattr(self, "_eng_limits_cd", -1e9) > 15.0):
+                    self._eng_limits_cd = now
+                    self._own_cuts = getattr(self, "_own_cuts", 0) + 1
+                    return add("warn_offtrack", 1, cuts=self._own_cuts)
         # OFFLINE INCIDENT TALLY. incident_points/max_incident_points are SERVER
         # fields (-1 = N/A per r3e.h), so vs AI the official block above never
         # runs and the engineer never mentioned incidents at all. With no server

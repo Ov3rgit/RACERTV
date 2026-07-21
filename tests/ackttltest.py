@@ -59,7 +59,8 @@ evts = eng_events(o, s, you)
 eng = [e for e in evts if e[5] == "ENGINEER"]
 assert eng, "no engineer ack at all for a four-place climb"
 txt = eng[0][3]
-assert "places" in txt.lower() or "up to" in txt.lower(), (
+assert any(w in txt.lower() for w in
+           ("places", "up to", "cars in a flash", "picked off", "positions")), (
     "a four-place climb did not coalesce into one multi line: %r" % txt)
 assert "13" not in txt and "12" not in txt, (
     "the multi line named an intermediate position it skipped: %r" % txt)

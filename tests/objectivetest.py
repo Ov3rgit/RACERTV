@@ -327,3 +327,61 @@ for _c in _newcats:
 print(f"  all {len(_newcats)} new engineer pools format cleanly: OK")
 
 print("\nALL PHASE 4 OBJECTIVE CHECKS PASSED")
+
+print("\n===== PHASE 5: WHOLE-RACE AWARENESS (from a real transcript) =====")
+
+
+def order_pm2(s):
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    return order, {d.place: d for d in order}
+
+
+# 1. THREAT EVAPORATES: "hold P5 from Marco" resolves once Marco falls far back
+o, s, you = race(my_place=5)
+you.place = 5
+mk = s.all_drivers_data_1[5]                  # the car behind (P6)
+o._obj = {"kind": "defend", "target_slot": mk.driver_info.slot_id,
+          "target_name": "Marco", "goal_pos": 5, "gap_target": 3.0, "laps": 6,
+          "lap0": you.completed_laps, "hud": "Hold P5 from Marco"}
+o.interval = {mk.driver_info.slot_id: 11.0}    # Marco is now 11s back
+order, pm = order_pm2(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_met_defend_clear", (
+    f"a defend target whose threat vanished did not resolve: {res}")
+assert o._obj is None
+print(f"  defend resolves when the threat falls away: OK -> {res[0]}")
+
+# 2. CLOSING-LAPS PODIUM PUSH: right behind a car in the last laps -> target,
+#    even without a measured pace edge (the "behind P3, got nothing" bug)
+o, s, you = race(my_place=4, laps=20)
+you.place = 4
+# only 2 laps to go, tight behind P3, and NO pace edge in the data
+for d in s.all_drivers_data_1[:s.num_cars]:
+    d.completed_laps = 18                       # 2 laps left of 20
+    o.recent_laps[d.driver_info.slot_id] = [92.0, 92.0, 92.0]  # equal pace
+you.completed_laps = 18
+o.interval = {you.driver_info.slot_id: 0.4}     # 0.4s behind P3
+o._obj = None
+o._obj_last_t = 0.0
+got = offer(o, s)
+assert got and got[0] == "obj_set_position", (
+    f"right behind P3 in the closing laps got no podium push: {got}")
+assert "last chance" in o._obj["hud"].lower() or "pass" in o._obj["hud"].lower()
+print(f"  closing-laps podium push fires without a pace edge: OK -> {o._obj['hud']!r}")
+
+# 3. a STEADY hold gets a check-in nudge (not only on a trend change)
+o, s, you = race(my_place=5)
+you.place = 5
+o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[5].driver_info.slot_id,
+          "target_name": "Marco", "goal_pos": 5, "gap_target": 3.0, "laps": 6,
+          "lap0": you.completed_laps, "hud": "Hold P5", "_trend": 0,
+          "_laps_left": 3}
+o._obj_nudge_t = 0.0
+nud = o._obj_nudge(s, you, time.time())
+assert nud and nud[0] == "obj_nudge_holding", (
+    f"a steady hold produced no check-in nudge: {nud}")
+assert "more lap" in nud[1]["laps"]
+print(f"  steady hold gets a check-in nudge with laps left: OK -> {nud[1]['laps']}")
+
+print("\nALL PHASE 5 OBJECTIVE CHECKS PASSED")

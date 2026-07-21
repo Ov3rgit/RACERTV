@@ -137,7 +137,8 @@ ENG_EMOTION = {
     # mid-objective progress nudges + the supersede line
     "obj_nudge_closing": "fired", "obj_nudge_slipping": "worried",
     "obj_nudge_threat": "worried", "obj_nudge_nearly": "fired",
-    "obj_supersede_gained": "happy",
+    "obj_supersede_gained": "happy", "obj_nudge_holding": "neutral",
+    "obj_met_defend_clear": "happy",
 }
 DRIVER_COLORS = [
     "#ff3b3b", "#ff7a1a", "#ffb000", "#ffe24d", "#b6e02e",

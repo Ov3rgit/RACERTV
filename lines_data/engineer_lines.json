@@ -898,5 +898,20 @@
   "Flying! That's {gain} you've picked off, up to P{pos}. Lovely stuff.",
   "In they come — {gain} places, P{pos} now. Ride that momentum!",
   "Superb getaway! {gain} positions, you're up to P{pos}. Settle now and build."
+ ],
+ "obj_nudge_holding": [
+  "Looking comfortable — {laps} of this, keep it right there.",
+  "That's the stuff, holding well. {laps} to go, stay on it.",
+  "Nice and steady, exactly what we need. {laps} left.",
+  "You're doing everything right — {laps}, keep this up.",
+  "Good rhythm, this is working. {laps} and it's done.",
+  "Solid. Just keep doing what you're doing — {laps} to go.",
+  "Composed out there. Hold this to the end, {laps}."
+ ],
+ "obj_met_defend_clear": [
+  "You can breathe now — {drv}'s dropped right back. P{pos} is safe, brilliant defending.",
+  "That's done it, {drv} is out of the picture. P{pos} secured, lovely work.",
+  "{drv}'s fallen away, no more threat there. P{pos} is yours — great job holding firm.",
+  "Gap's massive now, {drv} can't reach you. Consider that one banked, P{pos}."
  ]
 }
