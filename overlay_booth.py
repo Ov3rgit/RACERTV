@@ -901,24 +901,25 @@ class BoothMixin:
         if is_race and _ob and now - _ob[3] < 12.0:
             _ev, _kind, _tgt, _t = _ob
             self._obj_booth = None
-            # noticing EVERY target would be as tiresome as noticing none, but
-            # a RESOLVED target is a payoff and is always worth calling
-            if random.random() < (0.6 if _ev == "set" else 1.0):
-                pdrv = next((d for d in order if d.driver_info.slot_id
-                             == s.vehicle_info.slot_id), None)
-                if pdrv is not None and _ev == "set":
-                    # say WHAT was asked for, in terms the broadcast could
-                    # legitimately infer from watching — "asked to put the
-                    # pressure on", "told to defend" — not numbers off a
-                    # private radio call
-                    _brief = _safe_format(OBJ_BRIEF.get(_kind,
-                                                        OBJ_BRIEF_DEFAULT),
-                                          {"tgt": _tgt or "the car ahead"})
-                    L("obj_booth_brief", 2, persona="PUNDIT",
-                      drv=self._dname(pdrv), brief=_brief)
-                elif pdrv is not None:
-                    L("obj_booth_met" if _ev == "met" else "obj_booth_miss",
-                      2, persona="PUNDIT", drv=self._dname(pdrv))
+            # SET, MET and MISS are all called now. "Set" used to be gated at a
+            # 60% roll AND the notice was consumed on read, so a failed roll
+            # dropped it for good — which is why the booth reacted to targets
+            # being resolved but never to them being GIVEN (reported directly).
+            # A target being set IS a story beat; announce it.
+            pdrv = next((d for d in order if d.driver_info.slot_id
+                         == s.vehicle_info.slot_id), None)
+            if pdrv is not None and _ev == "set":
+                # say WHAT was asked for, in terms the broadcast could
+                # legitimately infer from watching — "asked to put the
+                # pressure on", "told to defend" — not numbers off a
+                # private radio call
+                _brief = _safe_format(OBJ_BRIEF.get(_kind, OBJ_BRIEF_DEFAULT),
+                                      {"tgt": _tgt or "the car ahead"})
+                L("obj_booth_brief", 2, persona="PUNDIT",
+                  drv=self._dname(pdrv), brief=_brief)
+            elif pdrv is not None:
+                L("obj_booth_met" if _ev == "met" else "obj_booth_miss",
+                  2, persona="PUNDIT", drv=self._dname(pdrv))
 
         # LATE phase — one-time urgency call (LAP races only; the {togo} wording
         # needs a lap count). Timed races get their late nudge via the time-aware

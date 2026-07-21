@@ -516,11 +516,13 @@ class DrawMixin:
     def draw_relative(self, s):
         vslot = s.vehicle_info.slot_id
         if vslot < 0:
+            self._rel_box = None                 # tower not drawn — see draw_objective
             return
         order = sorted(self._drivers(s), key=lambda d: d.place)
         idx = next((i for i, d in enumerate(order)
                     if d.driver_info.slot_id == vslot), None)
         if idx is None or len(order) < 2:
+            self._rel_box = None                 # tower not drawn — see draw_objective
             return
         lo = max(0, idx - 3)
         hi = min(len(order), idx + 4)
@@ -726,16 +728,25 @@ class DrawMixin:
         # sector-time block and the lower-third caption; here it sits in the
         # right-hand column with the rest of the timing information, and
         # follows the tower as it grows and shrinks with the field.
+        # Dock under the relative tower. draw_relative runs right before this
+        # every frame and NULLS _rel_box on its early-return paths (tower not
+        # drawn), so a non-None box reliably means the tower is on screen this
+        # frame — no stale-box docking onto empty space or, worse, the fallback
+        # landing on the tower.
         rel = getattr(self, "_rel_box", None)
         if rel:
             rx, ry_, rw, rh_ = rel
             w = rw                               # match the tower's width
             x = rx
             y = ry_ + rh_ + 8
-        else:                                    # relative hidden — fall back
-            w = 290
+        else:
+            # FALLBACK: no tower this frame. Dock where a FULL tower would end
+            # (110 + max 7 rows + gap), NOT at y=110 — the old fallback sat
+            # exactly on the relative tower's rows and overlapped it whenever
+            # the box went momentarily stale.
+            w = 300
             x = self.sw - w - 30
-            y = 110
+            y = 110 + (22 + 24 * 7) + 8
         h = 62
         self._begin_panel("objective", x, y, w, h)
 

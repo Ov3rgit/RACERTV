@@ -128,6 +128,26 @@ o._obj_result = {"ok": False, "hud": "Pass Pierre Dubois", "until": 9e18}
 check("draw_objective (result chip / cross glyph)",
       lambda: o.draw_objective(None))
 
+# DOCKING: with a tower box, the card sits BELOW it; with NO box (tower not
+# drawn this frame) the fallback must NOT land on the tower's rows (y=110) —
+# that was the overlap. Capture the y the card is drawn at.
+import overlay_draw as _od                              # noqa: E402
+_ys = []
+_real_card = o._card
+o._card = lambda x, y, w, h, **k: (_ys.append(y), _real_card(x, y, w, h, **k))[-1]
+o._obj_result = None
+o._obj = {"hud": "x", "_prog": 0.4, "_badge": "P4", "_laps_left": 2,
+          "_gap": 0.9, "_trend": 0, "kind": "defend", "goal_pos": 4,
+          "laps": 4, "lap0": 2}
+o._rel_box = (1590, 110, 300, 190)                      # tower spans 110..300
+o.draw_objective(None)
+assert _ys[-1] >= 300, f"card docked INTO the tower (y={_ys[-1]}, tower ends 300)"
+o._rel_box = None                                       # tower gone this frame
+o.draw_objective(None)
+assert _ys[-1] > 110, f"fallback docked the card on the tower rows (y={_ys[-1]})"
+o._card = _real_card
+print("  objective card never overlaps the relative tower: OK")
+
 assert not fails, "draw stages raised:\n  " + "\n  ".join(fails)
 print("\nALL DRAW CHECKS PASSED")
 _root.destroy()

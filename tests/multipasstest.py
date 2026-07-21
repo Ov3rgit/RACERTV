@@ -85,28 +85,22 @@ assert "in one move" not in said and "places at once" not in said, (
     "a pit cycle was commentated as a double overtake:\n" + said)
 print("  pit cycle is NOT called a double pass: OK")
 
-# ---- 3. the booth reacts when a target is SET, in the right terms ---------
-# A newly-SET target is deliberately only picked up ~60% of the time (the
-# booth noticing every single one would be as tiresome as noticing none), so
-# one attempt is not a test -- it's a coin flip. Retry until it fires; 12
-# attempts at p=0.6 fails by chance about once in 10^5 runs, and never fires
-# at all if the wiring is broken.
-said = ""
-for _attempt in range(12):
-    o, s = build()
-    settle(o, s)
-    before = len(o.tts.spoken)
-    o._obj_booth = ("set", "defend", "Hans Gruber", __import__("time").time())
-    for _ in range(6):
-        drive(o, s, 1)
-    said = " || ".join(t for _p, t in o.tts.spoken[before:])
-    if "defend this position" in said:
-        break
-else:
-    raise AssertionError(
-        "booth never picked up the pit wall's DEFEND brief in 12 attempts "
-        "(so this is the wiring, not the 60% gate). Last heard:\n" + said)
-print("  booth calls a defend brief: OK")
+# ---- 3. the booth reacts when a target is SET (now ALWAYS, not a 60% roll) --
+# Reported: the booth called objectives being resolved but never being GIVEN.
+# The "set" notice used to be gated at 0.6 AND consumed on read, so a failed
+# roll dropped it for good. Now set/met/miss are all announced, so this is
+# deterministic — one attempt must fire.
+o, s = build()
+settle(o, s)
+before = len(o.tts.spoken)
+o._obj_booth = ("set", "defend", "Hans Gruber", __import__("time").time())
+for _ in range(6):
+    drive(o, s, 1)
+said = " || ".join(t for _p, t in o.tts.spoken[before:])
+assert "defend this position" in said, (
+    "booth did not announce the target being SET (the given objective):\n"
+    + said)
+print("  booth calls a defend brief when the target is set: OK")
 
 # ---- 4. ...and when it is MET (a payoff is always worth calling) ----------
 o, s = build()

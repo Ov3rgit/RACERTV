@@ -410,11 +410,15 @@ class ObjectiveMixin:
         # the race, not only whether it's met/missed. Each kind has its own
         # "this is now moot" condition, checked before the met/miss logic below.
 
-        # DEFEND / DAMAGE: you comfortably CLIMBED PAST the position you were
-        # holding — bank it and let a fresh target come.
-        if o["kind"] in ("defend", "damage") and me.place <= o["goal_pos"] - 2:
+        # DEFEND / DAMAGE: you CLIMBED ABOVE the position you were holding —
+        # bank it and let a fresh target come. Fires on ANY place gained (was
+        # two places, which meant "hold P6" only released at P4 while you were
+        # already in P5 hunting P4). Uses the CONFIRMED place so a one-tick
+        # position flicker at the overtake can't supersede prematurely.
+        cpos = self.cplace.get(vslot, me.place) if hasattr(self, "cplace") else me.place
+        if o["kind"] in ("defend", "damage") and cpos < o["goal_pos"]:
             return self._obj_supersede(now, "obj_supersede_gained",
-                                       {"drv": nm, "pos": me.place})
+                                       {"drv": nm, "pos": cpos})
         # DEFEND / DAMAGE: the THREAT evaporated — the car you were told to hold
         # off dropped well out of range, so the target is meaningless.
         if o["kind"] in ("defend", "damage") and tgt is not None:

@@ -285,20 +285,22 @@ assert prog is not None and 0.4 < prog < 0.6, (
     f"a defend objective reported no/wrong progress: {prog}")
 print(f"  defend objective tracks progress: OK ({prog:.2f})")
 
-# 2. THE HEADLINE BUG: holding off P4, a crash climbs you to P2 -> the target
-#    is superseded and banked, not left stuck forever
-o, s, you = race(my_place=4)
-you.place = 4
-o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[4].driver_info.slot_id,
-          "target_name": "Rossi", "goal_pos": 4, "gap_target": 3.0, "laps": 4,
-          "lap0": you.completed_laps, "hud": "Hold P4 from Rossi"}
-you.place = 2                                 # a crash ahead put you up to P2
+# 2. THE HEADLINE BUG: holding P6, you overtake into P5 -> the target is
+#    superseded THE MOMENT you climb above it, not two places later. (Reported:
+#    "hold off P6" stuck live while I was already P5 chasing P4.)
+o, s, you = race(my_place=6)
+you.place = 6
+o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[6].driver_info.slot_id,
+          "target_name": "Rossi", "goal_pos": 6, "gap_target": 3.0, "laps": 4,
+          "lap0": you.completed_laps, "hud": "Hold P6 from Rossi"}
+you.place = 5                                 # one overtake — now above the held spot
+o.cplace[you.driver_info.slot_id] = 5        # confirmed at P5
 order, pm = order_pm(s)
 res = o._obj_check(s, order, pm, time.time())
 assert res and res[0] == "obj_supersede_gained", (
-    f"climbing P4->P2 did not supersede the defend target: {res}")
+    f"climbing P6->P5 did not immediately supersede the hold target: {res}")
 assert o._obj is None, "the stale defend objective was not cleared"
-print(f"  defend P4 -> climbed to P2 supersedes: OK -> {res[0]}")
+print(f"  hold P6 -> climbed to P5 supersedes at once: OK -> {res[0]}")
 
 # 3. supersede shortens the spacing so a fresh target can land promptly
 assert o._obj_last_t < time.time() - 1, (
