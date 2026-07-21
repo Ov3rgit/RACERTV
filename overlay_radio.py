@@ -1511,6 +1511,16 @@ class RadioMixin:
             seen = self._incident_names = set()
         if name in seen and active:
             return
+        # GLOBAL INCIDENT COOLDOWN. A chaotic AI race throws off after off, and
+        # each opens a fresh report — a real transcript had "someone's off the
+        # track!" many times over. A RIVAL incident that opens a BRAND-NEW
+        # window (not folded into an active one) must wait out a cooldown since
+        # the last, so incidents land as occasional drama, not a roll-call.
+        # YOUR car (primary) is exempt — your own off is always worth hearing.
+        if not primary and not active:
+            if now - getattr(self, "_offtrack_report_cd", -1e9) < 14.0:
+                return
+            self._offtrack_report_cd = now
         seen.add(name)
         if primary or not active:                            # FULL named report
             cutting_lead = self.tts.speaking_persona() == "COMMENTATOR"

@@ -900,26 +900,44 @@ class BoothMixin:
         _ob = getattr(self, "_obj_booth", None)
         if is_race and _ob and now - _ob[3] < 12.0:
             _ev, _kind, _tgt, _t = _ob
-            self._obj_booth = None
-            # SET, MET and MISS are all called now. "Set" used to be gated at a
-            # 60% roll AND the notice was consumed on read, so a failed roll
-            # dropped it for good — which is why the booth reacted to targets
-            # being resolved but never to them being GIVEN (reported directly).
-            # A target being set IS a story beat; announce it.
-            pdrv = next((d for d in order if d.driver_info.slot_id
-                         == s.vehicle_info.slot_id), None)
-            if pdrv is not None and _ev == "set":
-                # say WHAT was asked for, in terms the broadcast could
-                # legitimately infer from watching — "asked to put the
-                # pressure on", "told to defend" — not numbers off a
-                # private radio call
-                _brief = _safe_format(OBJ_BRIEF.get(_kind, OBJ_BRIEF_DEFAULT),
-                                      {"tgt": _tgt or "the car ahead"})
-                L("obj_booth_brief", 2, persona="PUNDIT",
-                  drv=self._dname(pdrv), brief=_brief)
-            elif pdrv is not None:
-                L("obj_booth_met" if _ev == "met" else "obj_booth_miss",
-                  2, persona="PUNDIT", drv=self._dname(pdrv))
+            # DON'T clear on read and DON'T compete in the candidate arbitration.
+            # Both were why a whole race aired ZERO booth objective lines: the
+            # brief was added as one prio-2 candidate and the notice consumed,
+            # so in an incident-heavy race it lost that single arbitration and
+            # was gone. Instead we HOLD the notice across its 12s window and
+            # speak it DIRECTLY the first tick the booth queue has a gap —
+            # guaranteed to land, without ever talking over a live incident.
+            busy = (self.tts is not None
+                    and (self.tts._pending() >= 2
+                         or self.tts.speaking_persona() in
+                         ("COMMENTATOR", "PUNDIT")))
+            if not busy:
+                self._obj_booth = None
+                pdrv = next((d for d in order if d.driver_info.slot_id
+                             == s.vehicle_info.slot_id), None)
+                if pdrv is not None:
+                    if _ev == "set":
+                        _brief = _safe_format(
+                            OBJ_BRIEF.get(_kind, OBJ_BRIEF_DEFAULT),
+                            {"tgt": _tgt or "the car ahead"})
+                        _txt = _safe_format(
+                            self._pick(COMMENTARY_LINES["obj_booth_brief"],
+                                       ("COMM", "obj_booth_brief")),
+                            {"drv": self._dname(pdrv), "brief": _brief,
+                             "comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME})
+                    else:
+                        _cat = ("obj_booth_met" if _ev == "met"
+                                else "obj_booth_miss")
+                        _txt = _safe_format(
+                            self._pick(COMMENTARY_LINES[_cat], ("COMM", _cat)),
+                            {"drv": self._dname(pdrv), "comm": COMMENTATOR_NAME,
+                             "pundit": PUNDIT_NAME})
+                    if self.tts:
+                        self.tts.speak(self._spoken(_txt), "PUNDIT",
+                                       seed="PUNDIT", intensity=1,
+                                       on_play=self._show_caption, force=True)
+                    else:
+                        self._show_caption(_txt, "PUNDIT")
 
         # LATE phase — one-time urgency call (LAP races only; the {togo} wording
         # needs a lap count). Timed races get their late nudge via the time-aware

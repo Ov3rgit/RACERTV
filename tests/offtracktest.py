@@ -209,4 +209,55 @@ assert float(_m.group(1)) > 7.0, (
     "window, so one spin can be reported twice again" % _m.group(1))
 print("  re-detect gap (%ss) outlasts the 7s window: OK" % _m.group(1))
 
+# E) GLOBAL COOLDOWN: separate rival incidents don't machine-gun. A chaotic AI
+# race threw "someone's off!" many times over; a fresh rival incident now waits
+# out a cooldown since the last.
+o = _fresh()
+o._offtrack_report_cd = -1e9
+t0 = time.time()
+o._report_offtrack("Marco Wittmann", t0)                 # opens a window
+n1 = len([t for _p, t in o.tts.spoken if "Marco" in t])
+assert n1 >= 1, "first rival incident did not report"
+o._incident_until = 0.0                                  # window fully lapsed
+o._incident_names = set()
+o._report_offtrack("Rene Rast", t0 + 4.0)                # 4s later — within cooldown
+assert not any("Rene Rast" in t for _p, t in o.tts.spoken), (
+    "a second rival incident 4s later reported anyway — no global cooldown")
+o._incident_until = 0.0
+o._incident_names = set()
+o._report_offtrack("Rene Rast", t0 + 20.0)               # 20s later — clear
+assert any("Rene Rast" in t for _p, t in o.tts.spoken), (
+    "a rival incident well past the cooldown was still suppressed")
+print("  global incident cooldown spaces rival offs: OK")
+
+# F) ...but YOUR car (primary) is exempt — always reported
+o = _fresh()
+o._offtrack_report_cd = time.time()                      # cooldown active
+o._report_offtrack("You Driver", time.time() + 1.0, primary=True)
+assert any("You Driver" in t for _p, t in o.tts.spoken), (
+    "the player's own off was suppressed by the rival cooldown")
+print("  the player's own off is exempt from the cooldown: OK")
+
+# G) STING ANTI-REPEAT: the bridging sting never repeats back-to-back
+import tts as _tts_mod                                    # noqa: E402
+class _FakeStingTts(_tts_mod.Tts):
+    def __init__(self):
+        self.enabled = True
+        self._stings = {("PUNDIT", "alert"):
+                        [(f"/nope/{i}.wav", f"sting {i}") for i in range(4)]}
+    # don't touch real audio
+    def _purge(self, **k): pass
+    def _qput(self, *a, **k): pass
+    def _next_wav(self): return "/nope/out.wav"
+_st = _FakeStingTts()
+picks = []
+for _ in range(20):
+    # replicate the selection (os.path.exists will fail -> returns False, but
+    # _sting_last is set BEFORE that, which is what we assert on)
+    _st.sting("alert", "PUNDIT")
+    picks.append(_st._sting_last["alert"])
+assert all(picks[i] != picks[i + 1] for i in range(len(picks) - 1)), (
+    "a bridging sting repeated back-to-back")
+print("  sting anti-repeat: no back-to-back duplicates: OK")
+
 print("\nALL OFF-TRACK COVERAGE CHECKS PASSED")

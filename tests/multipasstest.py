@@ -102,6 +102,26 @@ assert "defend this position" in said, (
     + said)
 print("  booth calls a defend brief when the target is set: OK")
 
+# ---- 3b. the brief SURVIVES a busy queue — it holds across its window and
+# airs the first quiet tick, instead of losing one arbitration and vanishing
+# (a whole real race aired zero booth objective lines before this).
+o, s = build()
+settle(o, s)
+before = len(o.tts.spoken)
+o._obj_booth = ("set", "defend", "Hans Gruber", __import__("time").time())
+o.tts._pend = 3                                # queue jammed (incident flood)
+for _ in range(4):
+    drive(o, s, 1)
+assert not any("defend this position" in t for _p, t in o.tts.spoken[before:]), (
+    "the brief aired into a jammed queue instead of waiting")
+assert o._obj_booth is not None, "the brief notice was dropped while busy"
+o.tts._pend = 0                               # queue clears
+for _ in range(3):
+    drive(o, s, 1)
+assert any("defend this position" in t for _p, t in o.tts.spoken[before:]), (
+    "the brief never aired once the queue cleared — it was lost, the bug")
+print("  booth brief survives a busy queue and airs on the first gap: OK")
+
 # ---- 4. ...and when it is MET (a payoff is always worth calling) ----------
 o, s = build()
 settle(o, s)

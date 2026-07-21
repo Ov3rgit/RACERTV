@@ -658,7 +658,15 @@ class Tts:
         clips = self._stings.get((persona, group))
         if not clips:
             return False
-        src, text = random.choice(clips)
+        # ANTI-REPEAT: never play the same sting twice running. Pure
+        # random.choice gave "someone's off the track!" four times in one race
+        # (a real transcript). Avoid the last one used for this group.
+        last = getattr(self, "_sting_last", {}).get(group)
+        pool = [c for c in clips if c[0] != last] or clips
+        src, text = random.choice(pool)
+        if not hasattr(self, "_sting_last"):
+            self._sting_last = {}
+        self._sting_last[group] = src
         if not os.path.exists(src):
             return False
         self._purge(keep_engineer=True)    # booth cut, engineer lines survive
