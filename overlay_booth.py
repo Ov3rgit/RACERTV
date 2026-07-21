@@ -889,12 +889,14 @@ class BoothMixin:
         # set, hit or missed. The engineer's radio is a private conversation;
         # having the commentators pick up on it is what makes the objective
         # feel like part of the broadcast rather than a HUD widget.
-        # This used to be gated on `not cands` at prio 4, which is why it was
-        # never heard: a target is set or resolved at exactly the moments the
-        # booth has something else to say, so the gate suppressed it almost
-        # every time. It's now a normal candidate at prio 3 — it competes on
-        # merit and loses to genuine incidents, rather than being silenced by
-        # any candidate at all.
+        # PRIO 2 (urgent), NOT 3 — this is the fix for "the commentators still
+        # don't commentate on objectives". At prio 3 it was added as a single
+        # candidate and _obj_booth cleared the same tick, so if it lost that
+        # one arbitration (and an objective resolves at exactly the moment of
+        # an overtake/lead-change call, so it almost always did) the line was
+        # gone for good. As urgent it rides the arbitration HOLD BUFFER, which
+        # keeps retrying it until it airs or goes stale — a whole race went by
+        # with zero booth objective lines before this.
         _ob = getattr(self, "_obj_booth", None)
         if is_race and _ob and now - _ob[3] < 12.0:
             _ev, _kind, _tgt, _t = _ob
@@ -912,11 +914,11 @@ class BoothMixin:
                     _brief = _safe_format(OBJ_BRIEF.get(_kind,
                                                         OBJ_BRIEF_DEFAULT),
                                           {"tgt": _tgt or "the car ahead"})
-                    L("obj_booth_brief", 3, persona="PUNDIT",
+                    L("obj_booth_brief", 2, persona="PUNDIT",
                       drv=self._dname(pdrv), brief=_brief)
                 elif pdrv is not None:
                     L("obj_booth_met" if _ev == "met" else "obj_booth_miss",
-                      3, persona="PUNDIT", drv=self._dname(pdrv))
+                      2, persona="PUNDIT", drv=self._dname(pdrv))
 
         # LATE phase — one-time urgency call (LAP races only; the {togo} wording
         # needs a lap count). Timed races get their late nudge via the time-aware

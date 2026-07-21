@@ -24,6 +24,8 @@ OBJ_MARGIN = 0.8         # only offer if it needs <= 80% of the laps available
 OBJ_MIN_DELTA = 0.06     # s/lap pace edge below which "catching" is noise
 OBJ_MAX_CHASE_GAP = 18.0  # beyond this, a catch is fantasy however good the pace
 OBJ_DEFEND_NEAR = 3.5    # a car this close behind is worth defending against
+OBJ_NUDGE_CD = 22.0      # min seconds between mid-objective progress lines from
+                         # the engineer — encouragement, not a running commentary
 
 
 class ObjectiveMixin:
@@ -37,6 +39,7 @@ class ObjectiveMixin:
         self._obj_met = 0
         self._obj_result = None     # last outcome, for the HUD chip
         self._obj_kinds = set()     # kinds used this race (one-shot ones)
+        self._obj_nudge_t = 0.0     # last mid-objective progress line
         # BOOTH NOTICE: ("set"|"met"|"miss", kind, target_name, when). The booth
         # can't see a private radio call, but it CAN see a driver visibly
         # working to one — so it nods at the pit wall in the right terms at
@@ -263,7 +266,12 @@ class ObjectiveMixin:
 
     # ---- progress / resolution ------------------------------------------
     def _obj_progress(self, s, order):
-        """0.0-1.0 for the HUD, or None when it has no meaningful progress."""
+        """0.0-1.0 for the HUD, or None when it has no meaningful progress.
+
+        EVERY position/time-bounded kind reports progress now. It used to only
+        cover chase/position, so a 'defend P4' or 'nurse the tyres' objective
+        showed a frozen empty bar for its whole life — reported as "the
+        progress bar did not track it properly"."""
         o = self._obj
         if not o:
             return None
@@ -271,13 +279,34 @@ class ObjectiveMixin:
         me = next((d for d in order if d.driver_info.slot_id == vslot), None)
         if me is None:
             return None
-        if o["kind"] in ("chase", "position"):
+        kind = o["kind"]
+
+        # CLOSING a gap: how much of the gap have you pulled back?
+        if kind in ("chase", "position"):
             gap = self.interval.get(vslot)
             start = o.get("gap0")
             if gap is None or not start or start <= o["gap_target"]:
                 return None
             span = start - o["gap_target"]
             return max(0.0, min(1.0, (start - gap) / span)) if span > 0 else None
+
+        # HOLDING for N laps (defend / damage / leadhome / clean / tyres): the
+        # bar fills with the laps survived. This is the honest read of "how
+        # close am I to the flag on this", which is what these are really about.
+        if kind in ("defend", "damage", "leadhome", "clean", "tyres"):
+            laps = o.get("laps") or 0
+            if laps <= 0:
+                return None
+            done = me.completed_laps - o["lap0"]
+            return max(0.0, min(1.0, done / laps))
+
+        # RECOVER: progress along the places climbed back toward the goal.
+        if kind == "recover":
+            frm = o.get("_from_pos")
+            goal = o.get("goal_pos")
+            if not frm or not goal or frm <= goal:
+                return None
+            return max(0.0, min(1.0, (frm - me.place) / (frm - goal)))
         return None
 
     def _obj_check(self, s, order, placemap, now):
@@ -306,6 +335,25 @@ class ObjectiveMixin:
             self._obj = None
             self._obj_last_t = now
             return ("obj_withdraw_damage", {"drv": nm})
+
+        # SUPERSEDED: the race moved on and the target no longer describes it.
+        # This is the "hold off P4, then a crash put me in P2 and the engineer
+        # never updated" bug. A defensive target you have comfortably CLIMBED
+        # PAST is not something to keep nursing — you beat it, so bank it as a
+        # win and let a fresh, relevant objective be offered on the next pass.
+        # OBJ_MIN_GAP_S still spaces the next one, so this can't machine-gun.
+        if o["kind"] in ("defend", "damage") and me.place <= o["goal_pos"] - 2:
+            return self._obj_supersede(now, "obj_supersede_gained",
+                                       {"drv": nm, "pos": me.place})
+        # ...and the mirror: a car you were chasing that has retired or fallen
+        # so far back the chase is meaningless. Withdraw rather than let the
+        # HUD show a target you can no longer reach.
+        if o["kind"] in ("chase", "position"):
+            gap = self.interval.get(vslot)
+            if gap is not None and gap > OBJ_MAX_CHASE_GAP * 1.5:
+                self._obj = None
+                self._obj_last_t = now
+                return ("obj_withdraw_gone", {"drv": nm})
 
         laps_done = me.completed_laps - o["lap0"]
         pos = me.place
@@ -385,6 +433,52 @@ class ObjectiveMixin:
             except Exception:
                 pass
 
+    def _obj_nudge(self, s, me, now):
+        """A mid-objective progress line, or None. Keyed off the live trend so
+        it MEANS something — the engineer reacting to how the target is going,
+        not filler. On a long cooldown (OBJ_NUDGE_CD) so it encourages rather
+        than nags, and only when there's something worth saying."""
+        o = self._obj
+        if now - getattr(self, "_obj_nudge_t", 0.0) < OBJ_NUDGE_CD:
+            return None
+        kind = o["kind"]
+        gtrend = o.get("_trend")            # -1 closing gap, +1 gap slipping
+        laps_left = o.get("_laps_left")
+        cat = None
+        kw = {"drv": o.get("target_name") or "", "pos": me.place}
+        if kind in ("chase", "position"):
+            if gtrend == -1:
+                cat = "obj_nudge_closing"
+            elif gtrend == 1:
+                cat = "obj_nudge_slipping"
+        elif kind in ("defend", "damage"):
+            if gtrend == -1:                # threat closing on you
+                cat = "obj_nudge_threat"
+            elif laps_left is not None and laps_left <= 1:
+                cat = "obj_nudge_nearly"
+        elif kind == "leadhome":
+            if laps_left is not None and laps_left <= 1:
+                cat = "obj_nudge_nearly"
+        elif kind in ("clean", "tyres"):
+            if laps_left is not None and laps_left <= 1:
+                cat = "obj_nudge_nearly"
+        if cat is None:
+            return None
+        self._obj_nudge_t = now
+        return (cat, kw)
+
+    def _obj_supersede(self, now, cat, kw):
+        """Like _obj_done (it IS an achievement — you climbed past the target),
+        but shortens the spacing so the fresh, relevant objective can land
+        promptly instead of leaving a gap where the driver has clearly earned a
+        new goal."""
+        self._obj_notice("met", now)
+        self._obj_result_set(True, now)
+        self._obj = None
+        self._obj_last_t = now - (OBJ_MIN_GAP_S * 0.5)   # offer the next sooner
+        self._obj_met += 1
+        return (cat, kw)
+
     def _obj_done(self, now, cat, kw):
         self._obj_notice("met", now)
         self._obj_result_set(True, now)
@@ -441,7 +535,16 @@ class ObjectiveMixin:
                 f"P{gp}" if gp and k in ("position", "chase", "defend",
                                          "damage", "recover")
                 else "LIM" if k == "clean" else "TYR" if k == "tyres" else "GO")
-            return self._obj_check(s, order, placemap, now)
+            resolved = self._obj_check(s, order, placemap, now)
+            if resolved is not None:
+                return resolved
+            # STILL RUNNING — the engineer stays with you on it. This is the
+            # difference between a target that is set once and forgotten, and
+            # an engineer who is actually racing it with you: an occasional
+            # progress read keyed off the live trend ("that's the gap coming
+            # down, keep it up" / "he's got a run, defend hard"). Spaced on its
+            # own long cooldown so it's encouragement, not nagging.
+            return self._obj_nudge(s, me, now)
 
         if me.completed_laps < OBJ_SETTLE_LAPS:
             return None                               # let the race settle

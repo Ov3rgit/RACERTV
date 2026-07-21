@@ -133,6 +133,10 @@ ENG_EMOTION = {
     "warn_limits_serious": "angry", "incident_tally": "worried",
     "warn_points": "worried", "points_high": "worried",
     "points_critical": "angry",
+    # mid-objective progress nudges + the supersede line
+    "obj_nudge_closing": "fired", "obj_nudge_slipping": "worried",
+    "obj_nudge_threat": "worried", "obj_nudge_nearly": "fired",
+    "obj_supersede_gained": "happy",
 }
 DRIVER_COLORS = [
     "#ff3b3b", "#ff7a1a", "#ffb000", "#ffe24d", "#b6e02e",

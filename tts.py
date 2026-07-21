@@ -46,6 +46,11 @@ if getattr(_sys, "frozen", False):
 else:
     _DIR = os.path.dirname(os.path.abspath(__file__))
 _LOG = os.path.join(_DIR, "_tts_debug.log")
+# CLEAN TRANSCRIPT: every line that actually AIRS, in order, with its FULL text
+# (the debug log truncates to 30 chars, which is useless for judging whether
+# the writing repeats itself). One line per aired message: time, persona, text.
+# This is the file to copy-paste to review a whole race for repetition.
+_TRANSCRIPT = os.path.join(_DIR, "_transcript.log")
 
 
 def _log(msg):
@@ -53,6 +58,15 @@ def _log(msg):
         import time as _t
         with open(_LOG, "a", encoding="utf-8") as f:
             f.write(f"{_t.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
+
+
+def _transcript(persona, text):
+    try:
+        import time as _t
+        with open(_TRANSCRIPT, "a", encoding="utf-8") as f:
+            f.write(f"{_t.strftime('%H:%M:%S')}  {persona:<11}  {text}\n")
     except Exception:
         pass
 
@@ -424,6 +438,13 @@ class Tts:
     def __init__(self):
         try:
             open(_LOG, "w").close()                 # fresh log each launch
+        except Exception:
+            pass
+        try:
+            with open(_TRANSCRIPT, "w", encoding="utf-8") as _f:
+                _f.write("# RacerTV transcript — every line as it aired, in "
+                         "order. Copy-paste this to review a race for "
+                         "repetition.\n")
         except Exception:
             pass
         # sweep temp render/play wavs left behind by a previous crash/kill so
@@ -836,6 +857,7 @@ class Tts:
                     cue.drop()          # nothing to hear — say so immediately
                 if playable:
                     _log(f"play START :: {text[:30]}")
+                    _transcript(persona, text)      # full-text race transcript
                     # SND_NODEFAULT: if the file can't be played, stay SILENT
                     # rather than letting Windows substitute its default *beep*
                     self._speaking = True

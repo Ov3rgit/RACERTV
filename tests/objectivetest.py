@@ -259,3 +259,71 @@ assert o.objective_summary() is None, "wrapped up a race with no targets set"
 print("  no targets set -> no wrap: OK")
 
 print("\nALL PHASE 2/3 OBJECTIVE CHECKS PASSED")
+
+print("\n===== PHASE 4: ADAPTS TO THE RACE (the bugs from a real run) =====")
+
+
+def order_pm(s):
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    return order, {d.place: d for d in order}
+
+
+# 1. a DEFEND objective tracks progress on the HUD (was a frozen empty bar)
+o, s, you = race(my_place=4)
+you.place = 4
+o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[4].driver_info.slot_id,
+          "target_name": "Rossi", "goal_pos": 4, "gap_target": 3.0, "laps": 4,
+          "lap0": you.completed_laps, "hud": "Hold P4 from Rossi"}
+you.completed_laps += 2                       # halfway through the 4-lap hold
+prog = o._obj_progress(s, [d for d in s.all_drivers_data_1[:s.num_cars]])
+assert prog is not None and 0.4 < prog < 0.6, (
+    f"a defend objective reported no/wrong progress: {prog}")
+print(f"  defend objective tracks progress: OK ({prog:.2f})")
+
+# 2. THE HEADLINE BUG: holding off P4, a crash climbs you to P2 -> the target
+#    is superseded and banked, not left stuck forever
+o, s, you = race(my_place=4)
+you.place = 4
+o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[4].driver_info.slot_id,
+          "target_name": "Rossi", "goal_pos": 4, "gap_target": 3.0, "laps": 4,
+          "lap0": you.completed_laps, "hud": "Hold P4 from Rossi"}
+you.place = 2                                 # a crash ahead put you up to P2
+order, pm = order_pm(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_supersede_gained", (
+    f"climbing P4->P2 did not supersede the defend target: {res}")
+assert o._obj is None, "the stale defend objective was not cleared"
+print(f"  defend P4 -> climbed to P2 supersedes: OK -> {res[0]}")
+
+# 3. supersede shortens the spacing so a fresh target can land promptly
+assert o._obj_last_t < time.time() - 1, (
+    "supersede did not shorten the next-objective spacing")
+print("  supersede lets the next objective come sooner: OK")
+
+# 4. the engineer NUDGES mid-objective (closing on a chase)
+o, s, you = race(my_place=5)
+you.place = 5
+vs = you.driver_info.slot_id
+o._obj = {"kind": "chase", "target_slot": s.all_drivers_data_1[3].driver_info.slot_id,
+          "target_name": "Dubois", "goal_pos": None, "gap_target": 1.0, "laps": 6,
+          "lap0": you.completed_laps, "gap0": 4.0, "hud": "Within 1s of Dubois",
+          "_trend": -1, "_prog": 0.4, "_laps_left": 3}
+o._obj_nudge_t = 0.0
+nud = o._obj_nudge(s, you, time.time())
+assert nud and nud[0] == "obj_nudge_closing", f"no closing nudge fired: {nud}"
+# ...and it respects its cooldown (won't nag every tick)
+again = o._obj_nudge(s, you, time.time() + 1.0)
+assert again is None, f"nudge ignored its cooldown: {again}"
+print(f"  engineer nudges mid-objective, on cooldown: OK -> {nud[0]}")
+
+# 5. every new line pool formats cleanly
+_newcats = ("obj_nudge_closing", "obj_nudge_slipping", "obj_nudge_threat",
+            "obj_nudge_nearly", "obj_supersede_gained")
+for _c in _newcats:
+    assert ENGINEER_LINES.get(_c), f"missing line pool: {_c}"
+    for _ln in ENGINEER_LINES[_c]:
+        _safe_format(_ln, {"drv": "Rossi", "pos": 2})
+print(f"  all {len(_newcats)} new engineer pools format cleanly: OK")
+
+print("\nALL PHASE 4 OBJECTIVE CHECKS PASSED")

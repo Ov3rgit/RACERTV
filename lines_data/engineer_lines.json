@@ -769,7 +769,9 @@
  ],
  "obj_miss_tyres": [
   "Lost the place — the tyres just gave up. Nothing more you could have done there.",
-  "They're gone, and so is the position. Not your fault, mate. Bring it home."
+  "They're gone, and so is the position. Not your fault, mate. Bring it home.",
+  "Tyres gave up and we lost the place — nothing more you could've done.",
+  "Rubber's gone, and so's the position. We ran them as far as they'd go."
  ],
  "obj_wrap_all": [
   "And every target we set today, you hit. All {total}. That's a complete drive, mate.",
@@ -854,5 +856,39 @@
   "We lost the lead there. Gutting — but you drove a hell of a race to be there.",
   "Not to be, mate. The lead's gone. Keep your chin up, that was a strong drive.",
   "They got us. Just didn't have it at the end — but plenty to be proud of today."
+ ],
+ "obj_nudge_closing": [
+  "That's the gap coming down — keep it exactly there.",
+  "You're eating into {drv}. Lovely. Same again this lap.",
+  "Gap's shrinking, this is working. Stay patient.",
+  "Every lap you're taking a chunk out of {drv}. Keep pushing.",
+  "That's it, reeling {drv} in. Don't force it, just keep the pressure.",
+  "Closing nicely. Give me one more lap like that."
+ ],
+ "obj_nudge_slipping": [
+  "Gap's opening a touch — need a bit more through the middle sector.",
+  "{drv} is edging away. Find me a couple of tenths.",
+  "We're losing a little ground. Time to lift the pace.",
+  "That gap's growing, not good. Dig in, we can't let it stretch.",
+  "Slipping slightly. Whatever you've got left, now's the time."
+ ],
+ "obj_nudge_threat": [
+  "{drv} is right on you now — defend this, eyes in the mirrors.",
+  "He's got a run. Cover the inside, don't make it easy.",
+  "This is the pressure lap. Hold your line and make him work.",
+  "{drv} is all over the back of you — stay calm, stay wide on exit.",
+  "Here he comes. Defend hard but keep it clean."
+ ],
+ "obj_nudge_nearly": [
+  "Last lap of this — bring it home, nearly there.",
+  "One more lap and it's done. Hold it together.",
+  "Almost there, this is the one. Finish the job.",
+  "Final push now — see it through to the line."
+ ],
+ "obj_supersede_gained": [
+  "Forget defending — you're up to P{pos} now! New job: kick on.",
+  "Scratch that last one, you've climbed to P{pos}. Brilliant. Onwards.",
+  "Well that target's old news — P{pos} now. Let's go hunting again.",
+  "You've blown past that goal, P{pos}! Reset — there's more on offer here."
  ]
 }

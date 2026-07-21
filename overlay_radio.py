@@ -558,7 +558,15 @@ class RadioMixin:
             self._obj_say = None
             ocat, okw = obj
             if ocat in ENGINEER_LINES:
-                return add(ocat, 1, bypass=True, **okw)
+                # a NUDGE is mid-objective colour — it must respect the normal
+                # engineer spacing and yield to anything real, so it does NOT
+                # bypass. set/met/miss/supersede DO bypass: they've already
+                # mutated the objective state, so dropping them would leave the
+                # target set or resolved silently (the whole system's failure
+                # mode). See the _obj_notice contract in overlay_objective.py.
+                is_nudge = ocat.startswith("obj_nudge_")
+                return add(ocat, 2 if is_nudge else 1, bypass=not is_nudge,
+                           **okw)
 
         # PRACTICE / QUALIFY / WARMUP: EVENT-DRIVEN. The engineer reacts to YOUR
         # actual laps — a lap completed (with gap to pole), a personal best,
