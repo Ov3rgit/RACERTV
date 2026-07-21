@@ -537,15 +537,20 @@ o._obj = {"kind": "consistency", "target_slot": vs, "target_name": "",
           "goal_pos": 6, "gap_target": None, "laps": 5, "_ref": 92.0,
           "_band": 0.8, "_last_lap_n": you.completed_laps, "_ok_laps": 1,
           "lap0": you.completed_laps, "hud": "Consistent laps"}
-# a car (P7) closes to 3s behind — inside the 4s racing threshold
+# a car 3s behind is NOT a fight yet — consistency stands
 o.interval = {d.driver_info.slot_id: 30.0 for d in s.all_drivers_data_1[:s.num_cars]}
-o.interval[s.all_drivers_data_1[6].driver_info.slot_id] = 3.0
+bslot = s.all_drivers_data_1[6].driver_info.slot_id
+o.interval[bslot] = 3.0
 order, pm = opm3(s)
+assert o._obj_check(s, order, pm, time.time()) is None, (
+    "consistency withdrew at 3s behind — that's not a fight yet")
+# ...but 1.5s behind IS — withdraw and hand over to a race
+o.interval[bslot] = 1.5
 res = o._obj_check(s, order, pm, time.time())
 assert res and res[0] == "obj_withdraw_race", (
-    f"consistency did not withdraw when a car closed in: {res}")
+    f"consistency did not withdraw with a car 1.5s behind: {res}")
 assert o._obj is None
-print(f"  consistency withdraws when clean air is lost: OK -> {res[0]}")
+print(f"  consistency: stands at 3s, withdraws at 1.5s (2s gate): OK -> {res[0]}")
 
 print("\nALL PHASE 7 CONSISTENCY CHECKS PASSED")
 

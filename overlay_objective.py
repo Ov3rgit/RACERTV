@@ -446,17 +446,19 @@ class ObjectiveMixin:
             self._obj = None
             self._obj_last_t = now
             return ("obj_withdraw_pit", {"drv": nm})
-        # CONSISTENCY: it was a CLEAN-AIR discipline target. The moment a car
-        # closes into racing range — same thresholds the offer used (5s ahead /
-        # 4s behind) — "just do consistent laps" is the wrong instruction; you
-        # are racing now. Withdraw so a chase/defend can take over next pass.
+        # CONSISTENCY: it was a CLEAN-AIR discipline target. It only withdraws
+        # once a car is genuinely ON you — within 2s either side. That is a real
+        # fight; 5s isn't, and pulling the rhythm drill that early would make it
+        # useless. (The OFFER still needs proper clean air, 5s/4s, to START —
+        # you don't get a consistency target while cars are milling nearby, but
+        # once you have one it stands until someone actually closes in.)
         if o["kind"] == "consistency":
             ahead_c = next((d for d in order if d.place == me.place - 1), None)
             behind_c = next((d for d in order if d.place == me.place + 1), None)
             ag = self.interval.get(vslot) if ahead_c is not None else None
             bg = (self.interval.get(behind_c.driver_info.slot_id)
                   if behind_c is not None else None)
-            if (ag is not None and ag < 5.0) or (bg is not None and bg < 4.0):
+            if (ag is not None and ag < 2.0) or (bg is not None and bg < 2.0):
                 self._obj = None
                 self._obj_last_t = now
                 return ("obj_withdraw_race", {"drv": nm})
