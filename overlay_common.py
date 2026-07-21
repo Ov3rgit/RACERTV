@@ -12,6 +12,7 @@ of theirs, so there is no cycle. Keep it that way — constants and pure
 functions only. Anything that touches win32 handles, tk widgets or Overlay
 state belongs in the engine, not here.
 """
+import re as _re
 import threading
 
 
@@ -171,13 +172,26 @@ VK_R = 0x52
 VK_LBUTTON = 0x01
 
 
+_ONE_PLURAL = _re.compile(
+    r"(?<!\d)1 (lap|minute|second|corner|tenth|place|position|car|warning|point|degree)s\b")
+
+
+def _fix_plural(text):
+    """Collapse '1 laps'/'1 minutes' -> '1 lap'/'1 minute'. Templates hardcode the
+    plural noun (they read right for n>=2), but a race-ending target always clamps
+    to a single lap, so the count of 1 was the only ungrammatical case left. The
+    lookbehind keeps '11 laps'/'21 laps' untouched; the noun whitelist keeps it
+    from mangling anything that legitimately reads '1 ...s'."""
+    return _ONE_PLURAL.sub(r"1 \1", text)
+
+
 def _safe_format(tmpl, kw):
     """str.format that never raises on a missing/extra key (blanks missing)."""
     class _D(dict):
         def __missing__(self, k):
             return ""
     try:
-        return tmpl.format_map(_D(kw))
+        return _fix_plural(tmpl.format_map(_D(kw)))
     except Exception:
         return tmpl
 
