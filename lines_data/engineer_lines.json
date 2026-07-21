@@ -972,5 +972,11 @@
   "Don't chase the perfect lap, just repeat a good one. Smooth inputs.",
   "Breathe, settle, hit the same apexes. Rhythm over heroics right now.",
   "Ease off the kerbs and keep it repeatable — no wild laps."
+ ],
+ "obj_withdraw_race": [
+  "Forget the rhythm drill — someone's in the fight now. Heads up, let's race.",
+  "Scrap the consistency run, we've got company. Time to race him.",
+  "Company arriving — never mind consistent laps, this is racing now.",
+  "That's the clean air gone. Rhythm target's off — focus on the car in the battle."
  ]
 }

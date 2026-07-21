@@ -529,6 +529,24 @@ prog = o._obj_progress(s, [d for d in s.all_drivers_data_1[:s.num_cars]])
 assert prog is not None and abs(prog - 0.6) < 0.01, f"progress wrong: {prog}"
 print(f"  progress tracks laps-in-band: OK ({prog:.1f})")
 
+# 5. consistency LOSES CLEAN AIR: a car closes into racing range -> withdraw,
+#    because "do consistent laps" is the wrong call once you're racing someone.
+o, s, you = race(my_place=6)
+vs = you.driver_info.slot_id
+o._obj = {"kind": "consistency", "target_slot": vs, "target_name": "",
+          "goal_pos": 6, "gap_target": None, "laps": 5, "_ref": 92.0,
+          "_band": 0.8, "_last_lap_n": you.completed_laps, "_ok_laps": 1,
+          "lap0": you.completed_laps, "hud": "Consistent laps"}
+# a car (P7) closes to 3s behind — inside the 4s racing threshold
+o.interval = {d.driver_info.slot_id: 30.0 for d in s.all_drivers_data_1[:s.num_cars]}
+o.interval[s.all_drivers_data_1[6].driver_info.slot_id] = 3.0
+order, pm = opm3(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_withdraw_race", (
+    f"consistency did not withdraw when a car closed in: {res}")
+assert o._obj is None
+print(f"  consistency withdraws when clean air is lost: OK -> {res[0]}")
+
 print("\nALL PHASE 7 CONSISTENCY CHECKS PASSED")
 
 # PHASE 7 addendum: the clean-air gate is 5s ahead / 4s behind (RaceRoom 5s is

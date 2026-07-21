@@ -146,6 +146,7 @@ ENG_EMOTION = {
     "obj_advice_leadhome": "neutral",
     "obj_set_consistency": "neutral", "obj_met_consistency": "happy",
     "obj_miss_consistency": "sad", "obj_advice_consistency": "neutral",
+    "obj_withdraw_race": "fired",
 }
 DRIVER_COLORS = [
     "#ff3b3b", "#ff7a1a", "#ffb000", "#ffe24d", "#b6e02e",

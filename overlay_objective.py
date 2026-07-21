@@ -436,7 +436,7 @@ class ObjectiveMixin:
             # different fight. (Not just me.place > goal_pos: that is true the
             # instant you set a pass objective, since you start one place back.)
             dropped = (o.get("goal_pos") is not None
-                       and me.place > o["goal_pos"] + 1)
+                       and cpos > o["goal_pos"] + 1)
             if (gap is not None and gap > OBJ_MAX_CHASE_GAP * 1.5) or dropped:
                 self._obj = None
                 self._obj_last_t = now
@@ -446,6 +446,20 @@ class ObjectiveMixin:
             self._obj = None
             self._obj_last_t = now
             return ("obj_withdraw_pit", {"drv": nm})
+        # CONSISTENCY: it was a CLEAN-AIR discipline target. The moment a car
+        # closes into racing range — same thresholds the offer used (5s ahead /
+        # 4s behind) — "just do consistent laps" is the wrong instruction; you
+        # are racing now. Withdraw so a chase/defend can take over next pass.
+        if o["kind"] == "consistency":
+            ahead_c = next((d for d in order if d.place == me.place - 1), None)
+            behind_c = next((d for d in order if d.place == me.place + 1), None)
+            ag = self.interval.get(vslot) if ahead_c is not None else None
+            bg = (self.interval.get(behind_c.driver_info.slot_id)
+                  if behind_c is not None else None)
+            if (ag is not None and ag < 5.0) or (bg is not None and bg < 4.0):
+                self._obj = None
+                self._obj_last_t = now
+                return ("obj_withdraw_race", {"drv": nm})
 
         laps_done = me.completed_laps - o["lap0"]
         pos = me.place
