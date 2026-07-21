@@ -67,7 +67,7 @@ CAT_INTENSITY = {
     "recovery": 1, "podium_lock": 0, "penalty": 1, "yellow": 1, "analysis": 0,
     "analysis_strategy": 0,
     "lap_milestone": 0, "standings": 0, "praise": 0, "criticism": 0,
-    "time_remaining": 1,
+    "time_remaining": 1, "race_duration": 1,
     "track_generic": 0, "track_fact": 0, "crosstalk_q": 0, "stat": 0,
     "obj_booth": 0, "obj_booth_close": 1, "obj_booth_done": 1,
     "obj_booth_brief": 1, "obj_booth_met": 1, "obj_booth_miss": 1,

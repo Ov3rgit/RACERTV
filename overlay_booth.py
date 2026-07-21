@@ -263,6 +263,19 @@ class BoothMixin:
                 self._show_caption(_safe_format(
                     self._pick(COMMENTARY_LINES["start"], ("COMM", "start")),
                     {"drv": self._dname(leader), "trk": trk}), "COMMENTATOR")
+        # TIMED-RACE FRAMING (once, a few seconds into green). The booth counts
+        # DOWN the clock later (time_remaining milestones), but never SAID the
+        # race was timed or how long — reported as "the commentators don't know
+        # how long a timed race is". Now it frames it up front: "a 20-minute
+        # sprint here". Lap races don't need this (the lap count is on the HUD).
+        if (is_race and self._racing and timed
+                and not self._comm_flags.get("duration")
+                and now - getattr(self, "_green_t", now) > 6.0):
+            self._comm_flags["duration"] = True
+            _dur = getattr(s, "session_time_duration", 0.0) or 0.0
+            if _dur > 0:
+                L("race_duration", 3, mins=max(1, int(round(_dur / 60.0))),
+                  persona="COMMENTATOR")
         # QUALI/PRACTICE session intro (once) — so the booth names the session
         # correctly instead of calling everything "the race"
         if not is_race and not self._comm_flags.get("qstart"):

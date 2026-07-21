@@ -1696,5 +1696,12 @@
   "{n} places at once for {drv}! You do not see that very often.",
   "Round the outside of the pair of them! {drv} is up to P{pos}.",
   "{drv} saw the gap before anyone else did — {n} cars dispatched, P{pos} now."
+ ],
+ "race_duration": [
+  "It's a {mins}-minute sprint here at {trk} — no set distance, just beat the clock.",
+  "{mins} minutes on the clock at {trk}. Whoever's ahead when the time's up takes it.",
+  "A timed race, this — {mins} minutes at {trk}, and every one of them will count.",
+  "The format: {mins} minutes of racing at {trk}. Manage the clock, manage the tyres.",
+  "No lap count today — {mins} minutes at {trk}, a straight race against the clock."
  ]
 }
