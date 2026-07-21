@@ -913,5 +913,40 @@
   "That's done it, {drv} is out of the picture. P{pos} secured, lovely work.",
   "{drv}'s fallen away, no more threat there. P{pos} is yours — great job holding firm.",
   "Gap's massive now, {drv} can't reach you. Consider that one banked, P{pos}."
+ ],
+ "obj_withdraw_pit": [
+  "Fresh rubber now — forget tyre-saving, that job's done. Push on.",
+  "New tyres on, so scrap that last target. Go and use them.",
+  "That's the stop done — tyre management's behind us. Attack now."
+ ],
+ "obj_advice_chase": [
+  "You're stronger in the middle sector — that's where you'll get {drv}.",
+  "Get right on {drv} out of the last corner and use the tow down the straight.",
+  "{drv} is defending the inside, so set it up early and switch back on him.",
+  "Save your tyres for two or three laps, then throw everything at {drv}.",
+  "Don't show your hand yet — sit in {drv}'s mirrors and wait for the mistake."
+ ],
+ "obj_advice_defend": [
+  "Cover the inside into the slow corners — that's the only place {drv} gets you.",
+  "Get a good exit onto the straights and {drv} can't use the tow.",
+  "Be firm but fair — one move to defend, then back to your line.",
+  "Keep your braking tidy; if {drv} sees a lock-up he'll pounce.",
+  "Breathe. Hit your marks, and {drv} runs out of laps."
+ ],
+ "obj_advice_tyres": [
+  "Short-shift a gear early and be smooth on the throttle — save the rears.",
+  "Ease the entry, roll the speed — braking hard is what's killing the fronts.",
+  "Wind the pace back a touch; we need these tyres alive at the flag.",
+  "Treat the kerbs gently — every bang over them takes life off the tyres."
+ ],
+ "obj_advice_clean": [
+  "Give the kerbs a wider berth this lap — no need to risk the limits.",
+  "Tuck it inside the white lines; a penalty now undoes all the good work.",
+  "Tidy through the fast stuff — leave yourself a margin on track."
+ ],
+ "obj_advice_leadhome": [
+  "You've got a cushion — wind it back a notch and bring it home safe.",
+  "Hit your marks, no heroics. This is yours to lose now.",
+  "Manage the gap, look after the car. Just be there at the flag."
  ]
 }

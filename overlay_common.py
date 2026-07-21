@@ -139,6 +139,10 @@ ENG_EMOTION = {
     "obj_nudge_threat": "worried", "obj_nudge_nearly": "fired",
     "obj_supersede_gained": "happy", "obj_nudge_holding": "neutral",
     "obj_met_defend_clear": "happy",
+    "obj_withdraw_pit": "neutral",
+    "obj_advice_chase": "fired", "obj_advice_defend": "worried",
+    "obj_advice_tyres": "neutral", "obj_advice_clean": "worried",
+    "obj_advice_leadhome": "neutral",
 }
 DRIVER_COLORS = [
     "#ff3b3b", "#ff7a1a", "#ffb000", "#ffe24d", "#b6e02e",

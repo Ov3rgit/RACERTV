@@ -310,6 +310,7 @@ o._obj = {"kind": "chase", "target_slot": s.all_drivers_data_1[3].driver_info.sl
           "lap0": you.completed_laps, "gap0": 4.0, "hud": "Within 1s of Dubois",
           "_trend": -1, "_prog": 0.4, "_laps_left": 3}
 o._obj_nudge_t = 0.0
+o._obj_nudge_advice = True         # force the PROGRESS branch (advice alternates)
 nud = o._obj_nudge(s, you, time.time())
 assert nud and nud[0] == "obj_nudge_closing", f"no closing nudge fired: {nud}"
 # ...and it respects its cooldown (won't nag every tick)
@@ -378,6 +379,7 @@ o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[5].driver_info.s
           "lap0": you.completed_laps, "hud": "Hold P5", "_trend": 0,
           "_laps_left": 3}
 o._obj_nudge_t = 0.0
+o._obj_nudge_advice = True         # force the PROGRESS branch (advice alternates)
 nud = o._obj_nudge(s, you, time.time())
 assert nud and nud[0] == "obj_nudge_holding", (
     f"a steady hold produced no check-in nudge: {nud}")
@@ -385,3 +387,78 @@ assert "more lap" in nud[1]["laps"]
 print(f"  steady hold gets a check-in nudge with laps left: OK -> {nud[1]['laps']}")
 
 print("\nALL PHASE 5 OBJECTIVE CHECKS PASSED")
+
+print("\n===== PHASE 6: AWARENESS ACROSS ALL KINDS + ADVICE =====")
+
+
+def opm(s):
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    return order, {d.place: d for d in order}
+
+
+# 1. DAMAGE threat evaporates (same awareness as defend, now generalised)
+o, s, you = race(my_place=5)
+you.place = 5
+bh = s.all_drivers_data_1[5]
+o._obj = {"kind": "damage", "target_slot": bh.driver_info.slot_id,
+          "target_name": "Rossi", "goal_pos": 5, "gap_target": 5.0, "laps": 4,
+          "lap0": you.completed_laps, "hud": "Stay ahead of Rossi"}
+o.interval = {bh.driver_info.slot_id: 12.0}
+order, pm = opm(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_met_defend_clear", (
+    f"a DAMAGE target whose threat vanished did not resolve: {res}")
+print(f"  damage target: threat evaporates -> {res[0]}: OK")
+
+# 2. CHASE goes stale when YOU DROP a place (racing a car that's behind now)
+o, s, you = race(my_place=5)
+o._obj = {"kind": "position", "target_slot": s.all_drivers_data_1[3].driver_info.slot_id,
+          "target_name": "Dubois", "goal_pos": 4, "gap_target": 0.0, "laps": 6,
+          "lap0": you.completed_laps, "gap0": 3.0, "hud": "P4 — pass Dubois"}
+you.place = 6                                 # you got passed; P4 is now 2 back
+order, pm = opm(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_withdraw_gone", (
+    f"a chase target did not withdraw after you dropped a place: {res}")
+print(f"  chase withdraws when you drop a place: OK -> {res[0]}")
+
+# 3. TYRES objective withdrawn when you PIT (fresh rubber)
+o, s, you = race(my_place=5)
+o._obj = {"kind": "tyres", "target_slot": you.driver_info.slot_id,
+          "target_name": "", "goal_pos": 5, "gap_target": None, "laps": 5,
+          "lap0": you.completed_laps, "hud": "Nurse the tyres"}
+you.in_pitlane = 1
+order, pm = opm(s)
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_withdraw_pit", (
+    f"a tyre-management target survived a pit stop: {res}")
+print(f"  tyres target withdrawn on a pit stop: OK -> {res[0]}")
+
+# 4. the engineer gives KIND-SPECIFIC ADVICE, not only "keep it up"
+o, s, you = race(my_place=5)
+o._obj = {"kind": "tyres", "target_name": "", "_trend": 0, "_laps_left": 4,
+          "goal_pos": 5, "laps": 5, "lap0": you.completed_laps}
+o._obj_nudge_t = 0.0
+o._obj_nudge_advice = False        # force the advice branch this call
+nud = o._obj_nudge(s, you, time.time())
+assert nud and nud[0] == "obj_advice_tyres", (
+    f"a tyre objective gave no tyre-saving advice: {nud}")
+print(f"  kind-specific advice fires: OK -> {ENGINEER_LINES[nud[0]][0][:52]}")
+
+# 5. advice ALTERNATES with progress (both get an airing)
+o._obj_nudge_t = 0.0
+nud2 = o._obj_nudge(s, you, time.time())
+assert nud2 and nud2[0] != "obj_advice_tyres", (
+    f"nudge did not alternate away from advice: {nud2}")
+print(f"  advice alternates with a progress read: OK -> {nud2[0]}")
+
+# 6. every new advice/withdraw pool formats
+for _c in ("obj_advice_chase", "obj_advice_defend", "obj_advice_tyres",
+           "obj_advice_clean", "obj_advice_leadhome", "obj_withdraw_pit"):
+    assert ENGINEER_LINES.get(_c), f"missing {_c}"
+    for _l in ENGINEER_LINES[_c]:
+        _safe_format(_l, {"drv": "Rossi", "pos": 4, "laps": "2 more laps"})
+print("  all advice/withdraw pools format cleanly: OK")
+
+print("\nALL PHASE 6 OBJECTIVE CHECKS PASSED")

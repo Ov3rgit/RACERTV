@@ -368,24 +368,44 @@ class ObjectiveMixin:
             self._obj_last_t = now
             return ("obj_withdraw_damage", {"drv": nm})
 
-        # SUPERSEDED: the race moved on and the target no longer describes it.
-        # This is the "hold off P4, then a crash put me in P2 and the engineer
-        # never updated" bug. A defensive target you have comfortably CLIMBED
-        # PAST is not something to keep nursing — you beat it, so bank it as a
-        # win and let a fresh, relevant objective be offered on the next pass.
-        # OBJ_MIN_GAP_S still spaces the next one, so this can't machine-gun.
+        # ---- STILL-MAKES-SENSE re-evaluation, for EVERY kind ----------------
+        # The general principle behind the "hold off Marco after he'd dropped
+        # away" bug: an objective must keep asking whether it still describes
+        # the race, not only whether it's met/missed. Each kind has its own
+        # "this is now moot" condition, checked before the met/miss logic below.
+
+        # DEFEND / DAMAGE: you comfortably CLIMBED PAST the position you were
+        # holding — bank it and let a fresh target come.
         if o["kind"] in ("defend", "damage") and me.place <= o["goal_pos"] - 2:
             return self._obj_supersede(now, "obj_supersede_gained",
                                        {"drv": nm, "pos": me.place})
-        # ...and the mirror: a car you were chasing that has retired or fallen
-        # so far back the chase is meaningless. Withdraw rather than let the
-        # HUD show a target you can no longer reach.
+        # DEFEND / DAMAGE: the THREAT evaporated — the car you were told to hold
+        # off dropped well out of range, so the target is meaningless.
+        if o["kind"] in ("defend", "damage") and tgt is not None:
+            bgap_now = self.interval.get(o["target_slot"])
+            if bgap_now is not None and bgap_now > OBJ_DEFEND_NEAR * 2.5:
+                return self._obj_done(now, "obj_met_defend_clear",
+                                      {"drv": nm, "pos": me.place})
+        # CHASE / POSITION: target retired or fell unreachably far ahead, OR you
+        # DROPPED a place so the position you were racing for is behind you now.
         if o["kind"] in ("chase", "position"):
             gap = self.interval.get(vslot)
-            if gap is not None and gap > OBJ_MAX_CHASE_GAP * 1.5:
+            # you set out to pass the car AHEAD, i.e. from position goal_pos+1.
+            # "dropped a place" means you fell BELOW that start slot — the
+            # position you were racing for is two or more places up now, a
+            # different fight. (Not just me.place > goal_pos: that is true the
+            # instant you set a pass objective, since you start one place back.)
+            dropped = (o.get("goal_pos") is not None
+                       and me.place > o["goal_pos"] + 1)
+            if (gap is not None and gap > OBJ_MAX_CHASE_GAP * 1.5) or dropped:
                 self._obj = None
                 self._obj_last_t = now
                 return ("obj_withdraw_gone", {"drv": nm})
+        # TYRES: you PITTED — fresh rubber, so "nurse the tyres home" is done.
+        if o["kind"] == "tyres" and me.in_pitlane == 1:
+            self._obj = None
+            self._obj_last_t = now
+            return ("obj_withdraw_pit", {"drv": nm})
 
         laps_done = me.completed_laps - o["lap0"]
         pos = me.place
@@ -400,18 +420,9 @@ class ObjectiveMixin:
                 return self._obj_done(now, "obj_met_close",
                                       {"drv": nm, "gap": f"{gap:.1f}s"})
         elif o["kind"] == "defend":
+            # (climbed-past, threat-evaporated handled in the re-eval block above)
             if pos > o["goal_pos"]:                      # lost the place
                 return self._obj_fail(now, "obj_miss_defend", {"drv": nm})
-            # THREAT EVAPORATED: the car you were told to hold off has dropped
-            # well out of range, so "hold P5 from Marco" is meaningless — Marco
-            # is 10s back. Resolve it early as a comfortable win rather than
-            # keep nagging about a car that is no longer there. This is the
-            # "Marco fell back but the objective still said hold from Marco" bug.
-            bgap_now = self.interval.get(o["target_slot"])
-            if (tgt is not None and bgap_now is not None
-                    and bgap_now > OBJ_DEFEND_NEAR * 2.5):
-                return self._obj_done(now, "obj_met_defend_clear",
-                                      {"drv": nm, "pos": pos})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_defend",
                                       {"drv": nm, "pos": pos})
@@ -491,9 +502,22 @@ class ObjectiveMixin:
                     else f"{laps_left} more laps" if laps_left else "a few laps")
         kw = {"drv": o.get("target_name") or "", "pos": me.place,
               "laps": lap_word}
-        # last lap of any objective — always worth a "bring it home"
+        # ALTERNATE between a PROGRESS read (how it's going) and real ADVICE
+        # (how to do it), so the engineer isn't only saying "keep it up" — the
+        # driver asked for relevant coaching per objective. Which one this time
+        # flips each nudge so both get an airing.
+        want_advice = not getattr(self, "_obj_nudge_advice", False)
+        self._obj_nudge_advice = want_advice
+        advice = {"chase": "obj_advice_chase", "position": "obj_advice_chase",
+                  "defend": "obj_advice_defend", "damage": "obj_advice_defend",
+                  "tyres": "obj_advice_tyres", "clean": "obj_advice_clean",
+                  "leadhome": "obj_advice_leadhome"}
+        # last lap of any objective — always worth a "bring it home", and never
+        # buried under coaching
         if laps_left is not None and laps_left <= 1:
             cat = "obj_nudge_nearly"
+        elif want_advice and kind in advice:
+            cat = advice[kind]                   # kind-specific coaching
         elif kind in ("chase", "position"):
             cat = ("obj_nudge_closing" if gtrend == -1
                    else "obj_nudge_slipping" if gtrend == 1

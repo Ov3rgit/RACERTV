@@ -757,7 +757,14 @@ class RadioMixin:
                 else:
                     cat = "finish_low"        # tough day
                 self._eng_obj_wrap_due = now + 6.0   # objective verdict after
-                return add(cat, 0)
+                # bypass=True: this is a ONE-SHOT (latched by _eng_flags
+                # ["finish"]) and it fires at the FLAG, the single most jammed
+                # moment for the queue — booth win call, driver celebrations,
+                # sign-off all landing at once. As a plain prio-0 line it was
+                # generated and then dropped, so the driver's own race went
+                # unacknowledged by his engineer (a real transcript ended with
+                # the player P4 and NOT a word from the pit wall about it).
+                return add(cat, 0, bypass=True)
 
         # PHASE 3 — OBJECTIVE WRAP: a few seconds after the finish verdict, how
         # the targets went today, with recent form when there's enough history.

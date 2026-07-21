@@ -127,4 +127,18 @@ assert not podium_claim, f"engineer wrongly claimed a podium: {podium_claim}"
 assert any("p4" in t.lower() for t in eng), "engineer should reference P4"
 print("  engineer gave a correct P4 verdict (no false podium claim): OK")
 
+# the finish verdict fires at the FLAG, the busiest queue moment — it MUST
+# bypass the chatter-drop or the driver's own result goes unacknowledged (a
+# real transcript ended with the player P4 and not a word from his engineer).
+import inspect as _inspect                                # noqa: E402
+import overlay_radio as _or                               # noqa: E402
+_es = _inspect.getsource(_or.RadioMixin._engineer_events)
+assert 'self._eng_flags["finish"] = True' in _es
+_after = _es.split('self._eng_flags["finish"] = True', 1)[1].split(
+    "_eng_obj_wrap_due", 1)[0] + _es.split("_eng_obj_wrap_due", 1)[1][:200]
+assert "bypass=True" in _after, (
+    "the engineer finish verdict no longer bypasses the queue jam — the "
+    "player's result will be dropped at the flag")
+print("  finish verdict bypasses the flag-time queue jam: OK")
+
 print("\nALL FINISH-ACCURACY CHECKS PASSED")
