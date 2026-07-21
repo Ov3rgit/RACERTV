@@ -75,6 +75,28 @@ class ObjectiveMixin:
                 return max(0, int(rem / pace))
         return None
 
+    def _obj_race_ending(self, s, order):
+        """True when the race is in its final stretch, so no new multi-lap
+        target should be set and any live hold should be banked at the flag.
+
+        LAP race: leader on the last lap. TIMED race: under ~1 lap of time
+        left, or the white flag is out. A timed race in RaceRoom runs the
+        current lap out after the clock hits zero, so 'time <= one lap' is the
+        honest 'this is basically the last lap' signal — which is exactly what
+        was missing when the engineer set 'hold for 4 laps' with the flag due."""
+        total = s.number_of_laps
+        leader = order[0] if order else None
+        if total and total > 0 and leader is not None:
+            return leader.completed_laps >= total - 1
+        rem = getattr(s, "session_time_remaining", 0.0)
+        if getattr(getattr(s, "flags", None), "white", 0) == 1:
+            return True
+        if rem and rem > 0:
+            pace = self._obj_pace(s.vehicle_info.slot_id) or 0
+            if pace > 0:
+                return rem <= pace * 1.1          # ~one lap of time left
+        return False
+
     def _obj_can_close(self, gap, mine, theirs, laps_left, want_gap=0.0):
         """Core feasibility test. Returns the laps needed to pull `gap` down to
         `want_gap`, or None when it is not realistically on.
@@ -404,6 +426,26 @@ class ObjectiveMixin:
             self._obj_last_t = now
             return ("obj_withdraw_damage", {"drv": nm})
 
+        # RACE ENDING: bank a live objective at the flag rather than leave it
+        # showing "hold for 4 laps" while the timed race runs out under it.
+        # Hold-types that reached the flag intact are a WIN; position/chase
+        # that didn't get there is a near miss. This is the timed-race fix —
+        # the lap deadline no longer outlives the race.
+        if self._obj_race_ending(s, order):
+            kind = o["kind"]
+            if kind in ("defend", "damage", "leadhome", "tyres", "clean",
+                        "consistency"):
+                # you were holding and you made the flag — call it done
+                if kind == "leadhome" and me.place > 1:
+                    return self._obj_fail(now, "obj_miss_leadhome", {"drv": nm})
+                met = {"defend": "obj_met_defend", "damage": "obj_met_damage",
+                       "leadhome": "obj_met_leadhome", "tyres": "obj_met_tyres",
+                       "clean": "obj_met_clean",
+                       "consistency": "obj_met_consistency"}[kind]
+                return self._obj_done(now, met, {"drv": nm, "pos": me.place})
+            # chase/position/recover fall through to their own met/miss below,
+            # which the flag will resolve via the normal position checks.
+
         # ---- STILL-MAKES-SENSE re-evaluation, for EVERY kind ----------------
         # The general principle behind the "hold off Marco after he'd dropped
         # away" bug: an objective must keep asking whether it still describes
@@ -709,6 +751,14 @@ class ObjectiveMixin:
         o = self._obj_offer(s, order, placemap, now)
         if not o:
             return None                               # nothing credible: silence
+        # RACE ENDING: don't hand out a fresh multi-lap target with the flag
+        # about to fall — "hold P5 for 4 laps" with two laps of time left is the
+        # reported bug. A closing-laps push (its own laps already clamped to
+        # what's left) is fine; anything asking for 2+ laps is not. Also clamp
+        # every deadline to the laps that will actually be run.
+        o["laps"] = max(1, min(o.get("laps", 1), laps_left))
+        if self._obj_race_ending(s, order) and o["laps"] > 1:
+            return None
         o["lap0"] = me.completed_laps
         o["gap0"] = self.interval.get(vslot)
         o["set_at"] = now

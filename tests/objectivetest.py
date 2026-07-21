@@ -632,3 +632,69 @@ for _l in ENGINEER_LINES["obj_withdraw_pitstop"]:
 print("  obj_withdraw_pitstop formats cleanly: OK")
 
 print("\nALL PHASE 8 CHECKS PASSED")
+
+print("\n===== PHASE 9: TIMED-RACE AWARENESS =====")
+
+
+def timed_race(ncars=8, secs_left=600.0, my_place=5):
+    o = headless_overlay(fake_tts=True)
+    s = make_shared(2, ncars=ncars)
+    s.number_of_laps = -1                    # TIMED: no lap count
+    s.session_time_remaining = secs_left
+    o._show_caption = lambda *a, **k: None
+    o.radio_msgs = []
+    o._obj_reset()
+    o._obj_damaged = False
+    you = s.all_drivers_data_1[0]
+    for i, d in enumerate(s.all_drivers_data_1[:ncars]):
+        d.car_speed = 60.0
+        d.place = i + 1
+        d.completed_laps = 5
+    you.place = my_place
+    s.all_drivers_data_1[my_place - 1].place = 1
+    o._racing = True
+    return o, s, you
+
+
+# 1. laps_left is estimated from TIME in a timed race
+o, s, you = timed_race(secs_left=390.0)   # 390s left, ~90s/lap -> ~4 laps
+pace(o, you.driver_info.slot_id, 90.0)
+assert o._obj_laps_left(s, [d for d in s.all_drivers_data_1[:s.num_cars]]) == 4
+print("  timed race: laps_left estimated from the clock: OK")
+
+# 2. race ending detected when under ~1 lap of time remains
+o, s, you = timed_race(secs_left=60.0)     # 60s, ~90s/lap -> under a lap
+pace(o, you.driver_info.slot_id, 90.0)
+assert o._obj_race_ending(s, [d for d in s.all_drivers_data_1[:s.num_cars]])
+o, s, you = timed_race(secs_left=400.0)
+pace(o, you.driver_info.slot_id, 90.0)
+assert not o._obj_race_ending(s, [d for d in s.all_drivers_data_1[:s.num_cars]])
+print("  race-ending detected under ~1 lap of time: OK")
+
+# 3. NO fresh multi-lap target when the race is about to end (the headline bug)
+o, s, you = timed_race(secs_left=70.0, my_place=5)  # under a lap left
+pace(o, you.driver_info.slot_id, 90.0)
+pace(o, s.all_drivers_data_1[5].driver_info.slot_id, 91.0)   # a car behind
+o.interval = {s.all_drivers_data_1[5].driver_info.slot_id: 2.0}
+o._obj_last_t = 0.0
+got = offer(o, s)
+assert not (got and got[0] == "obj_set_defend"), (
+    f"set a multi-lap 'hold for N laps' target with the flag due: {got}")
+print("  no multi-lap target set at the death of a timed race: OK")
+
+# 4. a live hold objective is BANKED at the flag, not left showing "4 laps"
+o, s, you = timed_race(secs_left=50.0, my_place=5)
+pace(o, you.driver_info.slot_id, 90.0)
+o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[5].driver_info.slot_id,
+          "target_name": "Rossi", "goal_pos": 5, "gap_target": 3.0, "laps": 4,
+          "lap0": you.completed_laps, "hud": "Hold P5"}
+o.cplace[you.driver_info.slot_id] = 5
+order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+               key=lambda d: d.place)
+pm = {d.place: d for d in order}
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_met_defend", (
+    f"a hold objective was not banked at the timed-race flag: {res}")
+print("  live hold objective banked at the flag: OK")
+
+print("\nALL PHASE 9 TIMED-RACE CHECKS PASSED")
