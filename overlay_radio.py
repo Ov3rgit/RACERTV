@@ -578,6 +578,13 @@ class RadioMixin:
                 # target set or resolved silently (the whole system's failure
                 # mode). See the _obj_notice contract in overlay_objective.py.
                 is_nudge = ocat.startswith("obj_nudge_")
+                if not is_nudge:
+                    # ENGINEER-FIRST ordering: record that the driver's own radio
+                    # call for this set/met/miss has now been aired. The booth
+                    # holds its reaction until it sees this — the pit wall must be
+                    # heard giving the order before the commentators remark on it,
+                    # never the other way round.
+                    self._obj_eng_aired_t = now
                 return add(ocat, 2 if is_nudge else 1, bypass=not is_nudge,
                            **okw)
 

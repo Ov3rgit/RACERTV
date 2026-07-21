@@ -43,13 +43,23 @@ def pace(o, slot, t):
     o.recent_laps[slot] = [t, t, t]
 
 
-def offer(o, s):
-    """Ask the objective system directly for its decision this tick."""
+def offer(o, s, t=None):
+    """Ask the objective system directly for its decision this tick. `t` pins
+    the clock so a test can cross a debounce window deterministically."""
     order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
                    key=lambda d: d.place)
     pm = {d.place: d for d in order}
     o._obj_last_t = 0.0
-    return o.objective_event(s, order, pm, time.time())
+    return o.objective_event(s, order, pm, time.time() if t is None else t)
+
+
+def resolve(o, s):
+    """Drive two ticks a hold-window apart. A gained/lost place now has to STICK
+    for a few seconds before it resolves (yo-yo-proofing), so a single tick only
+    ARMS the debounce — the second, later tick is the one that fires the verdict."""
+    base = time.time()
+    offer(o, s, base)
+    return offer(o, s, base + 12.0)
 
 
 print("===== STAYS SILENT WHEN A TARGET ISN'T ON =====")
@@ -117,10 +127,11 @@ print(f"  deadline {o._obj['laps']} laps, hud={o._obj['hud']!r}: OK")
 
 
 print("\n===== RESOLVES, AND ONLY ONCE =====")
-# meet it: take the position
+# meet it: take the position (must HOLD it for the debounce window before it
+# counts — a pass that yo-yos back shouldn't score; see resolve())
 you.place = 4
 s.all_drivers_data_1[3].place = 5
-res = offer(o, s)
+res = resolve(o, s)
 assert res and res[0] == "obj_met_pass", f"pass not detected as met: {res}"
 assert o._obj is None, "objective still active after being met"
 assert o._obj_result and o._obj_result["ok"], "HUD result not latched as met"
@@ -208,7 +219,7 @@ got = offer(o, s)
 assert got and got[0] == "obj_set_recover", f"no recovery target after dropping: {got}"
 print(f"  dropped P4->P9 -> {got[0]}: {o._obj['hud']!r}")
 you.place = o._obj["goal_pos"]
-res = offer(o, s)
+res = resolve(o, s)
 assert res and res[0] == "obj_met_recover", f"recovery not detected: {res}"
 print(f"  regaining the ground -> {res[0]}: OK")
 
@@ -296,14 +307,20 @@ o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[6].driver_info.s
 you.place = 5                                 # one overtake — now above the held spot
 o.cplace[you.driver_info.slot_id] = 5        # confirmed at P5
 order, pm = order_pm(s)
-res = o._obj_check(s, order, pm, time.time())
+# the climb must STICK for the debounce window before it supersedes (a place
+# that swaps straight back shouldn't bank a fresh target) — arm, then fire.
+_b = time.time()
+o._obj_check(s, order, pm, _b)
+res = o._obj_check(s, order, pm, _b + 12.0)
 assert res and res[0] == "obj_supersede_gained", (
-    f"climbing P6->P5 did not immediately supersede the hold target: {res}")
+    f"climbing P6->P5 did not supersede the hold target after the hold: {res}")
 assert o._obj is None, "the stale defend objective was not cleared"
 print(f"  hold P6 -> climbed to P5 supersedes at once: OK -> {res[0]}")
 
-# 3. supersede shortens the spacing so a fresh target can land promptly
-assert o._obj_last_t < time.time() - 1, (
+# 3. supersede shortens the spacing so a fresh target can land promptly. It
+# resolved at the fabricated clock (_b + 12.0), so measure against THAT, not
+# wall time — _obj_last_t is pushed back half OBJ_MIN_GAP_S from the resolve.
+assert o._obj_last_t < (_b + 12.0) - 1, (
     "supersede did not shorten the next-objective spacing")
 print("  supersede lets the next objective come sooner: OK")
 
@@ -316,7 +333,9 @@ o._obj = {"kind": "chase", "target_slot": s.all_drivers_data_1[3].driver_info.sl
           "lap0": you.completed_laps, "gap0": 4.0, "hud": "Within 1s of Dubois",
           "_trend": -1, "_prog": 0.4, "_laps_left": 3}
 o._obj_nudge_t = 0.0
-o._obj_nudge_advice = True         # force the PROGRESS branch (advice alternates)
+o._obj_nudge_i = 0                  # -> slot 1; a chase has no position stake, so
+                                   # the stakes branch is skipped and the live
+                                   # TREND read (closing) fires
 nud = o._obj_nudge(s, you, time.time())
 assert nud and nud[0] == "obj_nudge_closing", f"no closing nudge fired: {nud}"
 # ...and it respects its cooldown (won't nag every tick)
@@ -385,7 +404,8 @@ o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[5].driver_info.s
           "lap0": you.completed_laps, "hud": "Hold P5", "_trend": 0,
           "_laps_left": 3}
 o._obj_nudge_t = 0.0
-o._obj_nudge_advice = True         # force the PROGRESS branch (advice alternates)
+o._obj_nudge_i = 1                  # -> slot 2: past advice and stakes, onto the
+                                   # live TREND read (steady -> a holding check-in)
 nud = o._obj_nudge(s, you, time.time())
 assert nud and nud[0] == "obj_nudge_holding", (
     f"a steady hold produced no check-in nudge: {nud}")
@@ -424,7 +444,11 @@ o._obj = {"kind": "position", "target_slot": s.all_drivers_data_1[3].driver_info
           "lap0": you.completed_laps, "gap0": 3.0, "hud": "P4 — pass Dubois"}
 you.place = 6                                 # you got passed; P4 is now 2 back
 order, pm = opm(s)
-res = o._obj_check(s, order, pm, time.time())
+# the drop must persist through the debounce window before it withdraws — arm,
+# then fire (a place that swaps straight back keeps the chase alive)
+_b = time.time()
+o._obj_check(s, order, pm, _b)
+res = o._obj_check(s, order, pm, _b + 12.0)
 assert res and res[0] == "obj_withdraw_gone", (
     f"a chase target did not withdraw after you dropped a place: {res}")
 print(f"  chase withdraws when you drop a place: OK -> {res[0]}")
@@ -446,7 +470,7 @@ o, s, you = race(my_place=5)
 o._obj = {"kind": "tyres", "target_name": "", "_trend": 0, "_laps_left": 4,
           "goal_pos": 5, "laps": 5, "lap0": you.completed_laps}
 o._obj_nudge_t = 0.0
-o._obj_nudge_advice = False        # force the advice branch this call
+o._obj_nudge_i = 2                  # -> slot 0: the kind-specific ADVICE branch
 nud = o._obj_nudge(s, you, time.time())
 assert nud and nud[0] == "obj_advice_tyres", (
     f"a tyre objective gave no tyre-saving advice: {nud}")
@@ -591,9 +615,11 @@ o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[5].driver_info.s
 order, pm = opm4(s)
 assert o._obj_check(s, order, pm, time.time()) is None, (
     "a defend FAILED on a one-tick flicker — should use confirmed place")
-# but a CONFIRMED drop does fail it
+# but a CONFIRMED drop that STICKS for the hold window does fail it
 o.cplace[you.driver_info.slot_id] = 6
-res = o._obj_check(s, order, pm, time.time())
+_b = time.time()
+o._obj_check(s, order, pm, _b)                # arm the debounce
+res = o._obj_check(s, order, pm, _b + 12.0)   # ...still lost after the window
 assert res and res[0] == "obj_miss_defend", f"confirmed place drop not failed: {res}"
 print("  defend fail ignores a flicker, honours a confirmed drop: OK")
 

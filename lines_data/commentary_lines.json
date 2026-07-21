@@ -1669,13 +1669,17 @@
   "And {drv} delivers exactly what the pit wall asked for — that's a job done.",
   "Whatever the target was for {drv}, they've just hit it. Textbook.",
   "The engineer will be delighted with that from {drv} — mission complete.",
-  "That's {drv} doing precisely what was needed. You can hear the relief on that pit wall."
+  "That's {drv} securing {stake} — precisely what the pit wall wanted.",
+  "There it is — {stake} for {drv}. That's the job the engineer set them, done.",
+  "{drv} gets {stake}. You can hear the relief on that pit wall.",
+  "That's {drv} banking {stake} exactly as asked. Beautifully executed."
  ],
  "obj_booth_miss": [
   "It hasn't come off for {drv} — the pace just wasn't quite there.",
   "That one's slipped away from {drv}. The pit wall will be regrouping.",
-  "Not to be for {drv}. These things happen — the race is still long.",
-  "{drv} came up short there, and you sense the plan is about to change."
+  "{stake} has got away from {drv} there — and you sense the plan is about to change.",
+  "No {stake} for {drv} this time. These things happen — the race is still long.",
+  "{drv} came up just short of {stake}. The engineer will be back on the radio."
  ],
  "obj_booth_brief": [
   "And there's the pit wall at work — {drv} has been asked {brief}.",

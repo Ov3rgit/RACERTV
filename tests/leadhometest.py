@@ -84,9 +84,13 @@ o._obj = {"kind": "leadhome", "target_slot": 1, "target_name": "Hans Gruber",
           "lap0": you.completed_laps, "hud": "Hold the lead to the flag"}
 you.place = 2                                    # lost it
 o.cplace[you.driver_info.slot_id] = 2            # confirmed (fails read confirmed place)
-res = o._obj_check(s, [d for d in s.all_drivers_data_1[:NCARS]],
-                   {d.place: d for d in s.all_drivers_data_1[:NCARS]},
-                   time.time())
+# a surrendered lead must STAY lost through the hold window before it fails — a
+# place that swaps straight back mid-fight is not a lost lead. Arm, then fire.
+_ord = [d for d in s.all_drivers_data_1[:NCARS]]
+_pm = {d.place: d for d in s.all_drivers_data_1[:NCARS]}
+_b = time.time()
+o._obj_check(s, _ord, _pm, _b)
+res = o._obj_check(s, _ord, _pm, _b + 12.0)
 assert res and res[0] == "obj_miss_leadhome", f"losing the lead did not resolve as missed: {res}"
 print("  losing the lead resolves as missed: OK")
 

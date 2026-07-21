@@ -16,6 +16,7 @@ Mixed into Overlay; see r3e_overlay.py.
 """
 
 import r3e_data as R
+from overlay_common import obj_stake
 
 # --- tuning ---------------------------------------------------------------
 OBJ_MIN_GAP_S = 25.0     # min seconds between one objective resolving and the next
@@ -27,6 +28,10 @@ OBJ_MAX_CHASE_GAP = 18.0  # beyond this, a catch is fantasy however good the pac
 OBJ_DEFEND_NEAR = 3.5    # a car this close behind is worth defending against
 OBJ_NUDGE_CD = 22.0      # min seconds between mid-objective progress lines from
                          # the engineer — encouragement, not a running commentary
+OBJ_HOLD_GAIN = 3.0      # a gained/passed place must STICK this long before it
+                         # counts as met — a yo-yo battle shouldn't insta-resolve
+OBJ_HOLD_LOSE = 4.0      # ...and a lost place must stay lost this long before it
+                         # fails, so being briefly repassed mid-fight isn't a miss
 
 
 class ObjectiveMixin:
@@ -125,6 +130,27 @@ class ObjectiveMixin:
         objectives (clean running, recovery, tyre management) describe a
         situation rather than a moment, so re-offering them would nag."""
         return kind in getattr(self, "_obj_kinds", set())
+
+    def _obj_held(self, o, key, cond, now, secs, immediate=False):
+        """Debounce a resolve condition: return True only once `cond` has stayed
+        true continuously for `secs`. The instant `cond` lapses the timer resets,
+        so a place that yo-yos with a rival never trips a verdict off one corner.
+
+        CONFIRMED place already rejects a one-TICK flicker (~200ms); this adds the
+        SECONDS-long hold the driver asked for, so an overtake that gets repassed
+        two corners later resolves nothing either way. `immediate` bypasses the
+        wait at the flag, where there is no 'later' to wait for."""
+        tkey = "_hold_" + key
+        if not cond:
+            o[tkey] = None
+            return False
+        if immediate:
+            return True
+        t0 = o.get(tkey)
+        if t0 is None:
+            o[tkey] = now
+            return False
+        return (now - t0) >= secs
 
     def _obj_tyre_worn(self, s):
         """Worst tyre wear as 0.0 (fresh) - 1.0 (gone), or None when the game
@@ -431,7 +457,8 @@ class ObjectiveMixin:
         # Hold-types that reached the flag intact are a WIN; position/chase
         # that didn't get there is a near miss. This is the timed-race fix —
         # the lap deadline no longer outlives the race.
-        if self._obj_race_ending(s, order):
+        ending = self._obj_race_ending(s, order)
+        if ending:
             kind = o["kind"]
             if kind in ("defend", "damage", "leadhome", "tyres", "clean",
                         "consistency"):
@@ -458,7 +485,9 @@ class ObjectiveMixin:
         # already in P5 hunting P4). Uses the CONFIRMED place so a one-tick
         # position flicker at the overtake can't supersede prematurely.
         cpos = self.cplace.get(vslot, me.place) if hasattr(self, "cplace") else me.place
-        if o["kind"] in ("defend", "damage") and cpos < o["goal_pos"]:
+        if (o["kind"] in ("defend", "damage")
+                and self._obj_held(o, "gain", cpos < o["goal_pos"], now,
+                                   OBJ_HOLD_GAIN, immediate=ending)):
             return self._obj_supersede(now, "obj_supersede_gained",
                                        {"drv": nm, "pos": cpos})
         # DEFEND / DAMAGE: the THREAT evaporated — the car you were told to hold
@@ -477,8 +506,10 @@ class ObjectiveMixin:
             # position you were racing for is two or more places up now, a
             # different fight. (Not just me.place > goal_pos: that is true the
             # instant you set a pass objective, since you start one place back.)
-            dropped = (o.get("goal_pos") is not None
-                       and cpos > o["goal_pos"] + 1)
+            dropped = self._obj_held(
+                o, "drop",
+                o.get("goal_pos") is not None and cpos > o["goal_pos"] + 1,
+                now, OBJ_HOLD_LOSE, immediate=ending)
             if (gap is not None and gap > OBJ_MAX_CHASE_GAP * 1.5) or dropped:
                 self._obj = None
                 self._obj_last_t = now
@@ -520,31 +551,41 @@ class ObjectiveMixin:
         # place; the fails must too, or they're harsher than the successes.
         pos = cpos
 
+        # POSITION transitions (a pass landing, a place lost) must STICK for a
+        # few seconds before they resolve — a wheel-to-wheel fight yo-yos, and
+        # neither side should score a met/miss off a place that swaps straight
+        # back. `immediate=ending` still resolves instantly at the flag.
         if o["kind"] in ("chase", "position"):
             gap = self.interval.get(vslot)
-            if o["goal_pos"] is not None and pos <= o["goal_pos"]:
+            if o["goal_pos"] is not None and self._obj_held(
+                    o, "pass", pos <= o["goal_pos"], now,
+                    OBJ_HOLD_GAIN, immediate=ending):
                 return self._obj_done(now, "obj_met_pass",
                                       {"drv": nm, "pos": pos})
-            if (o["gap_target"] and gap is not None
-                    and gap <= o["gap_target"]):
+            if o["gap_target"] and self._obj_held(
+                    o, "close", gap is not None and gap <= o["gap_target"],
+                    now, OBJ_HOLD_GAIN, immediate=ending):
                 return self._obj_done(now, "obj_met_close",
                                       {"drv": nm, "gap": f"{gap:.1f}s"})
         elif o["kind"] == "defend":
             # (climbed-past, threat-evaporated handled in the re-eval block above)
-            if pos > o["goal_pos"]:                      # lost the place
+            if self._obj_held(o, "lose", pos > o["goal_pos"], now,
+                              OBJ_HOLD_LOSE, immediate=ending):   # lost the place
                 return self._obj_fail(now, "obj_miss_defend", {"drv": nm})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_defend",
                                       {"drv": nm, "pos": pos})
         elif o["kind"] == "damage":
-            if pos > o["goal_pos"]:
+            if self._obj_held(o, "lose", pos > o["goal_pos"], now,
+                              OBJ_HOLD_LOSE, immediate=ending):
                 return self._obj_fail(now, "obj_miss_defend", {"drv": nm})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_damage",
                                       {"drv": nm, "pos": pos})
 
         elif o["kind"] == "leadhome":
-            if pos > 1:                                  # lost the lead
+            if self._obj_held(o, "lose", pos > 1, now,
+                              OBJ_HOLD_LOSE, immediate=ending):   # lost the lead
                 return self._obj_fail(now, "obj_miss_leadhome", {"drv": nm})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_leadhome",
@@ -556,10 +597,12 @@ class ObjectiveMixin:
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_clean", {"pos": pos})
         elif o["kind"] == "recover":
-            if pos <= o["goal_pos"]:
+            if self._obj_held(o, "pass", pos <= o["goal_pos"], now,
+                              OBJ_HOLD_GAIN, immediate=ending):
                 return self._obj_done(now, "obj_met_recover", {"pos": pos})
         elif o["kind"] == "tyres":
-            if pos > o["goal_pos"]:                      # dropped a place
+            if self._obj_held(o, "lose", pos > o["goal_pos"], now,
+                              OBJ_HOLD_LOSE, immediate=ending):   # dropped a place
                 return self._obj_fail(now, "obj_miss_tyres", {"pos": pos})
             if laps_done >= o["laps"]:
                 return self._obj_done(now, "obj_met_tyres", {"pos": pos})
@@ -594,12 +637,14 @@ class ObjectiveMixin:
                             "until": now + 8.0}
 
     def _obj_notice(self, event, now):
-        """Post the booth's cue: (event, kind, target, when). MUST be called
-        while _obj is still set — _obj_done/_obj_fail clear it straight after,
-        and the booth needs the KIND to say what was actually asked for."""
+        """Post the booth's cue: (event, kind, target, when, stake). MUST be
+        called while _obj is still set — _obj_done/_obj_fail clear it straight
+        after, and the booth needs the KIND and the STAKE to react in the right
+        terms ('that's the podium secured') rather than a generic 'job done'."""
         o = self._obj or {}
         self._obj_booth = (event, o.get("kind", ""),
-                           o.get("target_name", ""), now)
+                           o.get("target_name", ""), now,
+                           obj_stake(o.get("kind", ""), o.get("goal_pos")))
         # UI chime for the objective card: given / met / missed, each a
         # distinct motif. Queued ahead of the engineer's line, so you hear the
         # chime and then what it means. Never let audio trouble break the
@@ -625,25 +670,39 @@ class ObjectiveMixin:
         cat = None
         lap_word = ("1 more lap" if laps_left == 1
                     else f"{laps_left} more laps" if laps_left else "a few laps")
+        # THE PRIZE the objective is worth — 'the win', 'the podium', 'P4'. This
+        # is what the driver asked for: the engineer naming the STAKE ("you can
+        # get this podium, keep pushing") instead of a bare gap/lap readout. Only
+        # set when there's a real position prize; None -> no stakes nudge.
+        gp = o.get("goal_pos")
+        pstake = ("the win" if (gp == 1 or kind == "leadhome")
+                  else "the podium" if gp in (2, 3)
+                  else "P%d" % gp if gp else None)
         kw = {"drv": o.get("target_name") or "", "pos": me.place,
-              "laps": lap_word}
-        # ALTERNATE between a PROGRESS read (how it's going) and real ADVICE
-        # (how to do it), so the engineer isn't only saying "keep it up" — the
-        # driver asked for relevant coaching per objective. Which one this time
-        # flips each nudge so both get an airing.
-        want_advice = not getattr(self, "_obj_nudge_advice", False)
-        self._obj_nudge_advice = want_advice
+              "laps": lap_word, "stake": pstake or "the target"}
         advice = {"chase": "obj_advice_chase", "position": "obj_advice_chase",
                   "defend": "obj_advice_defend", "damage": "obj_advice_defend",
                   "tyres": "obj_advice_tyres", "clean": "obj_advice_clean",
                   "leadhome": "obj_advice_leadhome",
                   "consistency": "obj_advice_consistency"}
+        attack = ("chase", "position", "recover")
+        holdk = ("defend", "damage", "leadhome", "tyres")
+        # ROTATE three flavours of check-in so the engineer isn't a one-note
+        # "keep it up": real ADVICE (how to do it), the STAKES (what it's worth),
+        # and a live TREND read (how it's going). Each nudge advances the dial so
+        # all three get an airing over an objective's life.
+        self._obj_nudge_i = getattr(self, "_obj_nudge_i", 0) + 1
+        slot = self._obj_nudge_i % 3
         # last lap of any objective — always worth a "bring it home", and never
-        # buried under coaching
+        # buried under coaching or stakes talk
         if laps_left is not None and laps_left <= 1:
             cat = "obj_nudge_nearly"
-        elif want_advice and kind in advice:
+        elif slot == 0 and kind in advice:
             cat = advice[kind]                   # kind-specific coaching
+        elif slot == 1 and pstake and kind in attack:
+            cat = "obj_nudge_stakes_go"          # "you can get this podium"
+        elif slot == 1 and pstake and kind in holdk:
+            cat = "obj_nudge_stakes_hold"        # "the podium's yours to lose"
         elif kind in ("chase", "position"):
             cat = ("obj_nudge_closing" if gtrend == -1
                    else "obj_nudge_slipping" if gtrend == 1

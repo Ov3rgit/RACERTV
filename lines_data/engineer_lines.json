@@ -908,6 +908,22 @@
   "Solid. Just keep doing what you're doing — {laps} to go.",
   "Composed out there. Hold this to the end, {laps}."
  ],
+ "obj_nudge_stakes_go": [
+  "This is {stake} right here — keep pushing, it's on.",
+  "You can get {stake}, mate. Don't let up now.",
+  "{stake} is there for the taking — stay on it.",
+  "Everything you've got — {stake} is on the line, {laps} left.",
+  "Think about {stake} at the end of this. Worth every bit of effort.",
+  "That's {stake} we're racing for — head down, go and get it."
+ ],
+ "obj_nudge_stakes_hold": [
+  "{stake} is yours to lose — hold it together, {laps}.",
+  "This is all about protecting {stake} now. Stay tight.",
+  "Keep {stake} locked down — don't give him a sniff.",
+  "{stake} is in your hands — see it home, that's {laps}.",
+  "Guard {stake} with everything. {laps} and it's done.",
+  "We do NOT give up {stake} here — smart and firm, {laps}."
+ ],
  "obj_met_defend_clear": [
   "You can breathe now — {drv}'s dropped right back. P{pos} is safe, brilliant defending.",
   "That's done it, {drv} is out of the picture. P{pos} secured, lovely work.",

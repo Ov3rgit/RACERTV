@@ -92,17 +92,41 @@ CAT_INTENSITY = {
 # never quotes numbers off a private radio call; it describes what anyone
 # watching the driver could infer. {tgt} is the target driver's name.
 OBJ_BRIEF = {
-    "position": "to find a way past {tgt}",
-    "chase":    "to close that gap down",
-    "defend":   "to defend this position",
-    "damage":   "to hold on to what they've got",
+    "position": "to find a way past {tgt} for {stake}",
+    "chase":    "to close that gap to {tgt} down",
+    "defend":   "to defend {stake}",
+    "damage":   "to hold on to {stake} with a wounded car",
     "clean":    "to keep it clean and stay out of trouble",
-    "recover":  "to start making places back",
-    "tyres":    "to look after those tyres",
-    "leadhome": "to bring it home in front",
+    "recover":  "to fight back to {stake}",
+    "tyres":    "to nurse the tyres and hold {stake}",
+    "leadhome": "to bring it home for {stake}",
     "consistency": "to string together consistent laps",
 }
 OBJ_BRIEF_DEFAULT = "for something specific over these next few laps"
+
+
+def obj_stake(kind, goal_pos):
+    """A short noun phrase for what an objective is WORTH, so the booth and the
+    engineer can name the prize ('the podium', 'the win', 'P4') instead of a
+    generic 'the target'. `goal_pos` is the place being raced for or held.
+
+    Shared by the engineer's mid-objective nudges and the booth's set/met/miss
+    reactions so the two always frame the same target the same way."""
+    if kind == "leadhome" or goal_pos == 1:
+        return "the win"
+    if goal_pos in (2, 3):
+        return "the podium"
+    if kind == "clean":
+        return "a clean run"
+    if kind == "tyres":
+        return "the tyres to the flag"
+    if kind == "consistency":
+        return "the rhythm"
+    if kind == "chase":
+        return "that gap"
+    if goal_pos:
+        return "P%d" % goal_pos
+    return "the target"
 PENALTY_SPOKEN = {0: "drive-through penalty", 1: "stop-and-go penalty",
                   2: "pit-stop penalty", 3: "time penalty", 4: "slow-down penalty",
                   5: "disqualification"}
@@ -140,6 +164,7 @@ ENG_EMOTION = {
     "obj_nudge_closing": "fired", "obj_nudge_slipping": "worried",
     "obj_nudge_threat": "worried", "obj_nudge_nearly": "fired",
     "obj_supersede_gained": "happy", "obj_nudge_holding": "neutral",
+    "obj_nudge_stakes_go": "fired", "obj_nudge_stakes_hold": "worried",
     "obj_met_defend_clear": "happy",
     "obj_withdraw_pit": "neutral",
     "obj_advice_chase": "fired", "obj_advice_defend": "worried",

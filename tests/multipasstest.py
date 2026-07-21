@@ -93,11 +93,13 @@ print("  pit cycle is NOT called a double pass: OK")
 o, s = build()
 settle(o, s)
 before = len(o.tts.spoken)
-o._obj_booth = ("set", "defend", "Hans Gruber", __import__("time").time())
+_nt = __import__("time").time()
+o._obj_eng_aired_t = _nt            # engineer's own call has aired (ordering gate)
+o._obj_booth = ("set", "defend", "Hans Gruber", _nt, "the podium")
 for _ in range(6):
     drive(o, s, 1)
 said = " || ".join(t for _p, t in o.tts.spoken[before:])
-assert "defend this position" in said, (
+assert "defend the podium" in said, (
     "booth did not announce the target being SET (the given objective):\n"
     + said)
 print("  booth calls a defend brief when the target is set: OK")
@@ -108,17 +110,19 @@ print("  booth calls a defend brief when the target is set: OK")
 o, s = build()
 settle(o, s)
 before = len(o.tts.spoken)
-o._obj_booth = ("set", "defend", "Hans Gruber", __import__("time").time())
+_nt = __import__("time").time()
+o._obj_eng_aired_t = _nt
+o._obj_booth = ("set", "defend", "Hans Gruber", _nt, "the podium")
 o.tts._pend = 3                                # queue jammed (incident flood)
 for _ in range(4):
     drive(o, s, 1)
-assert not any("defend this position" in t for _p, t in o.tts.spoken[before:]), (
+assert not any("defend the podium" in t for _p, t in o.tts.spoken[before:]), (
     "the brief aired into a jammed queue instead of waiting")
 assert o._obj_booth is not None, "the brief notice was dropped while busy"
 o.tts._pend = 0                               # queue clears
 for _ in range(3):
     drive(o, s, 1)
-assert any("defend this position" in t for _p, t in o.tts.spoken[before:]), (
+assert any("defend the podium" in t for _p, t in o.tts.spoken[before:]), (
     "the brief never aired once the queue cleared — it was lost, the bug")
 print("  booth brief survives a busy queue and airs on the first gap: OK")
 
@@ -126,12 +130,17 @@ print("  booth brief survives a busy queue and airs on the first gap: OK")
 o, s = build()
 settle(o, s)
 before = len(o.tts.spoken)
-o._obj_booth = ("met", "position", "Hans Gruber", __import__("time").time())
+_nt = __import__("time").time()
+o._obj_eng_aired_t = _nt
+o._obj_booth = ("met", "position", "Hans Gruber", _nt, "the podium")
 for _ in range(6):
     drive(o, s, 1)
 said = " || ".join(t for _p, t in o.tts.spoken[before:])
 assert any(w in said for w in ("job done", "just hit it", "delighted",
                                "delivers exactly", "ticked it off",
+                               "securing the podium", "banking the podium",
+                               "gets the podium", "relief on that pit wall",
+                               "the job the engineer set",
                                "precisely what was needed")), (
     "booth did not call the objective being MET:\n" + said)
 print("  booth calls a met objective: OK")

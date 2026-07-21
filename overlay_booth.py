@@ -912,7 +912,7 @@ class BoothMixin:
         # with zero booth objective lines before this.
         _ob = getattr(self, "_obj_booth", None)
         if is_race and _ob and now - _ob[3] < 12.0:
-            _ev, _kind, _tgt, _t = _ob
+            _ev, _kind, _tgt, _t, _stake = _ob
             # DON'T clear on read and DON'T compete in the candidate arbitration.
             # Both were why a whole race aired ZERO booth objective lines: the
             # brief was added as one prio-2 candidate and the notice consumed,
@@ -920,11 +920,20 @@ class BoothMixin:
             # was gone. Instead we HOLD the notice across its 12s window and
             # speak it DIRECTLY the first tick the booth queue has a gap —
             # guaranteed to land, without ever talking over a live incident.
+            # ENGINEER-FIRST: the booth must not remark on a target until the
+            # driver's own radio call for it has AIRED — the pit wall is heard
+            # giving the order, THEN the commentators pick up on it, never the
+            # reverse. `_obj_eng_aired_t` is stamped the moment the engineer
+            # speaks the set/met/miss line (overlay_radio). The busy check then
+            # uses a threshold of ONE pending line — the engineer's own call,
+            # just queued this tick, is that one — so the booth holds until it
+            # has actually played out and the queue falls quiet.
+            aired = getattr(self, "_obj_eng_aired_t", 0.0) >= _t
             busy = (self.tts is not None
-                    and (self.tts._pending() >= 2
+                    and (self.tts._pending() >= 1
                          or self.tts.speaking_persona() in
-                         ("COMMENTATOR", "PUNDIT")))
-            if not busy:
+                         ("COMMENTATOR", "PUNDIT", "ENGINEER")))
+            if aired and not busy:
                 self._obj_booth = None
                 pdrv = next((d for d in order if d.driver_info.slot_id
                              == s.vehicle_info.slot_id), None)
@@ -932,7 +941,8 @@ class BoothMixin:
                     if _ev == "set":
                         _brief = _safe_format(
                             OBJ_BRIEF.get(_kind, OBJ_BRIEF_DEFAULT),
-                            {"tgt": _tgt or "the car ahead"})
+                            {"tgt": _tgt or "the car ahead",
+                             "stake": _stake or "the target"})
                         _txt = _safe_format(
                             self._pick(COMMENTARY_LINES["obj_booth_brief"],
                                        ("COMM", "obj_booth_brief")),
@@ -943,8 +953,8 @@ class BoothMixin:
                                 else "obj_booth_miss")
                         _txt = _safe_format(
                             self._pick(COMMENTARY_LINES[_cat], ("COMM", _cat)),
-                            {"drv": self._dname(pdrv), "comm": COMMENTATOR_NAME,
-                             "pundit": PUNDIT_NAME})
+                            {"drv": self._dname(pdrv), "stake": _stake or "it",
+                             "comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME})
                     if self.tts:
                         self.tts.speak(self._spoken(_txt), "PUNDIT",
                                        seed="PUNDIT", intensity=1,
