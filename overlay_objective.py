@@ -789,8 +789,23 @@ class ObjectiveMixin:
             o = self._obj
             o["_laps_left"] = max(0, o["laps"] - (laps - o["lap0"]))
             o["_gap"] = None
-            o["_badge"] = "PB" if o["kind"] == "pb" else "POLE"
+            o["_badge"] = ("=" if o["kind"] == "consistency"
+                           else "PB" if o["kind"] == "pb" else "POLE")
             done = laps - o["lap0"]
+            if o["kind"] == "consistency":
+                # practice rhythm drill: each new lap checked against the band
+                o["_prog"] = max(0.0, min(1.0, o.get("_ok_laps", 0) / o["laps"]))
+                if me.completed_laps > o.get("_last_lap_n", o["lap0"]):
+                    o["_last_lap_n"] = me.completed_laps
+                    rl = getattr(self, "recent_laps", {}).get(vslot) or []
+                    last = rl[-1] if rl else None
+                    if last and last > 0:
+                        if abs(last - o["_ref"]) > o["_band"]:
+                            return self._obj_fail(now, "obj_miss_consistency", {})
+                        o["_ok_laps"] = o.get("_ok_laps", 0) + 1
+                if o.get("_ok_laps", 0) >= o["laps"]:
+                    return self._obj_done(now, "obj_met_consistency", {})
+                return None
             if o["kind"] == "pb":
                 if pb and pb <= o["target_t"]:
                     return self._obj_done(now, "obj_met_pb",
@@ -814,8 +829,30 @@ class ObjectiveMixin:
         if 0 < rem < 180:
             return None
 
-        pole_t = self._obj_pole_time(order, vslot)
-        # CLOSE ON POLE — only when the gap is small enough to be real
+        is_quali = (s.session_type == 1)
+        # PRACTICE gets its own goals — it is about learning the car, not the
+        # grid, so 'close on pole' makes no sense here (that's a QUALI target).
+        # A CONSISTENCY drill is the practice staple: string laps together
+        # within a tight band. Offered once a reference pace exists.
+        if not is_quali:
+            recent = getattr(self, "recent_laps", {}).get(vslot) or []
+            recent = [l for l in recent if l and l > 0]
+            if len(recent) >= 2 and not self._obj_seen("consistency"):
+                ref = self._obj_pace(vslot) or recent[-1]
+                band = max(0.6, ref * 0.015)
+                self._obj = {"kind": "consistency", "target_slot": vslot,
+                             "target_name": "", "goal_pos": None,
+                             "gap_target": None, "laps": 4, "_ref": ref,
+                             "_band": band, "_last_lap_n": laps, "_ok_laps": 0,
+                             "lap0": laps, "_new_until": now + 6.0,
+                             "_quali": True,     # resolved in _obj_quali, not race
+                             "hud": f"Consistent laps (±{band:.1f}s)"}
+                self._obj_count += 1
+                self._obj_kinds = getattr(self, "_obj_kinds", set()) | {"consistency"}
+                return ("obj_set_consistency", {"laps": 4})
+
+        pole_t = self._obj_pole_time(order, vslot) if is_quali else None
+        # CLOSE ON POLE — QUALI only, and only when the gap is small enough
         if (pole_t and pb - pole_t > 0.05 and pb - pole_t < 1.5
                 and not self._obj_seen("pole")):
             want = round(max(0.15, (pb - pole_t) * 0.5), 2)

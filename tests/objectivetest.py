@@ -698,3 +698,65 @@ assert res and res[0] == "obj_met_defend", (
 print("  live hold objective banked at the flag: OK")
 
 print("\nALL PHASE 9 TIMED-RACE CHECKS PASSED")
+
+print("\n===== PHASE 10: PRACTICE OBJECTIVES =====")
+
+
+def practice(ncars=8):
+    o = headless_overlay(fake_tts=True)
+    s = make_shared(2, ncars=ncars)
+    s.session_type = 3                        # practice (not 1=quali, not 2=race)
+    o._show_caption = lambda *a, **k: None
+    o.radio_msgs = []
+    o._obj_reset()
+    you = s.all_drivers_data_1[0]
+    for i, d in enumerate(s.all_drivers_data_1[:ncars]):
+        d.place = i + 1
+        d.completed_laps = 5
+    return o, s, you
+
+
+def q_offer(o, s):
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    o._obj_last_t = 0.0
+    return o.objective_event(s, order, {d.place: d for d in order}, time.time())
+
+
+# 1. practice offers a CONSISTENCY drill (its natural goal), not a pole target
+o, s, you = practice()
+vs = you.driver_info.slot_id
+o.best_lap[vs] = 92.0
+o.recent_laps[vs] = [92.0, 92.1, 92.0]
+got = q_offer(o, s)
+assert got and got[0] == "obj_set_consistency", (
+    f"practice did not offer a consistency drill: {got}")
+assert o._obj["kind"] == "consistency"
+print(f"  practice offers a consistency drill: OK -> {o._obj['hud']!r}")
+
+# 2. it RESOLVES in practice (met after N in-band laps)
+o._obj["laps"] = 2
+o._obj["_ok_laps"] = 0
+o._obj["_last_lap_n"] = you.completed_laps
+you.completed_laps += 1
+o.recent_laps[vs].append(92.2)
+assert q_offer(o, s) is None and o._obj["_ok_laps"] == 1
+you.completed_laps += 1
+o.recent_laps[vs].append(91.9)
+res = q_offer(o, s)
+assert res and res[0] == "obj_met_consistency", f"practice consistency not met: {res}"
+print("  practice consistency resolves as met: OK")
+
+# 3. practice does NOT offer a pole target (that's a quali thing)
+o, s, you = practice()
+vs = you.driver_info.slot_id
+o.best_lap[vs] = 92.5
+o.recent_laps[vs] = [92.5, 92.5, 92.5]
+o.best_lap[s.all_drivers_data_1[1].driver_info.slot_id] = 92.0   # someone quicker
+o._obj_kinds = {"consistency"}                # consistency already used
+got = q_offer(o, s)
+assert not (got and got[0] == "obj_set_pole"), (
+    f"practice offered a POLE target: {got}")
+print("  practice never offers a pole target: OK")
+
+print("\nALL PHASE 10 PRACTICE CHECKS PASSED")
