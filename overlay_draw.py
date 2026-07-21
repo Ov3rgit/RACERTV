@@ -838,30 +838,52 @@ class DrawMixin:
         self.text(tx, y + 34, _clip(txt, self.f_row, (x + w - 14) - tx),
                   fill=TEXT, font=self.f_row, anchor="w")
 
-        # --- SEGMENTED progress strip (rev-bar feel), amber then green
-        # Segments are sized to the space AVAILABLE, not fixed at 19px each.
-        # They used to be fixed, so once the chip was docked under the
-        # (narrower) relative tower only ~10 of the 14 fitted and the rest were
-        # clipped by the break below — the bar could never fill past ~70%
-        # however complete the objective was, which is why it looked like it
-        # wasn't tracking.
+        # --- SEGMENTED progress strip (rev-bar feel), amber then green.
+        # Segments are sized to the space AVAILABLE, not fixed, so the bar can
+        # always reach 100% however narrow the docked chip is.
+        #
+        # SMOOTH TRACKING: the displayed fill EASES toward the real progress
+        # each frame instead of snapping, and the LEADING segment fills
+        # fractionally — so a hold objective (which only gains a lap at the
+        # line) still shows the bar creeping the whole way round, and a closing
+        # gap glides rather than stepping. A new target resets the fill to empty
+        # so it visibly grows; a resolved one eases on up to full. This is the
+        # 'track better / more information' the bar was missing.
+        target = (prog if prog is not None
+                  else 1.0 if (res and res.get("ok")) else 0.0)
+        key = obj.get("set_at") if obj else "res"
+        if getattr(self, "_obj_prog_key", None) != key:
+            self._obj_prog_key = key
+            # a brand-new objective starts empty and grows; a resolve keeps the
+            # current fill and eases it on to the verdict
+            self._obj_prog_shown = 0.0 if obj else getattr(self, "_obj_prog_shown", 0.0)
+        shown = getattr(self, "_obj_prog_shown", target)
+        shown += (target - shown) * 0.25                 # ease (~0.2s to settle)
+        if abs(target - shown) < 0.004:
+            shown = target
+        shown = max(0.0, min(1.0, shown))
+        self._obj_prog_shown = shown
+
         segs, gap_ = 14, 3
         bx = tx
         bx_end = x + w - 14
         sw_ = max(4, int((bx_end - bx - gap_ * (segs - 1)) / segs))
         by, bh = y + h - 12, 5
-        lit = int(round((prog or 0.0) * segs))
+        c_lit = (GREEN if shown >= 0.85 else "#ffb000" if shown >= 0.5 else col)
+        filled = shown * segs                            # float: sub-segment fill
         for i in range(segs):
             sx = bx + i * (sw_ + gap_)
             if sx + sw_ > bx_end + 1:
                 break
-            if i < lit:
-                c2 = (GREEN if prog and prog >= 0.85
-                      else "#ffb000" if prog and prog >= 0.5 else col)
-            else:
-                c2 = "#1c2530"
+            # dark base for every segment...
             self.canvas.create_rectangle(sx, by, sx + sw_, by + bh,
-                                         fill=c2, outline="")
+                                         fill="#1c2530", outline="")
+            # ...then the lit portion, the leading segment filled fractionally
+            frac = max(0.0, min(1.0, filled - i))
+            if frac > 0:
+                litw = max(1, int(round(sw_ * frac)))
+                self.canvas.create_rectangle(sx, by, sx + litw, by + bh,
+                                             fill=c_lit, outline="")
 
     def draw_settings(self):
         """Clickable '≡ SETTINGS' chip pinned to the game's top-left (under

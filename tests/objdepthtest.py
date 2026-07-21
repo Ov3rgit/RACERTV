@@ -175,6 +175,68 @@ assert o._dname(p4) in o._obj["hud"], f"HUD not updated to new target: {o._obj['
 print(f"  'P5 from X' retargets to whoever is now in P5: OK -> {o._obj['target_name']}")
 
 
+print("\n===== 3c. RETARGET works ACROSS THE BOARD (chase + leadhome) =====")
+# CHASE: closing on the car directly ahead — if a different car becomes the one
+# ahead, the chase follows it.
+o, s, you = build(my_place=6)
+vs = you.driver_info.slot_id
+for d in s.all_drivers_data_1[:NCARS]:
+    o.cplace[d.driver_info.slot_id] = d.place
+old_ahead = next(d for d in s.all_drivers_data_1[:NCARS] if d.place == 5)
+o._obj = {"kind": "chase", "target_slot": old_ahead.driver_info.slot_id,
+          "target_name": o._dname(old_ahead), "goal_pos": None,
+          "gap_target": 1.0, "laps": 8, "lap0": you.completed_laps,
+          "gap0": 3.0, "hud": "Within 1s of " + o._dname(old_ahead)}
+# the car ahead of you changes identity (they pit / get shuffled): a new car in P5
+new_ahead = next(d for d in s.all_drivers_data_1[:NCARS] if d.place == 4)
+old_ahead.place = 4
+new_ahead.place = 5
+o.cplace[old_ahead.driver_info.slot_id] = 4
+o.cplace[new_ahead.driver_info.slot_id] = 5
+order, pm = opm(s)
+o._obj_check(s, order, pm, 4000.0)
+assert o._obj is not None and o._obj["target_slot"] == new_ahead.driver_info.slot_id, (
+    f"chase did not retarget to the new car ahead: {o._obj['target_name']}")
+print(f"  a chase follows the car now directly ahead: OK -> {o._obj['target_name']}")
+
+# LEADHOME: the name is whoever is chasing the lead (P2) — retargets when P2 changes.
+o, s, you = build(my_place=1)
+vs = you.driver_info.slot_id
+for d in s.all_drivers_data_1[:NCARS]:
+    o.cplace[d.driver_info.slot_id] = d.place
+p2 = next(d for d in s.all_drivers_data_1[:NCARS] if d.place == 2)
+o._obj = {"kind": "leadhome", "target_slot": p2.driver_info.slot_id,
+          "target_name": o._dname(p2), "goal_pos": 1, "gap_target": None,
+          "laps": 3, "lap0": you.completed_laps, "hud": "Hold the lead to the flag"}
+p3 = next(d for d in s.all_drivers_data_1[:NCARS] if d.place == 3)
+p2.place = 3           # the old P2 drops to P3...
+p3.place = 2           # ...and P3 climbs into second
+o.cplace[p2.driver_info.slot_id] = 3
+o.cplace[p3.driver_info.slot_id] = 2
+order, pm = opm(s)
+o._obj_check(s, order, pm, 4000.0)
+assert o._obj is not None and o._obj["target_slot"] == p3.driver_info.slot_id, (
+    f"leadhome did not retarget to the new car in P2: {o._obj['target_name']}")
+print(f"  leadhome names whoever is now chasing the lead: OK -> {o._obj['target_name']}")
+
+
+print("\n===== 3d. HOLD progress creeps WITHIN a lap (sub-lap continuity) =====")
+o, s, you = build(my_place=5)
+o._obj = {"kind": "defend", "target_name": "Rossi", "goal_pos": 5, "laps": 4,
+          "lap0": you.completed_laps, "gap_target": 3.0, "hud": "Hold P5"}
+order, pm = opm(s)
+you.lap_distance_fraction = 0.0
+p0 = o._obj_progress(s, order)
+you.lap_distance_fraction = 0.5     # halfway through the current lap
+p_half = o._obj_progress(s, order)
+assert p_half > p0, (
+    f"hold progress did not advance within a lap (was {p0}, now {p_half}) — the "
+    f"bar would stand still for a whole lap")
+# half a lap into a 4-lap hold == 0.5/4 == 0.125
+assert abs(p_half - 0.125) < 1e-6, f"sub-lap progress maths wrong: {p_half}"
+print(f"  hold objective progresses within the lap: OK ({p0:.3f} -> {p_half:.3f})")
+
+
 print("\n===== 4. STAKE-AWARE BOOTH BRIEF + shared stake helper =====")
 assert obj_stake("leadhome", 1) == "the win"
 assert obj_stake("position", 3) == "the podium"

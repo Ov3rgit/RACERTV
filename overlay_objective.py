@@ -407,14 +407,18 @@ class ObjectiveMixin:
             return max(0.0, min(1.0, (start - gap) / span)) if span > 0 else None
 
         # HOLDING for N laps (defend / damage / leadhome / clean / tyres): the
-        # bar fills with the laps survived. This is the honest read of "how
-        # close am I to the flag on this", which is what these are really about.
+        # bar fills with the laps survived toward the flag. Blend in how far
+        # through the CURRENT lap the player is, so the bar creeps continuously
+        # every frame instead of standing still for a whole lap then jumping a
+        # seventh at the line — the 'it's giving too little information' feel.
         if kind in ("defend", "damage", "leadhome", "clean", "tyres"):
             laps = o.get("laps") or 0
             if laps <= 0:
                 return None
             done = me.completed_laps - o["lap0"]
-            return max(0.0, min(1.0, done / laps))
+            frac = getattr(me, "lap_distance_fraction", 0.0) or 0.0
+            frac = max(0.0, min(1.0, frac))
+            return max(0.0, min(1.0, (done + frac) / laps))
 
         # RECOVER: progress along the places climbed back toward the goal.
         if kind == "recover":
@@ -436,27 +440,47 @@ class ObjectiveMixin:
         if me is None:
             return None
 
-        # RETARGET: a position/defend objective is really about the POSITION, and
-        # the named car is just whoever is in the way. When the original target
-        # leaves that slot — they pass someone else, or drop back — the car you
-        # now have to beat is a DIFFERENT driver, and the objective must follow
-        # the place, not the name. (Reported: 'get P5 from X' stuck naming X even
-        # after X moved to P4 and someone else was the car in P5.) Uses CONFIRMED
-        # place so a one-tick side-by-side flicker can't churn the name.
+        # RETARGET — the objective is about the POSITION, and the named car is
+        # only whoever is in the way of it. When that car leaves the relevant
+        # slot (passes someone else, or drops back), the driver you now have to
+        # beat is a DIFFERENT person, and the objective must follow the PLACE,
+        # not the name. Applied ACROSS every kind that races a specific car:
+        #   position -> the car occupying the place you want
+        #   chase    -> the car directly ahead you're closing on
+        #   defend / -> the car directly behind you're holding off
+        #   damage
+        #   leadhome -> whoever is now chasing the lead
+        # Uses CONFIRMED place so a one-tick side-by-side flicker can't churn the
+        # name. (Reported: 'get P5 from X' kept naming X after X moved to P4.)
+        def _cpl(d):
+            return (self.cplace.get(d.driver_info.slot_id, d.place)
+                    if hasattr(self, "cplace") else d.place)
         gp = o.get("goal_pos")
-        if gp and o["kind"] in ("position", "defend", "damage"):
-            def _cpl(d):
-                return (self.cplace.get(d.driver_info.slot_id, d.place)
-                        if hasattr(self, "cplace") else d.place)
-            want_place = gp if o["kind"] == "position" else gp + 1
+        _cpos = _cpl(me)
+        _kind = o["kind"]
+        want_place = None
+        if _kind == "position" and gp:
+            want_place = gp
+        elif _kind == "chase":
+            want_place = _cpos - 1
+        elif _kind in ("defend", "damage") and gp:
+            want_place = gp + 1
+        elif _kind == "leadhome":
+            want_place = 2
+        if want_place and want_place >= 1:
             occ = next((d for d in order if _cpl(d) == want_place
                         and d.driver_info.slot_id != vslot), None)
             if occ is not None and occ.driver_info.slot_id != o["target_slot"]:
                 o["target_slot"] = occ.driver_info.slot_id
                 o["target_name"] = self._dname(occ)
-                o["hud"] = (f"P{gp} — pass {o['target_name']}"
-                            if o["kind"] == "position"
-                            else f"Hold P{gp} from {o['target_name']}")
+                if _kind == "position":
+                    o["hud"] = f"P{gp} — pass {o['target_name']}"
+                elif _kind == "chase":
+                    _tg = o.get("gap_target") or 1.0
+                    o["hud"] = f"Within {_tg:.0f}s of {o['target_name']}"
+                elif _kind in ("defend", "damage"):
+                    o["hud"] = f"Hold P{gp} from {o['target_name']}"
+                # leadhome's HUD is name-free ("Hold the lead to the flag")
         nm = o["target_name"]
 
         # WITHDRAW: the objective stopped making sense. Always spoken — a
