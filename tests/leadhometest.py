@@ -83,6 +83,7 @@ o._obj = {"kind": "leadhome", "target_slot": 1, "target_name": "Hans Gruber",
           "goal_pos": 1, "gap_target": None, "laps": 3,
           "lap0": you.completed_laps, "hud": "Hold the lead to the flag"}
 you.place = 2                                    # lost it
+o.cplace[you.driver_info.slot_id] = 2            # confirmed (fails read confirmed place)
 res = o._obj_check(s, [d for d in s.all_drivers_data_1[:NCARS]],
                    {d.place: d for d in s.all_drivers_data_1[:NCARS]},
                    time.time())

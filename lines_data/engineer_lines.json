@@ -978,5 +978,11 @@
   "Scrap the consistency run, we've got company. Time to race him.",
   "Company arriving — never mind consistent laps, this is racing now.",
   "That's the clean air gone. Rhythm target's off — focus on the car in the battle."
+ ],
+ "obj_withdraw_pitstop": [
+  "You're in the pits — that target's off, we'll set a new one when you're back out.",
+  "Box stop scrubs that objective. Clean stop, then we reset and go again.",
+  "Pit lane resets everything — forget that last target, fresh plan on the way out.",
+  "That target's parked while we service the car. New goal once you rejoin."
  ]
 }

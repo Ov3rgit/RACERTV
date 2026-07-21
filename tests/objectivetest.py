@@ -571,3 +571,64 @@ assert not _consistency_offered(4.5, 30.0), "fired with a car 4.5s ahead (<5s)"
 assert not _consistency_offered(30.0, 3.5), "fired with a car 3.5s behind (<4s)"
 assert _consistency_offered(6.0, 5.0), "did NOT fire in genuine clean air"
 print("  clean-air gate holds at 5s ahead / 4s behind: OK")
+
+print("\n===== PHASE 8: SCRUTINY — JITTER-SAFE FAILS + PIT WITHDRAW =====")
+
+
+def opm4(s):
+    order = sorted((d for d in s.all_drivers_data_1[:s.num_cars] if d.place > 0),
+                   key=lambda d: d.place)
+    return order, {d.place: d for d in order}
+
+
+# 1. a defend FAIL reads CONFIRMED place, not a one-tick flicker
+o, s, you = race(my_place=5)
+you.place = 6                                 # LIVE place flickered to P6...
+o.cplace[you.driver_info.slot_id] = 5        # ...but confirmed is still P5
+o._obj = {"kind": "defend", "target_slot": s.all_drivers_data_1[5].driver_info.slot_id,
+          "target_name": "Rossi", "goal_pos": 5, "gap_target": 3.0, "laps": 4,
+          "lap0": you.completed_laps, "hud": "Hold P5"}
+order, pm = opm4(s)
+assert o._obj_check(s, order, pm, time.time()) is None, (
+    "a defend FAILED on a one-tick flicker — should use confirmed place")
+# but a CONFIRMED drop does fail it
+o.cplace[you.driver_info.slot_id] = 6
+res = o._obj_check(s, order, pm, time.time())
+assert res and res[0] == "obj_miss_defend", f"confirmed place drop not failed: {res}"
+print("  defend fail ignores a flicker, honours a confirmed drop: OK")
+
+# 2. PITTING withdraws a position objective (not a fail)
+for kind, gp in (("defend", 5), ("leadhome", 1), ("chase", None), ("consistency", 5)):
+    o, s, you = race(my_place=(1 if kind == "leadhome" else 5))
+    you.place = 1 if kind == "leadhome" else 5
+    o.cplace[you.driver_info.slot_id] = you.place
+    you.in_pitlane = 1
+    o._obj = {"kind": kind, "target_slot": s.all_drivers_data_1[6].driver_info.slot_id,
+              "target_name": "Rossi", "goal_pos": gp, "gap_target": 3.0,
+              "laps": 4, "lap0": you.completed_laps, "_ref": 92.0, "_band": 0.8,
+              "_last_lap_n": you.completed_laps, "_ok_laps": 0, "hud": "x"}
+    order, pm = opm4(s)
+    res = o._obj_check(s, order, pm, time.time())
+    assert res and res[0] in ("obj_withdraw_pitstop", "obj_withdraw_pit"), (
+        f"{kind} objective was not withdrawn on a pit stop: {res}")
+    assert not res[0].startswith("obj_miss"), f"{kind} FAILED on a pit stop: {res}"
+print("  pitting withdraws position/lap objectives, never fails them: OK")
+
+# 3. ...but CLEAN survives a pit (a pit can't earn a limits warning)
+o, s, you = race(my_place=5)
+you.in_pitlane = 1
+o._own_cuts = 3
+o._obj = {"kind": "clean", "target_slot": you.driver_info.slot_id,
+          "target_name": "", "goal_pos": None, "cuts0": 3, "laps": 3,
+          "lap0": you.completed_laps, "hud": "No more limits"}
+order, pm = opm4(s)
+assert o._obj_check(s, order, pm, time.time()) is None, (
+    "a clean-running objective was withdrawn by a pit stop — it should survive")
+print("  clean-running survives a pit stop: OK")
+
+# 4. new pit-withdraw pool formats
+for _l in ENGINEER_LINES["obj_withdraw_pitstop"]:
+    _safe_format(_l, {"drv": "Rossi"})
+print("  obj_withdraw_pitstop formats cleanly: OK")
+
+print("\nALL PHASE 8 CHECKS PASSED")

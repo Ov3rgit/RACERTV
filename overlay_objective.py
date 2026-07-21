@@ -441,11 +441,18 @@ class ObjectiveMixin:
                 self._obj = None
                 self._obj_last_t = now
                 return ("obj_withdraw_gone", {"drv": nm})
-        # TYRES: you PITTED — fresh rubber, so "nurse the tyres home" is done.
-        if o["kind"] == "tyres" and me.in_pitlane == 1:
+        # PIT STOP: pitting scrambles your position (you drop through the pit
+        # lane) and wrecks a lap time — through no RACING fault. It must
+        # WITHDRAW a position/lap objective, never fail it, which is what would
+        # otherwise happen (dropped a place -> miss_defend; a garbage in/out lap
+        # -> miss_consistency). Only 'clean' (limits) rides through a pit, since
+        # you can't earn a limits warning in the pit lane. Tyres keeps its own
+        # 'fresh rubber' message; everything else gets the generic pit call.
+        if me.in_pitlane == 1 and o["kind"] != "clean":
             self._obj = None
             self._obj_last_t = now
-            return ("obj_withdraw_pit", {"drv": nm})
+            return (("obj_withdraw_pit" if o["kind"] == "tyres"
+                     else "obj_withdraw_pitstop"), {"drv": nm})
         # CONSISTENCY: it was a CLEAN-AIR discipline target. It only withdraws
         # once a car is genuinely ON you — within 2s either side. That is a real
         # fight; 5s isn't, and pulling the rhythm drill that early would make it
@@ -464,7 +471,12 @@ class ObjectiveMixin:
                 return ("obj_withdraw_race", {"drv": nm})
 
         laps_done = me.completed_laps - o["lap0"]
-        pos = me.place
+        # CONFIRMED place for every met/fail comparison below — not live place.
+        # An immediate FAIL (lost the place / lost the lead / dropped a place)
+        # read off the live place would fire on a one-tick position flicker at
+        # a corner or while being lapped. The supersede already uses confirmed
+        # place; the fails must too, or they're harsher than the successes.
+        pos = cpos
 
         if o["kind"] in ("chase", "position"):
             gap = self.interval.get(vslot)
