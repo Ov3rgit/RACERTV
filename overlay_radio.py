@@ -352,7 +352,13 @@ class RadioMixin:
         # sounded like drivers with an occasional engineer.
         events.sort(key=lambda e: (e[0], 0 if e[5] == "ENGINEER" else 1))
         emitted = 0
-        for _prio, sl, nm, txt, bypass, persona, emotion in events:
+        for _evt in events:
+            # optional 8th element = an explicit TTL (seconds) for lines that
+            # skip the spacing (bypass) but MUST still go stale — a position
+            # ack like "P13 now" is wrong once you've climbed to P10, so it
+            # can't inherit bypass's no-expiry. Most events are 7-tuples.
+            _prio, sl, nm, txt, bypass, persona, emotion = _evt[:7]
+            ttl_override = _evt[7] if len(_evt) > 7 else "default"
             if emitted >= self.RADIO_MAX_BURST:
                 break
             # BALANCE: radio no longer yields to a booth backlog here — dropping
@@ -434,7 +440,11 @@ class RadioMixin:
                 # WHILE its card is visible or drops cleanly (no orphan audio
                 # over a card that's already gone). The engineer keeps the
                 # longer radio TTL — he's talking to YOU and must be heard.
-                if bypass:
+                if ttl_override != "default":
+                    # a bypass line that opted into a real TTL — position acks,
+                    # which must drop if they can't play while still true
+                    _ttl = ttl_override
+                elif bypass:
                     # ONE-SHOT lines (lights-out start call, severe damage,
                     # incident points, objective set/met) must not carry the
                     # short "numbers go stale" TTL. The start call says "P5",
@@ -516,7 +526,7 @@ class RadioMixin:
         grid = self.grid_place.get(vslot, fp)
         gained = grid - fp                       # +climbed / -dropped vs start
 
-        def add(cat, prio, bypass=False, **extra):
+        def add(cat, prio, bypass=False, ttl="default", **extra):
             fmt = dict(
                 pos=fp,
                 ahead=self._dname(ahead) if ahead else "the car ahead",
@@ -527,8 +537,11 @@ class RadioMixin:
             fmt.update(extra)
             line = _safe_format(self._pick(ENGINEER_LINES[cat], ("ENGINEER", cat)),
                                 fmt)
-            events.append((prio, -1, "RACE ENGINEER", line, bypass, "ENGINEER",
-                           ENG_EMOTION.get(cat, "neutral")))
+            evt = (prio, -1, "RACE ENGINEER", line, bypass, "ENGINEER",
+                   ENG_EMOTION.get(cat, "neutral"))
+            if ttl != "default":
+                evt = evt + (ttl,)
+            events.append(evt)
 
         # GATE: stay silent until the booth has finished its session intro
         # (pregrid / lights-out, or the quali / practice opener). The engineer
@@ -924,24 +937,45 @@ class RadioMixin:
         # swallowed, which is why overtakes went unacknowledged). bypass=True so
         # it skips that spacing; its own short cooldown stops a multi-place
         # shuffle from machine-gunning.
+        # These acks carry a SHORT TTL (not bypass's usual no-expiry): "P13
+        # now" is wrong once you've climbed to P10, so if it can't play while
+        # still true it must drop rather than air late. This is the fix for
+        # the start-of-race drip — a burst of stale per-place calls queued
+        # behind the lights-out booth chatter and played back to back while the
+        # driver was already several places higher.
+        _ACK_TTL = 7.0
+        # opening laps are a scramble, so wait LONGER between acks early on and
+        # coalesce a fast multi-car climb into one line instead of a per-place
+        # roll-call ("P14 up to P10, four places!" not P13, P12, P11...).
+        early = focused.completed_laps < 2
+        ack_cd = 12.0 if early else 8.0
         if self._eng_last_ann_place is None:
             self._eng_last_ann_place = fpc
-        elif fpc != self._eng_last_ann_place and now - self._eng_place_cd > 8.0:
-            gained_now = fpc < self._eng_last_ann_place
+        elif fpc != self._eng_last_ann_place and now - self._eng_place_cd > ack_cd:
+            njump = self._eng_last_ann_place - fpc      # +climbed / -dropped
+            gained_now = njump > 0
             led = (fpc == 1 and self._eng_last_ann_place > 1)
+            prev_ann = self._eng_last_ann_place
             self._eng_last_ann_place = fpc
             self._eng_place_cd = now
             if led:
-                return add("lead", 0, bypass=True)
+                return add("lead", 0, bypass=True, ttl=_ACK_TTL)
             if not gained_now:
-                return add("lost", 1, bypass=True)
+                return add("lost", 1, bypass=True, ttl=_ACK_TTL)
+            # MULTI-CLIMB: three or more places since the last ack is one big
+            # move, not three small ones. Report the net jump in a single line
+            # (grid/prev -> now), which is what the driver actually feels.
+            if njump >= 3:
+                return add("gained_multi", 1, bypass=True, ttl=_ACK_TTL,
+                           gain=njump, frm=prev_ann)
             # name WHERE the pass happened when we can place it at a corner
             # (named or 'Turn N'); a vague sector phrase isn't worth it for an
             # overtake, so only upgrade on a real corner, else the plain pool.
             where = self._where_on_track(s, focused.lap_distance_fraction)
             if where.startswith("into ") and random.random() < 0.7:
-                return add("gained_where", 1, bypass=True, where=where)
-            return add("gained", 1, bypass=True)
+                return add("gained_where", 1, bypass=True, ttl=_ACK_TTL,
+                           where=where)
+            return add("gained", 1, bypass=True, ttl=_ACK_TTL)
         # (the race objective is drained at the TOP of this function — it used
         # to live here, where the place-change calls above buried it)
 

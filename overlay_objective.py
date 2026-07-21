@@ -19,7 +19,8 @@ import r3e_data as R
 
 # --- tuning ---------------------------------------------------------------
 OBJ_MIN_GAP_S = 25.0     # min seconds between one objective resolving and the next
-OBJ_SETTLE_LAPS = 2      # no objectives until the race has settled down
+OBJ_SETTLE_LAPS = 1      # objectives can start once lap 1 is complete (lap 2),
+                         # early enough to shape the race rather than waiting
 OBJ_MARGIN = 0.8         # only offer if it needs <= 80% of the laps available
 OBJ_MIN_DELTA = 0.06     # s/lap pace edge below which "catching" is noise
 OBJ_MAX_CHASE_GAP = 18.0  # beyond this, a catch is fantasy however good the pace
