@@ -150,6 +150,31 @@ assert "the podium" in line, f"the podium not named in the line: {line!r}"
 print(f"  a podium chase names the prize: OK -> {line!r}")
 
 
+print("\n===== 3b. RETARGET: the objective follows the POSITION, not the name =====")
+o, s, you = build(my_place=6)
+vs = you.driver_info.slot_id
+for d in s.all_drivers_data_1[:NCARS]:
+    o.cplace[d.driver_info.slot_id] = d.place
+p5 = next(d for d in s.all_drivers_data_1[:NCARS] if d.place == 5)
+p4 = next(d for d in s.all_drivers_data_1[:NCARS] if d.place == 4)
+o._obj = {"kind": "position", "target_slot": p5.driver_info.slot_id,
+          "target_name": o._dname(p5), "goal_pos": 5, "gap_target": 0.0,
+          "laps": 8, "lap0": you.completed_laps, "gap0": 3.0,
+          "hud": "P5 — pass " + o._dname(p5)}
+# the car you were chasing for P5 climbs to P4; the old P4 car drops into P5
+p5.place = 4
+p4.place = 5
+o.cplace[p5.driver_info.slot_id] = 4
+o.cplace[p4.driver_info.slot_id] = 5
+order, pm = opm(s)
+o._obj_check(s, order, pm, 3000.0)
+assert o._obj is not None, "the objective was wrongly withdrawn on a retarget"
+assert o._obj["target_slot"] == p4.driver_info.slot_id, (
+    f"objective did not retarget to the new car in P5: {o._obj['target_name']}")
+assert o._dname(p4) in o._obj["hud"], f"HUD not updated to new target: {o._obj['hud']!r}"
+print(f"  'P5 from X' retargets to whoever is now in P5: OK -> {o._obj['target_name']}")
+
+
 print("\n===== 4. STAKE-AWARE BOOTH BRIEF + shared stake helper =====")
 assert obj_stake("leadhome", 1) == "the win"
 assert obj_stake("position", 3) == "the podium"

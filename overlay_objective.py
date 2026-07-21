@@ -435,6 +435,28 @@ class ObjectiveMixin:
         me = next((d for d in order if d.driver_info.slot_id == vslot), None)
         if me is None:
             return None
+
+        # RETARGET: a position/defend objective is really about the POSITION, and
+        # the named car is just whoever is in the way. When the original target
+        # leaves that slot — they pass someone else, or drop back — the car you
+        # now have to beat is a DIFFERENT driver, and the objective must follow
+        # the place, not the name. (Reported: 'get P5 from X' stuck naming X even
+        # after X moved to P4 and someone else was the car in P5.) Uses CONFIRMED
+        # place so a one-tick side-by-side flicker can't churn the name.
+        gp = o.get("goal_pos")
+        if gp and o["kind"] in ("position", "defend", "damage"):
+            def _cpl(d):
+                return (self.cplace.get(d.driver_info.slot_id, d.place)
+                        if hasattr(self, "cplace") else d.place)
+            want_place = gp if o["kind"] == "position" else gp + 1
+            occ = next((d for d in order if _cpl(d) == want_place
+                        and d.driver_info.slot_id != vslot), None)
+            if occ is not None and occ.driver_info.slot_id != o["target_slot"]:
+                o["target_slot"] = occ.driver_info.slot_id
+                o["target_name"] = self._dname(occ)
+                o["hud"] = (f"P{gp} — pass {o['target_name']}"
+                            if o["kind"] == "position"
+                            else f"Hold P{gp} from {o['target_name']}")
         nm = o["target_name"]
 
         # WITHDRAW: the objective stopped making sense. Always spoken — a

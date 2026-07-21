@@ -64,6 +64,7 @@ class BoothMixin:
             self._incident_until = 0.0  # an incident is being reported until this
             self._incident_extra = 0    # extra cars off during the current window
             self._signed_off = False    # booth has aired its closing sign-off?
+            self._timed_flap = None     # leader's lap when a timed final lap began
             self._filler_until = 0.0    # est. time a colour/filler line finishes
             self._comm_qpole = None     # slot on provisional pole (time-true)
 
@@ -180,6 +181,12 @@ class BoothMixin:
             togo = 999
             dur, rem = s.session_time_duration, s.session_time_remaining
             white = (wf and not (rem and rem > 0))   # white only after time-up
+            # capture the leader's lap the moment the final lap begins (time-up +
+            # white). The timed race FINISHES when the leader completes THIS lap
+            # — not when the clock hit zero. Used by the finish detector below so
+            # the chequered isn't called with a lap still to run.
+            if white and getattr(self, "_timed_flap", None) is None and leader is not None:
+                self._timed_flap = ll
             if ll < 1:
                 phase = "opening"
             elif white:
@@ -291,10 +298,7 @@ class BoothMixin:
         # you were actually pipped to the line for P4).
         if (is_race and leader is not None
                 and not self._comm_flags.get("winannounced")):
-            done_race = (s.session_phase == 6 or s.flags.checkered == 1
-                         or order[0].finish_status == 1
-                         or leader.finish_status == 1
-                         or (total and total > 0 and leader.completed_laps >= total))
+            done_race = self._leader_finished(s, leader)
             if done_race:
                 self._comm_flags["winannounced"] = True
                 self._finish_at = now
@@ -1598,6 +1602,25 @@ class BoothMixin:
                         fact or self._pick(COMMENTARY_LINES["track_generic"],
                                            ("COMM", "trk")), {"trk": trk}),
                         "track_fact", 0, "COMMENTATOR"))
+
+    def _leader_finished(self, s, leader):
+        """True once the race LEADER has actually taken the flag. Timed-race
+        aware: the clock hitting zero begins a final lap, it does not end the
+        race, and the session phase / checkered flag can flip at time-zero — so
+        for a timed race ONLY the leader crossing the line counts. Shared by the
+        booth win call, the engineer's finish call, and the post-flag rival-radio
+        cutoff so all three agree on exactly when the race is over."""
+        if leader is None or s.session_type != 2:
+            return False
+        total = s.number_of_laps
+        timed = not (total and total > 0)
+        flap = getattr(self, "_timed_flap", None)
+        crossed = (leader.finish_status == 1
+                   or (total and total > 0 and leader.completed_laps >= total)
+                   or (flap is not None and leader.completed_laps > flap))
+        if timed:
+            return crossed
+        return crossed or s.session_phase == 6 or s.flags.checkered == 1
 
     def _finish_sequence(self, n1, n2, n3, trk, chasers=None, include_win=True):
         """Scripted post-race wrap, played as a CONVERSATION between the lead and

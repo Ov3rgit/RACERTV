@@ -16,7 +16,7 @@ import time
 from overlay_common import (_BUBBLE_H, _safe_format, ACCENT, CARD_BG, DIM, ENGINEER_COLOR,
     ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, TEXT, _RADIO_LOCK)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
-    DRIVER_FINISH, EASTER_EGGS, ENGINEER_LINES, ENGINEER_PRACTICE,
+    EASTER_EGGS, ENGINEER_LINES, ENGINEER_PRACTICE,
     ENGINEER_QUALI, EXTRA_LINES, LEAD, MOOD_FRUSTRATED, MOOD_PUMPED,
     NATIVE_RADIO, NATIVE_RADIO_QUALI, PERSONAS, PUNDIT_FULL, PUNDIT_NAME,
     REVENGE, RIVAL_QUALI, SECTOR_COACH, TRACK_SECTOR_TIPS, TRACK_TIPS)
@@ -142,49 +142,23 @@ class RadioMixin:
         events = []  # (priority, slot, name, text, bypass, persona, emotion)
         is_race = (s.session_type == 2)
 
-        # ---- post-race FINISH reactions on the radio (#2) ----------------
-        # When the race ends, drivers key the mic reacting to their finishing
-        # position. The WINNER's celebration is ALWAYS queued first, then the
-        # rest of the podium, the player (if outside the top 3), and a couple of
-        # others for colour. Aired one-per-global-cooldown so they don't flood.
-        def _fin_tier(place):
-            return "podium" if place <= 3 else "points" if place <= 10 else "low"
+        # RACE OVER: once the leader has taken the flag the rival drivers go
+        # SILENT — the finish belongs to the engineer and the commentators. The
+        # post-flag pile-up of driver celebrations was queuing up and burying
+        # both of them (the reported bug). Timed-race aware via the shared
+        # _leader_finished (clock-zero begins the final lap, it isn't the finish).
+        race_over = is_race and self._leader_finished(s, order[0] if order else None)
+        if race_over:
+            radio_open = False
 
-        if is_race and not self._finish_built:
-            leader = order[0]
-            done = (s.session_phase == 6 or s.flags.checkered == 1
-                    or leader.finish_status == 1
-                    or (s.number_of_laps > 0
-                        and leader.completed_laps >= s.number_of_laps))
-            if done:
-                self._finish_built = True
-                picks = []
-                winner = placemap.get(1)
-                if winner is not None:
-                    picks.append((winner, "win"))          # ALWAYS first
-                for pl in (2, 3):
-                    d = placemap.get(pl)
-                    if d is not None:
-                        picks.append((d, "podium"))
-                if focused is not None and focused.place > 3:
-                    picks.append((focused, _fin_tier(focused.place)))
-                others = [d for d in order if d.place > 3 and d is not focused]
-                random.shuffle(others)
-                for d in others[:2]:
-                    picks.append((d, _fin_tier(d.place)))
-                self._finish_q = [(d.driver_info.slot_id, self._dname(d),
-                                   d.place, tier) for d, tier in picks]
-
-        # emit one queued finish reaction per global-cooldown window (front =
-        # winner), forced past the per-driver cooldown so the order is preserved
-        if self._finish_q and (now - self.last_radio_t) >= self.RADIO_GLOBAL_CD:
-            sl, nm, place, tier = self._finish_q.pop(0)
-            d = placemap.get(place)
-            line = self._pick(DRIVER_FINISH[tier], ("FIN", tier)).format(pos=place)
-            emo = ("happy" if tier in ("win", "podium")
-                   else "neutral" if tier == "points" else "sad")
-            persona = self._persona_for(d) if d is not None else "VETERAN"
-            events.append((-9, sl, nm, line, True, persona, emo))
+        # ---- post-race FINISH reactions on the radio: REMOVED --------------
+        # The rival drivers used to key the mic celebrating their finishing
+        # position the moment the flag fell. But that pile-up queued up on top of
+        # the engineer's finish call and the commentators' wrap and buried them —
+        # the driver's explicit ask was that NO driver audio plays once the race
+        # is over, leaving that space for the engineer and the booth. `race_over`
+        # (above) now silences all rival radio at the flag, so there is nothing
+        # to build here. DRIVER_FINISH / _finish_q / _finish_built are retired.
 
         # a rival takes the lead (you taking it is handled by your engineer).
         # Position-battle radio only makes sense in a RACE that's actually GREEN
@@ -736,10 +710,10 @@ class RadioMixin:
         # covers a DNF where you never take the flag.
         if not self._eng_flags.get("finish"):
             ldr = placemap.get(1)
-            race_over = (s.session_phase == 6 or s.flags.checkered == 1
-                         or (ldr is not None and ldr.finish_status == 1)
-                         or (s.number_of_laps > 0 and ldr is not None
-                             and ldr.completed_laps >= s.number_of_laps))
+            # timed-race aware: don't start the finish grace until the LEADER has
+            # actually crossed (clock-zero is the final lap, not the finish), so
+            # the engineer never congratulates you with a lap still to run.
+            race_over = self._leader_finished(s, ldr)
             if race_over and not self._eng_flags.get("finseen"):
                 self._eng_flags["finseen"] = True
                 self._eng_flags["finat"] = now
