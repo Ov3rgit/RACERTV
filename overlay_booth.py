@@ -189,17 +189,31 @@ class BoothMixin:
         else:                                   # TIMED race: phase by the clock
             togo = 999
             dur, rem = s.session_time_duration, s.session_time_remaining
-            white = (wf and not (rem and rem > 0))   # white only after time-up
-            # capture the leader's lap the moment the final lap begins (time-up +
-            # white). The timed race FINISHES when the leader completes THIS lap
-            # — not when the clock hit zero. Used by the finish detector below so
-            # the chequered isn't called with a lap still to run.
-            if white and getattr(self, "_timed_flap", None) is None and leader is not None:
+            clock_expired = (rem is not None and rem <= 0)
+            # STRICT signal, used only to CAPTURE the final lap for finish
+            # detection (_timed_flap / _leader_finished): the game's white flag
+            # after time-up, or the clock having genuinely hit zero. Deliberately
+            # NOT the early pace-based estimate below — a wrong guess here would
+            # end the race narrative a lap too soon.
+            flap_white = (wf and not (rem and rem > 0)) or clock_expired
+            # EARLY-WARNING estimate for FRAMING only (phase + the 'final lap'
+            # announcement): R3E doesn't always raise the white flag promptly, and
+            # trusting it alone left some timed races silent about the closing
+            # stages entirely — reported: a race finished without the booth ever
+            # having said a word about it. Once under ~1 lap of time remains
+            # (by the player's own recent pace), call it closing even before the
+            # flag confirms it; a wrong guess here only shifts a commentary line
+            # by a few seconds, never a wrong result.
+            pace = self._obj_pace(s.vehicle_info.slot_id) if hasattr(self, "_obj_pace") else None
+            near_by_pace = (rem is not None and rem > 0 and pace and pace > 0
+                           and rem <= pace * 1.15)
+            white = flap_white or near_by_pace
+            if flap_white and getattr(self, "_timed_flap", None) is None and leader is not None:
                 self._timed_flap = ll
             if ll < 1:
                 phase = "opening"
             elif white:
-                phase = "closing"               # on the final lap after time-up
+                phase = "closing"               # on (or about to start) the final lap
             elif dur and dur > 0 and rem > 0 and rem / dur < 0.18:
                 phase = "late"                  # final ~fifth of the clock
             else:

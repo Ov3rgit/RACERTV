@@ -22,6 +22,21 @@ from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
     REVENGE, RIVAL_QUALI, SECTOR_COACH, TRACK_SECTOR_TIPS, TRACK_TIPS)
 
 
+# --- tuning -----------------------------------------------------------------
+# how long the RACE START call waits for the confirmed position to genuinely
+# settle. A first-corner incident can leave places swinging for several
+# seconds; reporting mid-swing is the reported bug ("still thought I was P10"
+# well after a P4 gain had already happened). ENG_START_MIN_S is the old fixed
+# floor (roughly clears the booth's own lights-out call); ENG_START_STABLE_S is
+# the NEW requirement — confirmed place must stop changing for this long on top
+# of the floor, which in practice lands the call a couple of corners in, not at
+# the apex of turn one. ENG_START_MAX_S is a hard cap so a genuinely still-
+# scrambling pack can't hold the engineer silent for the whole opening lap.
+ENG_START_MIN_S = 9.0
+ENG_START_STABLE_S = 3.5
+ENG_START_MAX_S = 20.0
+
+
 class RadioMixin:
     """See module docstring."""
 
@@ -87,6 +102,8 @@ class RadioMixin:
             self._intro_aired = False    # engineer gate: intro has finished?
             self._sess_start_t = now     # session start (intro-gate safety release)
             self._signed_off = False     # broadcast over (no more radio either)
+            self._eng_start_fp = None    # last confirmed place seen (start-call stability)
+            self._eng_start_since_g = 0.0  # since-green value when it last changed
 
         order = sorted(self._drivers(s), key=lambda d: d.place)
         if not order:
@@ -682,27 +699,53 @@ class RadioMixin:
                 if _et > 0:
                     self._eng_engtemp_base = _et
 
-        # RACE START (once) — held until the launch has actually PLAYED OUT,
-        # not fired on the green itself. Two reasons it must wait:
+        # RACE START (once) — held until the launch has actually PLAYED OUT AND
+        # the CONFIRMED position has settled, not fired on a fixed timer alone.
+        # Reasons it must wait at all:
         #   * `gained` is the delta vs the grid slot, and at lights-out that is
         #     still 0 — so the call could never say "good start, up to P5",
         #     which is the whole point of it
         #   * at t=0 it collided with the booth's lights-out call (a signature
         #     line that interrupts), so it was fighting for the busiest audio
         #     moment of the race and losing
-        # 9s clears the booth's own 8s grid-sort window, i.e. roughly turn one.
+        # And it must ALSO wait for the position to STOP CHANGING: turn one can
+        # still be shuffling well past a fixed floor (a first-corner incident),
+        # and reporting mid-shuffle is the reported bug — "still thought I was
+        # P10" seconds after a P4 gain had already happened from a lap-1 crash.
+        # ENG_START_STABLE_S of no confirmed-place change is required on top of
+        # the ENG_START_MIN_S floor (together landing the call a couple of
+        # corners in, not at the exit of turn one), capped by ENG_START_MAX_S so
+        # a genuinely still-scrambling pack can't hold the engineer silent for
+        # the whole opening lap.
         # _green_t (not the booth's _green_at): stamped in update_stats at the
         # same moment _racing latches, so it is already set when the radio runs.
         # Default +inf, so a missing stamp holds the call rather than releasing
         # it — the failure mode we want is "late", never "on the green".
-        if (not self._eng_flags.get("start") and self._racing
-                and now - getattr(self, "_green_t", float("inf")) >= 9.0):
-            self._eng_flags["start"] = True
-            if gained >= 1 and "start_gain" in ENGINEER_LINES:
-                return add("start_gain", 0, bypass=True)
-            if gained <= -2 and "start_loss" in ENGINEER_LINES:
-                return add("start_loss", 0, bypass=True)
-            return add("start", 0, bypass=True)
+        #
+        # Stability is measured in SINCE-GREEN time, not wall-clock: it is the
+        # gap between "now" and "when this confirmed place was last seen to
+        # change", both expressed as an offset from _green_t. That makes it
+        # agree with how the rest of the test suite (and any tool) simulates
+        # elapsed race time — by moving _green_t into the past — rather than
+        # needing real wall-clock seconds to actually tick by.
+        if not self._eng_flags.get("start") and self._racing:
+            since_green = now - getattr(self, "_green_t", float("inf"))
+            if self._eng_start_fp != fpc:
+                self._eng_start_fp = fpc
+                self._eng_start_since_g = since_green
+            since_stable = since_green - self._eng_start_since_g
+            if since_green >= ENG_START_MAX_S or (
+                    since_green >= ENG_START_MIN_S
+                    and since_stable >= ENG_START_STABLE_S):
+                self._eng_flags["start"] = True
+                gained_c = grid - fpc          # CONFIRMED, not the live flicker
+                if gained_c >= 1 and "start_gain" in ENGINEER_LINES:
+                    return add("start_gain", 0, bypass=True,
+                               pos=fpc, gain=abs(gained_c))
+                if gained_c <= -2 and "start_loss" in ENGINEER_LINES:
+                    return add("start_loss", 0, bypass=True,
+                               pos=fpc, gain=abs(gained_c))
+                return add("start", 0, bypass=True, pos=fpc)
         # race finish (once) -> win / podium / finish. Wait until the PLAYER has
         # actually CROSSED the line (finish_status == 1) so their position is FINAL
         # — otherwise a last-corner pass for your place gets the verdict wrong

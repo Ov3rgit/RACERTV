@@ -86,6 +86,15 @@ print("  fires exactly once: OK")
 
 print("\n===== START CALL REFLECTS THE LAUNCH =====")
 o, s, you = race(gain=3)                     # gained places off the line
+# the start call now reports the CONFIRMED place (not the live one, so a
+# corner-exit flicker can't be reported as the settled launch result) — let
+# PLACE_CONFIRM_TICKS catch up to the gain BEFORE ageing the green stamp, same
+# margin multipasstest/overtaketest use for the same reason. Doing this before
+# the age-jump matters: the stability wait is measured in since-green time, so
+# a place that only just (in since-green terms) settled reads as already
+# stable the instant the jump lands.
+for _ in range(8):
+    drive(o, s, 1)
 o._green_t -= 10.0
 o._eng_cd -= 40
 n = len(o.tts.spoken)

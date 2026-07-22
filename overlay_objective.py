@@ -25,7 +25,14 @@ OBJ_SETTLE_LAPS = 1      # objectives can start once lap 1 is complete (lap 2),
 OBJ_MARGIN = 0.8         # only offer if it needs <= 80% of the laps available
 OBJ_MIN_DELTA = 0.06     # s/lap pace edge below which "catching" is noise
 OBJ_MAX_CHASE_GAP = 18.0  # beyond this, a catch is fantasy however good the pace
-OBJ_DEFEND_NEAR = 3.5    # a car this close behind is worth defending against
+OBJ_DEFEND_NEAR = 1.5    # a car this close behind is worth defending against —
+                         # tightened from 3.5s per driver feedback: a car a
+                         # full second-plus back doesn't warrant "hold him off"
+OBJ_DEFEND_CLEAR_GAP = 3.0   # beyond this the chaser has plainly lost the pace
+                             # to keep up — the defend is as good as won
+OBJ_DEFEND_CLEAR_HOLD = 7.0  # ...sustained this long before it resolves MET,
+                             # so a car that yo-yos back inside 3s doesn't
+                             # bank the win off one lucky straight
 OBJ_NUDGE_CD = 22.0      # min seconds between mid-objective progress lines from
                          # the engineer — encouragement, not a running commentary
 OBJ_HOLD_GAIN = 3.0      # a gained/passed place must STICK this long before it
@@ -536,11 +543,17 @@ class ObjectiveMixin:
                                    OBJ_HOLD_GAIN, immediate=ending)):
             return self._obj_supersede(now, "obj_supersede_gained",
                                        {"drv": nm, "pos": cpos})
-        # DEFEND / DAMAGE: the THREAT evaporated — the car you were told to hold
-        # off dropped well out of range, so the target is meaningless.
+        # DEFEND / DAMAGE: the THREAT evaporated — the chaser has plainly lost
+        # the pace to keep up. Needs a real, SUSTAINED gap (not one lucky
+        # straight): OBJ_DEFEND_CLEAR_GAP held for OBJ_DEFEND_CLEAR_HOLD seconds,
+        # via the same hysteresis every other yo-yo-prone transition uses — a
+        # gap that yo-yos back inside 3s (traffic, a backmarker tow) doesn't
+        # bank the defend as won.
         if o["kind"] in ("defend", "damage") and tgt is not None:
             bgap_now = self.interval.get(o["target_slot"])
-            if bgap_now is not None and bgap_now > OBJ_DEFEND_NEAR * 2.5:
+            if self._obj_held(o, "clear",
+                              bgap_now is not None and bgap_now > OBJ_DEFEND_CLEAR_GAP,
+                              now, OBJ_DEFEND_CLEAR_HOLD, immediate=ending):
                 return self._obj_done(now, "obj_met_defend_clear",
                                       {"drv": nm, "pos": me.place})
         # CHASE / POSITION: target retired or fell unreachably far ahead, OR you

@@ -372,11 +372,16 @@ o._obj = {"kind": "defend", "target_slot": mk.driver_info.slot_id,
           "lap0": you.completed_laps, "hud": "Hold P5 from Marco"}
 o.interval = {mk.driver_info.slot_id: 11.0}    # Marco is now 11s back
 order, pm = order_pm2(s)
-res = o._obj_check(s, order, pm, time.time())
+# the clear gap must SUSTAIN for OBJ_DEFEND_CLEAR_HOLD before it resolves — a
+# gap that yo-yos back inside 3s (traffic, a tow) shouldn't bank it early.
+# Arm the debounce, then fire past the hold window.
+_b = time.time()
+o._obj_check(s, order, pm, _b)
+res = o._obj_check(s, order, pm, _b + 8.0)
 assert res and res[0] == "obj_met_defend_clear", (
-    f"a defend target whose threat vanished did not resolve: {res}")
+    f"a defend target whose threat vanished did not resolve after the hold: {res}")
 assert o._obj is None
-print(f"  defend resolves when the threat falls away: OK -> {res[0]}")
+print(f"  defend resolves when the threat falls away (sustained): OK -> {res[0]}")
 
 # 2. CLOSING-LAPS PODIUM PUSH: right behind a car in the last laps -> target,
 #    even without a measured pace edge (the "behind P3, got nothing" bug)
@@ -432,10 +437,12 @@ o._obj = {"kind": "damage", "target_slot": bh.driver_info.slot_id,
           "lap0": you.completed_laps, "hud": "Stay ahead of Rossi"}
 o.interval = {bh.driver_info.slot_id: 12.0}
 order, pm = opm(s)
-res = o._obj_check(s, order, pm, time.time())
+_b = time.time()
+o._obj_check(s, order, pm, _b)                # arm the debounce
+res = o._obj_check(s, order, pm, _b + 8.0)    # ...still clear after the hold
 assert res and res[0] == "obj_met_defend_clear", (
-    f"a DAMAGE target whose threat vanished did not resolve: {res}")
-print(f"  damage target: threat evaporates -> {res[0]}: OK")
+    f"a DAMAGE target whose threat vanished did not resolve after the hold: {res}")
+print(f"  damage target: threat evaporates (sustained) -> {res[0]}: OK")
 
 # 2. CHASE goes stale when YOU DROP a place (racing a car that's behind now)
 o, s, you = race(my_place=5)
