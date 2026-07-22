@@ -1609,6 +1609,15 @@
   "{drv} wins wire to wire — total control from the moment the lights went out!",
   "Not one lap led by anybody else — {drv} takes the victory, and that was domination!"
  ],
+ "win_duel": [
+  "{drv} takes it — but my word, they EARNED it, {oth} right in their mirrors to the flag!",
+  "A race-long duel settled at last — {drv} holds off {oth} to take the win!",
+  "{drv} wins it, but {oth} made them fight for every single inch of that!",
+  "No cruise, this one — {drv} beats {oth} after a battle that ran the whole race!",
+  "{drv} keeps {oth} at bay all the way to the chequered — what a scrap for the win!",
+  "Under pressure the entire way and {drv} does NOT crack — the win, from {oth}!",
+  "{drv} wins, but this was {oth}'s race too, glued to the leader from lights to flag!"
+ ],
  "leadchange_charge": [
   "{drv} takes the LEAD — and remember where he started this race: P{grid}! The charge is complete!",
   "A NEW leader — {drv}! From P{grid} on the grid all the way to the front!",

@@ -68,7 +68,7 @@ CAT_INTENSITY = {
     "overtake_multi": 2,
     "spin": 2, "battle": 2, "battle_mid": 1, "battle_sustained": 2,
     "pit": 0, "lastlap": 2, "win": 2,
-    "win_charge": 2, "win_comeback": 2, "win_wire": 2,
+    "win_charge": 2, "win_comeback": 2, "win_wire": 2, "win_duel": 2,
     "leadchange_charge": 2, "leadchange_comeback": 2,
     "overtake_charge": 2, "overtake_comeback": 2,
     "second": 1, "third": 1, "summary": 1, "closing": 1, "pulling_away": 0,

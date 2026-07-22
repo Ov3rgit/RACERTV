@@ -65,6 +65,8 @@ class BoothMixin:
             self._incident_extra = 0    # extra cars off during the current window
             self._signed_off = False    # booth has aired its closing sign-off?
             self._timed_flap = None     # leader's lap when a timed final lap began
+            self._lead_press = {}       # (leader,chaser)->secs spent on the leader
+            self._press_last_t = 0.0    # last tick time, for lead-pressure dt
             self._filler_until = 0.0    # est. time a colour/filler line finishes
             self._comm_qpole = None     # slot on provisional pole (time-true)
 
@@ -314,8 +316,20 @@ class BoothMixin:
                 # — 'It is redemption day!' beats 'X wins' every single time.
                 arc, akw = self._narrative_arc(leader.driver_info.slot_id,
                                                place=1)
-                wcat = {"comeback": "win_comeback", "charge": "win_charge",
-                        "wire": "win_wire"}.get(arc, "win")
+                # a from-deep story (comeback/charge) is the headline and wins
+                # out; otherwise, if a rival hounded the leader the whole race,
+                # frame the win as a DUEL held on to rather than a cruise —
+                # never call a hard-fought win 'flawless, lights to flag'.
+                _chal = (None if arc in ("comeback", "charge")
+                         else self._lead_challenger(leader.driver_info.slot_id, order))
+                if arc in ("comeback", "charge"):
+                    wcat = "win_comeback" if arc == "comeback" else "win_charge"
+                elif _chal:
+                    wcat, akw = "win_duel", {"oth": _chal}
+                elif arc == "wire":
+                    wcat = "win_wire"
+                else:
+                    wcat = "win"
                 wtxt = _safe_format(
                     self._pick(COMMENTARY_LINES[wcat], ("FIN", wcat)),
                     {"drv": self._dname(leader), "trk": trk,
@@ -582,6 +596,17 @@ class BoothMixin:
                     self._comm_flags["pull"] = mile
                     L("pulling_away", 3, drv=self._dname(leader),
                       gap=f"{g2:.1f} seconds")
+            # LEAD PRESSURE — accumulate the real seconds the P2 car spends
+            # genuinely on the leader's tail. A win where a rival was glued to
+            # the leader all race is a DUEL held on to, not a flawless cruise;
+            # the finish narrative reads that off this (see _lead_challenger).
+            _pnow = now
+            _pdt = min(1.0, _pnow - getattr(self, "_press_last_t", _pnow))
+            self._press_last_t = _pnow
+            if (self._racing and leader.completed_laps >= 1
+                    and g2 is not None and g2 < 1.5):
+                key = (leader.driver_info.slot_id, second.driver_info.slot_id)
+                self._lead_press[key] = self._lead_press.get(key, 0.0) + _pdt
 
         prev_int = getattr(self, "_comm_prev_int", {})
         for d in order:
@@ -1799,6 +1824,27 @@ class BoothMixin:
             elif d.place > grid + 2:
                 picks.append(("arc_cost", self._dname(d)))
         return random.choice(picks) if picks else None
+
+    def _lead_challenger(self, wslot, order):
+        """The name of the rival who HOUNDED the winner all race, or None. Reads
+        the accumulated lead-pressure seconds: a challenger who sat within ~1.5s
+        of the leader for a real cumulative stretch (>= 45s) turns a flag-to-flag
+        win into a duel held on to. Skips a same-named car (duplicate AI grid)."""
+        press = {s: t for (l, s), t in getattr(self, "_lead_press", {}).items()
+                 if l == wslot}
+        if not press:
+            return None
+        chsl, secs = max(press.items(), key=lambda kv: kv[1])
+        if secs < 45.0:
+            return None
+        chdrv = next((d for d in order if d.driver_info.slot_id == chsl), None)
+        if chdrv is None:
+            return None
+        wdrv = next((d for d in order if d.driver_info.slot_id == wslot), None)
+        nm = self._dname(chdrv)
+        if wdrv is not None and self._dname(wdrv) == nm:   # duplicate name guard
+            return None
+        return nm
 
     def _narrative_arc(self, sl, place=None):
         """Classify a driver's race-so-far for the BIG-moment calls, so the
