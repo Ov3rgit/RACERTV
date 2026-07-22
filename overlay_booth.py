@@ -131,6 +131,13 @@ class BoothMixin:
         cands = []   # (priority, text, cat, intensity, persona)
 
         def L(cat, prio, persona="COMMENTATOR", line=None, **kw):
+            # NEVER let a line name a driver acting against themselves. AI grids
+            # sometimes carry two cars with the SAME display name, which turns a
+            # pass or a battle line into nonsense ("{drv} claimed it from {drv}",
+            # "{drv} and {drv} trading blows"). One guard here covers every
+            # two-driver call — passes, battles, duels — at the choke point.
+            if kw.get("drv") and kw.get("oth") and kw["drv"] == kw["oth"]:
+                return
             pool = COMMENTARY_LINES.get(cat)
             if pool or line is not None:
                 kw.setdefault("trk", trk)
@@ -651,12 +658,17 @@ class BoothMixin:
                               or now - self._pit_t.get(v.driver_info.slot_id,
                                                        -1e9) < 12.0
                               for v in real)
-                if real and not pitting:
+                # the named 'passed' car must be a DIFFERENT driver — an AI grid
+                # can carry a duplicate name, and "past themselves" reads as a bug
+                oth_car = next((v for v in real
+                                if v.driver_info.slot_id != sl
+                                and self._dname(v) != self._dname(d)), None)
+                if real and not pitting and oth_car is not None:
                     n = pv - cpd
                     # top-3 moves outrank everything bar a retake
                     L("overtake_multi", 1 if cpd <= 3 else 2,
                       drv=self._dname(d), n=n, pos=cpd,
-                      oth=self._dname(real[0]))
+                      oth=self._dname(oth_car))
                     self._story.setdefault(sl, [])
                     if "charging" not in self._story[sl]:
                         self._story[sl].append("charging")
@@ -666,7 +678,14 @@ class BoothMixin:
             # chatter in the candidate sort below.
             elif is_race and cpd == pv - 1 and (_focus(cpd) or cpd <= 3):
                 victim = placemap.get(cpd + 1)
+                # NEVER call a driver passing "themselves". AI grids sometimes
+                # ship two cars with the SAME display name, and a live-vs-confirmed
+                # place lag can momentarily make the car behind resolve to the
+                # overtaker's own slot — either way "{drv} claimed it from {drv}"
+                # is nonsense, so bail out of the pass call entirely.
                 if (victim is not None
+                        and victim.driver_info.slot_id != sl
+                        and self._dname(victim) != self._dname(d)
                         and self._comm_prev.get(victim.driver_info.slot_id) == cpd):
                     # how close were they? the victim is now directly behind, so
                     # its interval IS the gap to our overtaker. Only call it a
