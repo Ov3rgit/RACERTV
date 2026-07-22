@@ -17,6 +17,13 @@ import threading
 
 
 
+# STRIKING DISTANCE — the gap (seconds) inside which a car behind can genuinely
+# make a move stick (a tow onto the straight, then a lunge under braking). Beyond
+# it, "he's about to pounce / shut the door" is crying wolf, which the driver
+# flagged from a full second back. Shared by the engineer's defend call and the
+# objective's threat nudge so both stay honest. Kept deliberately tight.
+STRIKE_GAP = 0.8
+
 CHROMA = "#010102"      # fully transparent key color (must be unused elsewhere)
 WIN_ALPHA = 0.86        # whole-window opacity: solid SOLID dark panels (no dotty
 # TRUE GLASS BACKGROUNDS.

@@ -14,7 +14,7 @@ import avatars
 import random
 import time
 from overlay_common import (_BUBBLE_H, _safe_format, ACCENT, CARD_BG, DIM, ENGINEER_COLOR,
-    ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, TEXT, _RADIO_LOCK)
+    ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, STRIKE_GAP, TEXT, _RADIO_LOCK)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
     EASTER_EGGS, ENGINEER_LINES, ENGINEER_PRACTICE,
     ENGINEER_QUALI, EXTRA_LINES, LEAD, MOOD_FRUSTRATED, MOOD_PUMPED,
@@ -986,7 +986,12 @@ class RadioMixin:
             if gap < 4.0 and gap > pgap + 0.10:        # car ahead pulling away
                 return add("dropping", 2)
         if behind and gapb and pgapb is not None:
-            if gapb < 1.5 and gapb < pgapb - 0.05:      # car behind closing on you
+            # "he'll lunge / shut the door / right on your tail" is only TRUE
+            # inside real striking range. At 1.5s a move cannot stick — the
+            # driver flagged the engineer crying wolf from a second back — so the
+            # aggressive defend call needs the car genuinely within a tow-and-
+            # lunge (<0.8s). Wider-but-closing gets the calmer info_behind ladder.
+            if gapb < STRIKE_GAP and gapb < pgapb - 0.05:  # car behind in striking range
                 return add("defending", 2)
             if gapb < 3.0 and gapb > pgapb + 0.10:      # you're pulling clear
                 return add("clear", 2)

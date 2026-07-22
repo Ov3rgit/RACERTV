@@ -16,7 +16,7 @@ Mixed into Overlay; see r3e_overlay.py.
 """
 
 import r3e_data as R
-from overlay_common import obj_stake
+from overlay_common import obj_stake, STRIKE_GAP
 
 # --- tuning ---------------------------------------------------------------
 OBJ_MIN_GAP_S = 25.0     # min seconds between one objective resolving and the next
@@ -754,8 +754,13 @@ class ObjectiveMixin:
                    else "obj_nudge_slipping" if gtrend == 1
                    else "obj_nudge_holding")     # steady: "keep chipping away"
         elif kind in ("defend", "damage"):
-            cat = ("obj_nudge_threat" if gtrend == -1
-                   else "obj_nudge_holding")     # steady: "looking comfortable"
+            # "here he comes, defend hard" only when the car behind is ACTUALLY
+            # on you — closing AND within striking distance. A gap that's shrinking
+            # from 1.9s is not a threat yet (the reported cry-wolf), so that reads
+            # as the calmer holding check-in instead.
+            _gb = o.get("_gap")
+            threatened = (gtrend == -1 and _gb is not None and _gb < STRIKE_GAP)
+            cat = "obj_nudge_threat" if threatened else "obj_nudge_holding"
         elif kind in ("leadhome", "clean", "tyres", "recover", "consistency"):
             cat = "obj_nudge_holding"            # a steady check-in on progress
         if cat is None:

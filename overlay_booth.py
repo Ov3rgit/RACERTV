@@ -1817,7 +1817,12 @@ class BoothMixin:
             return "comeback", {"worst": st["worst"], "grid": grid}
         if grid - now_p >= 4:
             return "charge", {"grid": grid}
-        if grid == 1 and st["worst"] <= 2 and now_p == 1:
+        # 'wire' = led every lap. It must mean NEVER HEADED — worst confirmed
+        # place still P1. Allowing worst == 2 handed 'lights to flag, flawless,
+        # pole-lead-win' to a leader who HAD lost the lead at some point, flatly
+        # contradicting the race the booth just narrated. A leader who dropped to
+        # P2 and won it back gets the generic (still celebratory) win call.
+        if grid == 1 and st["worst"] <= 1 and now_p == 1:
             return "wire", {"grid": grid}
         return None, {}
 

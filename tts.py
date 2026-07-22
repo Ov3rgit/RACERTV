@@ -94,6 +94,16 @@ STING_LINES = {
         "There's a moment — looks like someone's in trouble!",
         "Oh, big moment — somebody's off the track!",
         "Wait — looks like we've got someone off out there!",
+        # a wider pool so a crash-happy field doesn't loop the same alert — with
+        # the shuffle-bag below, every one airs before any repeats
+        "Ooh — someone's lost the back end there!",
+        "That's a big slide — and off into the run-off!",
+        "A lock-up, and somebody's gone straight on!",
+        "Whoa — a moment for somebody, right off the racing line!",
+        "Someone's caught it wrong and slithered off!",
+        "That's a spin — a car pointing the wrong way!",
+        "Deep into the gravel for somebody there!",
+        "A wobble, and someone's dropped it off the circuit!",
     ],
     # name-free LIGHTS-OUT call in the COMMENTATOR voice — fires the instant the
     # race goes green (the _racing edge) so there's NO edge-tts render latency on
@@ -633,6 +643,26 @@ class Tts:
                 self._stings[(persona, group)] = clips
         _log(f"stings ready: {sum(len(v) for v in self._stings.values())} clips")
 
+    def _sting_choose(self, group, clips):
+        """Deal a sting via an ANTI-REPEAT SHUFFLE-BAG: every clip in the group
+        airs once before any repeats. Pure random.choice gave 'someone's off the
+        track!' four times in one race; even avoid-the-last scattered repeats
+        across a crash-happy field. Returns (src_path, caption_text)."""
+        if not hasattr(self, "_sting_last"):
+            self._sting_last = {}
+        if not hasattr(self, "_sting_bag"):
+            self._sting_bag = {}
+        bag = self._sting_bag.get(group)
+        pool = [c for c in clips if c[0] in bag] if bag else []
+        if not pool:                        # bag empty/exhausted -> refill it
+            last = self._sting_last.get(group)
+            pool = [c for c in clips if c[0] != last] or clips
+            self._sting_bag[group] = {c[0] for c in clips}
+        src, text = random.choice(pool)
+        self._sting_bag[group].discard(src)
+        self._sting_last[group] = src
+        return src, text
+
     def _render_sting(self, text, voice, outpath, persona="PUNDIT"):
         """Synthesize one sting and write the FINAL mixed wav (same processing a
         normal booth line gets, so its loudness matches), straight to the cache."""
@@ -658,15 +688,7 @@ class Tts:
         clips = self._stings.get((persona, group))
         if not clips:
             return False
-        # ANTI-REPEAT: never play the same sting twice running. Pure
-        # random.choice gave "someone's off the track!" four times in one race
-        # (a real transcript). Avoid the last one used for this group.
-        last = getattr(self, "_sting_last", {}).get(group)
-        pool = [c for c in clips if c[0] != last] or clips
-        src, text = random.choice(pool)
-        if not hasattr(self, "_sting_last"):
-            self._sting_last = {}
-        self._sting_last[group] = src
+        src, text = self._sting_choose(group, clips)
         if not os.path.exists(src):
             return False
         self._purge(keep_engineer=True)    # booth cut, engineer lines survive
