@@ -335,7 +335,20 @@ class RadioMixin:
                                    if self.prev_places.get(sl) not in (None, p))
         self.prev_places = cur
 
-        if not events or (now - self.last_radio_t) < self.RADIO_GLOBAL_CD:
+        # BYPASS candidates (session intro, objective set/met/miss, severe
+        # damage/incident warnings...) are one-shot, self-spaced events that
+        # MUST land — that is the entire meaning of bypass=True elsewhere in
+        # this file. But this outer gate used to apply BEFORE looking at any
+        # individual event's bypass flag: if the global cooldown hadn't
+        # elapsed, the WHOLE tick's events (including a just-drained objective
+        # announcement) were discarded here, with _obj_say already cleared —
+        # so the announcement was gone for good, never retried. Reported: an
+        # objective's engineer line (and consequently the booth's reaction,
+        # gated on it having aired) never played for a whole race. A tick with
+        # a bypass candidate now always proceeds to the emit loop below.
+        has_bypass = any(e[4] for e in events)
+        if not events or (not has_bypass
+                          and (now - self.last_radio_t) < self.RADIO_GLOBAL_CD):
             return
         # ENGINEER FIRST at equal priority. He talks to YOU; a rival's chatter
         # is colour. With ~15 rivals each on a 25s cooldown the field

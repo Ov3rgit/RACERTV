@@ -28,10 +28,10 @@ OBJ_MAX_CHASE_GAP = 18.0  # beyond this, a catch is fantasy however good the pac
 OBJ_DEFEND_NEAR = 1.5    # a car this close behind is worth defending against —
                          # tightened from 3.5s per driver feedback: a car a
                          # full second-plus back doesn't warrant "hold him off"
-OBJ_DEFEND_CLEAR_GAP = 3.0   # beyond this the chaser has plainly lost the pace
+OBJ_DEFEND_CLEAR_GAP = 2.2   # beyond this the chaser has plainly lost the pace
                              # to keep up — the defend is as good as won
-OBJ_DEFEND_CLEAR_HOLD = 7.0  # ...sustained this long before it resolves MET,
-                             # so a car that yo-yos back inside 3s doesn't
+OBJ_DEFEND_CLEAR_HOLD = 4.0  # ...sustained this long before it resolves MET,
+                             # so a car that yo-yos back inside range doesn't
                              # bank the win off one lucky straight
 OBJ_NUDGE_CD = 22.0      # min seconds between mid-objective progress lines from
                          # the engineer — encouragement, not a running commentary

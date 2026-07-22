@@ -991,11 +991,26 @@ class BoothMixin:
             # just queued this tick, is that one — so the booth holds until it
             # has actually played out and the queue falls quiet.
             aired = getattr(self, "_obj_eng_aired_t", 0.0) >= _t
+            # BUSY: loosened from pending>=1 (a threshold that's essentially
+            # ALWAYS true — the radio pipeline-gate comment above notes the
+            # booth queue commonly sits at ~2 for most of a race) to
+            # pending>=2, matching that same lesson: a normal, lively race
+            # isn't permanently "busy" by an unrealistically strict test.
             busy = (self.tts is not None
-                    and (self.tts._pending() >= 1
+                    and (self.tts._pending() >= 2
                          or self.tts.speaking_persona() in
                          ("COMMENTATOR", "PUNDIT", "ENGINEER")))
-            if aired and not busy:
+            # DEADLINE FALLBACK: reported — an entire race aired ZERO booth
+            # objective reactions, because in a commentary-dense race 'busy'
+            # can be true for the WHOLE 12s window, every single time, so this
+            # simply never found its gap and silently expired unheard. In the
+            # closing seconds of the window, force it through instead of
+            # losing it — the driver's own radio call has already aired by
+            # this point (the `aired` gate above), so cutting in here still
+            # respects engineer-first ordering; it just stops waiting
+            # indefinitely for a natural pause that may never come.
+            deadline_near = (now - _ob[3]) >= 9.5
+            if aired and (not busy or deadline_near):
                 self._obj_booth = None
                 pdrv = next((d for d in order if d.driver_info.slot_id
                              == s.vehicle_info.slot_id), None)
@@ -1018,6 +1033,8 @@ class BoothMixin:
                             {"drv": self._dname(pdrv), "stake": _stake or "it",
                              "comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME})
                     if self.tts:
+                        if busy:
+                            self.tts.interrupt()   # forced landing at the deadline
                         self.tts.speak(self._spoken(_txt), "PUNDIT",
                                        seed="PUNDIT", intensity=1,
                                        on_play=self._show_caption, force=True)
@@ -1136,7 +1153,18 @@ class BoothMixin:
         cd = self.COMMENTARY_CD if is_race else self.COMMENTARY_CD * 4.0
         if not urgent and (busy or (now - self._comm_cd) < cd):
             return
-        signature = cat in ("start", "final_lap", "pregrid")
+        # LEAD CHANGE joins the signature tier: reported — a real transcript
+        # showed the player's own pass for P1 go completely unacknowledged for
+        # the rest of the race. It WAS built as a prio-0 candidate and it DID
+        # get queued, but with only the ordinary TTL_BOOTH (12s) and no
+        # guaranteed interrupt, a commentary-dense race let it sit behind
+        # several already-pending lines and TTL-drop before its turn ever
+        # came (confirmed in the debug log: queued, then 'DROP-stale' 13s
+        # later). A change at the front is the biggest single story a race
+        # can produce — it earns the same "never dropped, always cuts in"
+        # guarantee as the start/final-lap/pregrid calls.
+        signature = cat in ("start", "final_lap", "pregrid", "leadchange",
+                            "leadchange_comeback", "leadchange_charge")
         if urgent and not signature and cat not in RECAP_CATS:
             # DON'T HAND A LINE TO A QUEUE THAT IS ALREADY FULL. speak() would
             # discard it on arrival (`DROP-busy`), so returning here loses

@@ -87,8 +87,9 @@ print("  a chaser 1.2s back and faster DOES warrant a defend objective: OK")
 
 
 print("\n===== RESOLUTION: needs a real, SUSTAINED gap to call it won =====")
-assert OBJ_DEFEND_CLEAR_GAP >= 3.0 and OBJ_DEFEND_CLEAR_HOLD >= 5.0, (
-    "the clear-gap / hold constants look unchanged from the loose defaults")
+assert OBJ_DEFEND_CLEAR_GAP <= 2.2 and OBJ_DEFEND_CLEAR_HOLD <= 4.0, (
+    f"the clear-gap/hold constants were not tightened to 2.2s/4.0s: "
+    f"{OBJ_DEFEND_CLEAR_GAP}/{OBJ_DEFEND_CLEAR_HOLD}")
 
 # a gap just past the clear threshold, held for less than the hold window,
 # must NOT resolve yet

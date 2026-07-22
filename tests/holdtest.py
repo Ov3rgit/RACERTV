@@ -3,8 +3,8 @@
 The problem this fixes: a booth line exists only on the tick the moment
 happens. If the audio queue was full right then, it was thrown away -- so
 under saturation WHICH call aired was decided by timing rather than
-importance. A midfield scrap could take the slot a beat before a lead change,
-and the lead change was simply lost. That is why the big moments felt like
+importance. A midfield scrap could take the slot a beat before a big top-3
+pass, and the pass was simply lost. That is why the big moments felt like
 they were not being called.
 
 A blocked call is now held and re-entered as a candidate on later ticks.
@@ -13,6 +13,14 @@ The dangerous half is expiry, and it gets the most attention here: play-by-play
 ROTS. "Takes P3" a few seconds late is wrong, not merely old, and airing a
 stale call is worse than saying nothing. A buffer that never forgets would be
 a downgrade on the bug it replaces.
+
+Uses "overtake" (a regular urgent, prio<=2 category) as its stand-in for "an
+important live moment" throughout. NOT "leadchange" -- a lead change is now
+its own SIGNATURE-tier category (see overlay_booth.py's `signature` set):
+reported to still be lost even by THIS hold-buffer (queued, then TTL-dropped
+13s later in a busy race), it was promoted to always interrupt and land
+immediately rather than wait for a gap that a chatty race may never offer.
+That is covered separately in objectiveawarenesstest.py.
 """
 import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"
 
@@ -59,13 +67,13 @@ def said(o, lo):
 o, s = build()
 o.tts._pend = 4                              # queue full
 before = len(o.tts.spoken)
-o._emit_commentary(ctx(o, [(1, "LEAD CHANGE LINE", "leadchange", 2,
+o._emit_commentary(ctx(o, [(1, "TOP-3 PASS LINE", "overtake", 2,
                             "COMMENTATOR")]))
 assert not said(o, before), "it aired into a full queue"
 assert o._comm_hold is not None, "the blocked call was DISCARDED, not held"
 o.tts._pend = 0                              # a slot frees
 o._emit_commentary(ctx(o, []))               # nothing new this tick
-assert any("LEAD CHANGE" in t for t in said(o, before)), (
+assert any("TOP-3 PASS" in t for t in said(o, before)), (
     "the held call never came back once the queue had room -- it was lost, "
     "which is the whole bug")
 assert o._comm_hold is None, "the hold was not released after airing"
@@ -74,7 +82,7 @@ print("  a blocked call is held and airs when a slot frees: OK")
 # ---- 2. it must not air TWICE ---------------------------------------------
 before = len(o.tts.spoken)
 o._emit_commentary(ctx(o, []))
-assert not any("LEAD CHANGE" in t for t in said(o, before)), (
+assert not any("TOP-3 PASS" in t for t in said(o, before)), (
     "the held call aired a second time")
 print("  a held call airs exactly once: OK")
 
@@ -101,31 +109,31 @@ o, s = build()
 o.tts._pend = 4
 o._emit_commentary(ctx(o, [(2, "MIDFIELD SCRAP", "battle", 2, "COMMENTATOR")]))
 assert o._comm_hold[0] == 2
-o._emit_commentary(ctx(o, [(1, "LEAD CHANGE", "leadchange", 2, "COMMENTATOR")]))
-assert o._comm_hold[0] == 1 and "LEAD CHANGE" in o._comm_hold[1], (
+o._emit_commentary(ctx(o, [(1, "TOP-3 PASS", "overtake", 2, "COMMENTATOR")]))
+assert o._comm_hold[0] == 1 and "TOP-3 PASS" in o._comm_hold[1], (
     f"a prio-1 call did not displace the held prio-2 scrap: {o._comm_hold[:2]}")
 print("  a more important call displaces the held one: OK")
 
 # ---- 5. ...and a LESS important one does not ------------------------------
 o._emit_commentary(ctx(o, [(3, "FILLER LINE", "analysis", 0, "PUNDIT")]))
-assert "LEAD CHANGE" in o._comm_hold[1], (
-    f"a prio-3 filler evicted the held lead change: {o._comm_hold[:2]}")
+assert "TOP-3 PASS" in o._comm_hold[1], (
+    f"a prio-3 filler evicted the held top-3 pass: {o._comm_hold[:2]}")
 print("  a less important call does not evict it: OK")
 
 # ---- 6. the held call competes on PRIORITY, not on age --------------------
-# The scenario from the report: a lead change is waiting, a midfield scrap
-# arrives live. The lead change must win.
+# The scenario from the report: a big pass is waiting, a midfield scrap
+# arrives live. The bigger call must win.
 o, s = build()
 o.tts._pend = 4
-o._emit_commentary(ctx(o, [(1, "HELD LEAD CHANGE", "leadchange", 2,
+o._emit_commentary(ctx(o, [(1, "HELD TOP-3 PASS", "overtake", 2,
                             "COMMENTATOR")]))
 o.tts._pend = 0
 before = len(o.tts.spoken)
 o._emit_commentary(ctx(o, [(2, "LIVE MIDFIELD SCRAP", "battle", 2,
                             "COMMENTATOR")]))
 out = said(o, before)
-assert any("HELD LEAD CHANGE" in t for t in out), (
-    f"the live midfield scrap beat the held lead change: {out}")
+assert any("HELD TOP-3 PASS" in t for t in out), (
+    f"the live midfield scrap beat the held top-3 pass: {out}")
 print("  a held big moment outranks a live lesser one: OK")
 
 print("\nARBITRATION BUFFER CHECKS PASSED")
