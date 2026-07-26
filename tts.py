@@ -76,6 +76,10 @@ _OUT = os.path.join(_DIR, "_tts_render.wav")
 _MP3 = os.path.join(_DIR, "_tts_render.mp3")
 _PLAY = os.path.join(_DIR, "_tts_play.wav")
 _STING_DIR = os.path.join(_DIR, "stings")    # pre-rendered instant incident clips
+# Concurrent edge-tts renders. 3 covers the burst the booth actually caps
+# itself at (speak() allows 3-4 pending), without opening more sockets to the
+# service than a busy moment can use.
+_GEN_WORKERS = 3
 _CREATE_NO_WINDOW = 0x08000000
 
 # NAME-FREE incident reactions pre-rendered once to disk so they play instantly
@@ -486,6 +490,28 @@ class Tts:
         self.play_q = queue.PriorityQueue(maxsize=6)
         self._seq = itertools.count()
         self._wav_i = 0
+        # RENDER POOL. Measured on this machine: an edge-tts call costs ~1.9s
+        # for a ONE-WORD line and ~2.0s for a 24-word one, so essentially all of
+        # it is fixed per-request service turnaround, not synthesis — DNS is
+        # 22ms and TCP+TLS 175ms, so it isn't local connection setup either and
+        # there is nothing to shave off a single line. What it does mean is that
+        # rendering lines one at a time made a burst cost the SUM of those
+        # turnarounds: three queued lines took 7.1s serial vs 2.7s rendered
+        # concurrently (2.6x), and that backlog is what put commentary seconds
+        # behind the action it was describing.
+        #
+        # Order is preserved exactly. _gen_loop still pops gen_q alone, so the
+        # priority/FIFO decision is made in one place as before; it just hands
+        # each job to a worker with a ticket, and finished audio is committed to
+        # play_q strictly in ticket order. The play sequence is therefore
+        # identical to the single-worker pipeline — a short line that renders
+        # faster can never overtake the line that was queued before it.
+        self._job_q = queue.Queue()
+        self._ticket = itertools.count()
+        self._commit_next = 0
+        self._commit_cv = threading.Condition()
+        self._mp3_i = 0
+        self._tmp_lock = threading.Lock()
         self._speaking = False     # True while a wav is actually playing (so the
                                    # booth knows when it's cutting someone off)
         self._speaking_persona = None  # WHO is currently playing (persona)
@@ -515,6 +541,8 @@ class Tts:
                                    # line FINISHES playing — the overlay uses it
                                    # to drop the caption in sync with the audio
         threading.Thread(target=self._gen_loop, daemon=True).start()
+        for _ in range(_GEN_WORKERS):
+            threading.Thread(target=self._gen_worker, daemon=True).start()
         threading.Thread(target=self._play_loop, daemon=True).start()
         threading.Thread(target=self._build_stings, daemon=True).start()
         _log(f"INIT engine={self.engine} have_edge={_HAVE_EDGE} "
@@ -590,8 +618,20 @@ class Tts:
     def _next_wav(self):
         # plenty of unique names so a force-queued burst can never overwrite a
         # file that's still waiting to play (that collision = the Windows beep)
-        self._wav_i = (self._wav_i + 1) % 64
-        return os.path.join(_DIR, f"_tts_play{self._wav_i}.wav")
+        # LOCKED: several render workers call this at once now, and an
+        # unsynchronised read-modify-write could hand two of them the same name
+        # — the exact file collision this counter exists to prevent.
+        with self._tmp_lock:
+            self._wav_i = (self._wav_i + 1) % 64
+            return os.path.join(_DIR, f"_tts_play{self._wav_i}.wav")
+
+    def _next_mp3(self):
+        """A private mp3 scratch path per render. The module-level _MP3 was a
+        SINGLE shared file, so two concurrent renders would overwrite each
+        other's audio mid-download and both decode garbage."""
+        with self._tmp_lock:
+            self._mp3_i = (self._mp3_i + 1) % 64
+            return os.path.join(_DIR, f"_tts_render{self._mp3_i}.mp3")
 
     def _pending(self):
         return self.gen_q.qsize() + self.play_q.qsize()
@@ -833,16 +873,60 @@ class Tts:
                 del self._topics[topic]
 
     def _gen_loop(self):
-        """Render audio to a wav file, then hand it to the player. Runs ahead of
-        playback so the next line is ready the instant the current one ends."""
+        """DISPATCHER. Pops gen_q in priority/FIFO order exactly as before and
+        hands each job to a render worker with a ticket. Keeping the pop in one
+        thread is what makes the pool safe: the ordering decision is still made
+        in a single place, and the ticket freezes it, so concurrent rendering
+        can reorder nothing (see _commit)."""
         while True:
             _prio, _seq, item = self.gen_q.get()
             if item is None:
+                # one sentinel per worker, each with its own ticket, so every
+                # worker wakes AND the commit sequence stays gap-free
+                for _ in range(_GEN_WORKERS):
+                    self._job_q.put((next(self._ticket), None))
                 break
+            self._job_q.put((next(self._ticket), item))
+
+    def _gen_worker(self):
+        """Render audio to a wav file. Several of these run at once so a burst
+        of events costs one service turnaround instead of one per line; the
+        finished audio is still committed to the play queue in ticket order."""
+        while True:
+            ticket, item = self._job_q.get()
+            if item is None:
+                # shutdown: release our ticket so no worker waits on it forever
+                self._commit(ticket, None)
+                break
+            job = None
             try:
-                self._render(*item)
+                job = self._render(*item)
             except Exception as ex:
                 _log(f"gen ERROR {type(ex).__name__}: {ex}")
+            finally:
+                # ALWAYS commit, even on a drop or an exception. A ticket that
+                # never commits would stall every later line permanently.
+                self._commit(ticket, job)
+
+    def _commit(self, ticket, job):
+        """Hand a rendered line to the player, but only once every earlier
+        ticket has gone. Renders finish out of order (a short line beats a long
+        one); playback must not."""
+        with self._commit_cv:
+            while self._commit_next != ticket:
+                self._commit_cv.wait()
+        try:
+            if job is not None:
+                payload, persona, prio = job
+                # NB blocks while play_q is full — deliberate backpressure, and
+                # the same behaviour the single-threaded pipeline had. Done
+                # OUTSIDE the condition lock so a full queue can't freeze the
+                # commit order bookkeeping.
+                self._qput(self.play_q, persona, payload, prio=prio)
+        finally:
+            with self._commit_cv:
+                self._commit_next += 1
+                self._commit_cv.notify_all()
 
     def _play_loop(self):
         while True:
@@ -996,10 +1080,11 @@ class Tts:
             if cue:
                 cue.drop()
             return
-        # blocks if behind
-        self._qput(self.play_q, persona,
-                   (wav, cue, text, persona, epoch, deadline, topic, prio),
-                   prio=prio)
+        # hand back to the worker, which commits it to play_q in ticket order
+        # (see _commit). Every early return above yields None and is treated as
+        # a completed-but-silent ticket, so the ordering never stalls.
+        return ((wav, cue, text, persona, epoch, deadline, topic, prio),
+                persona, prio)
 
     # ---- neural generation ----
     # excitement ladder for the booth voices: as intensity climbs the delivery
@@ -1009,7 +1094,7 @@ class Tts:
     _HYPE = {0: ("+0%", "-9Hz", "+4%"), 1: ("+7%", "-3Hz", "+12%"),
              2: ("+14%", "+3Hz", "+20%")}
 
-    def _gen_edge(self, text, persona, voice, intensity=0):
+    def _gen_edge(self, text, persona, voice, intensity=0, mp3=None):
         # BOTH booth voices use the pundit's flat, warm, near-natural setting.
         # The lead used to have an excitement ladder (_HYPE) + a big-moment
         # loudness swell (_gen_edge_build) — it made him lurch louder out of
@@ -1067,8 +1152,15 @@ class Tts:
             rate_v = b + ((h % 5) - 2) + random.randint(-1, 1)
             rate_v = max(-10, min(18, rate_v))
             com = edge_tts.Communicate(text, voice, rate=f"{rate_v:+d}%")
-        asyncio.run(com.save(_MP3))
-        return _decode_mp3(_MP3)
+        mp3 = mp3 or self._next_mp3()
+        asyncio.run(com.save(mp3))
+        try:
+            return _decode_mp3(mp3)
+        finally:
+            try:
+                os.remove(mp3)
+            except Exception:
+                pass
 
     # excitement BUILD ladder (start, end) for a big-moment line — interpolated
     # across however many clauses the line splits into so the FIRST clause is
@@ -1134,8 +1226,15 @@ class Tts:
             pitch = f"{int(round(b['pitch0'] + p * (b['pitch1'] - b['pitch0']))):+d}Hz"
             com = edge_tts.Communicate(clause, voice, rate=rate, pitch=pitch,
                                        volume="+0%")
-            asyncio.run(com.save(_MP3))
-            sr, s = _decode_mp3(_MP3)
+            _m = self._next_mp3()        # never the shared _MP3: see _next_mp3
+            asyncio.run(com.save(_m))
+            try:
+                sr, s = _decode_mp3(_m)
+            finally:
+                try:
+                    os.remove(_m)
+                except Exception:
+                    pass
             srate = sr
             rendered.append(s)
         # reference off the FIRST clause so the opening ≈ a normal line's level,
