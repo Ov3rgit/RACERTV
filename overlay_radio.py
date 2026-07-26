@@ -444,6 +444,7 @@ class RadioMixin:
                 # WHILE its card is visible or drops cleanly (no orphan audio
                 # over a card that's already gone). The engineer keeps the
                 # longer radio TTL — he's talking to YOU and must be heard.
+                _no_deadline = False
                 if ttl_override != "default":
                     # a bypass line that opted into a real TTL — position acks,
                     # which must drop if they can't play while still true
@@ -456,8 +457,13 @@ class RadioMixin:
                     # busiest moment for the booth queue, so it routinely
                     # expired before it could play and the card aired silently.
                     # For these, being heard matters more than the number
-                    # being seconds fresh.
+                    # being seconds fresh. NOTE: ttl=None alone isn't enough —
+                    # Tts.speak() defaults a None ttl to TTL_RADIO (22s) unless
+                    # force=True, which silently reintroduced the exact
+                    # deadline this comment says these lines must not carry.
+                    # _no_deadline threads force=True through for this path only.
                     _ttl = None
+                    _no_deadline = True
                 elif persona == "ENGINEER":
                     _ttl = 9.0 if any(c.isdigit() for c in say_text) else None
                 else:
@@ -493,7 +499,7 @@ class RadioMixin:
                     with self._bubble_lock:
                         _st["aired"] = True
                 self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
-                               on_play=_onp, on_drop=_ondrop)
+                               force=_no_deadline, on_play=_onp, on_drop=_ondrop)
                 if not st["aired"]:
                     # SAFETY NET ONLY. The card's fate is now decided by the
                     # cue — on_play when the audio starts, on_drop the moment

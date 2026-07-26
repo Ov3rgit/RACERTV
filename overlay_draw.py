@@ -723,6 +723,7 @@ class DrawMixin:
         res = getattr(self, "_obj_result", None)
         obj = getattr(self, "_obj", None)
         if not obj and not (res and now < res.get("until", 0)):
+            self._obj_box = None          # not drawn — see draw_radio
             return
         # DOCKED UNDER THE RELATIVE TOWER. Centre-screen it overlapped the
         # sector-time block and the lower-third caption; here it sits in the
@@ -748,6 +749,9 @@ class DrawMixin:
             x = self.sw - w - 30
             y = 110 + (22 + 24 * 7) + 8
         h = 62
+        # remember the footprint so the radio bubble stack (bottom-anchored,
+        # same right-hand column) knows not to climb up into this card
+        self._obj_box = (x, y, w, h)
         self._begin_panel("objective", x, y, w, h)
 
         if obj:
@@ -1095,6 +1099,25 @@ class DrawMixin:
         total = sum(heights) + gap * (len(show) - 1)
         bottom = self.sh - 150
         top = bottom - total
+        # don't climb into the objective card / relative tower above — both
+        # live in the same right-hand column and are bottom-unaware, so clamp
+        # our ceiling to whichever of them is on screen this frame, dropping
+        # the oldest bubbles first if the remaining gap is too tight to fit
+        obj_box = getattr(self, "_obj_box", None)
+        rel_box = getattr(self, "_rel_box", None)
+        ceiling = None
+        if obj_box:
+            ceiling = obj_box[1] + obj_box[3]
+        elif rel_box:
+            ceiling = rel_box[1] + rel_box[3]
+        if ceiling is not None:
+            min_top = ceiling + 12
+            while top < min_top and len(show) > 1:
+                show = show[1:]
+                heights = heights[1:]
+                total = sum(heights) + gap * (len(show) - 1)
+                top = bottom - total
+            top = max(top, min_top)
         self._begin_panel("radio", x, top, w, total)
         y = top
         for m, h in zip(show, heights):    # oldest at top, newest at bottom
