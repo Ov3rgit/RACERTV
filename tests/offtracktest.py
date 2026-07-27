@@ -243,6 +243,7 @@ import tts as _tts_mod                                    # noqa: E402
 class _FakeStingTts(_tts_mod.Tts):
     def __init__(self):
         self.enabled = True
+        self._sting_t = {}          # _STING_MIN_GAP bookkeeping
         self._stings = {("PUNDIT", "alert"):
                         [(f"/nope/{i}.wav", f"sting {i}") for i in range(4)]}
     # don't touch real audio
@@ -253,7 +254,13 @@ _st = _FakeStingTts()
 picks = []
 for _ in range(20):
     # replicate the selection (os.path.exists will fail -> returns False, but
-    # _sting_last is set BEFORE that, which is what we assert on)
+    # _sting_last is set BEFORE that, which is what we assert on).
+    # Clear the spacing stamp each time: this checks the CHOOSER never deals
+    # the same clip twice running, which is a separate guarantee from the
+    # _STING_MIN_GAP cooldown that stops alerts stacking up in the first place
+    # (covered in repeattest.py). Without this the cooldown would suppress
+    # calls 2..20 and the chooser would never be exercised at all.
+    _st._sting_t.clear()
     _st.sting("alert", "PUNDIT")
     picks.append(_st._sting_last["alert"])
 assert all(picks[i] != picks[i + 1] for i in range(len(picks) - 1)), (

@@ -531,6 +531,7 @@ class Tts:
         self.names = [v[0] for v in self.voices]
         self._start_sapi()
         self._stings = {}          # (persona, group) -> [cached wav paths]
+        self._sting_t = {}         # group -> when it last played (_STING_MIN_GAP)
         self._chime_cache = {}     # kind -> rendered objective-chime samples
         self._topics = {}          # topic -> pending count (dedup, see speak())
         self._answer_due = 0.0     # an exchange ANSWER is mid-render until this:
@@ -715,6 +716,17 @@ class Tts:
         mixed = [_soft(x * g) for x in samples]
         _write_wav(outpath, srate, mixed)
 
+    # minimum seconds between two stings of the same group. Only the incident
+    # ALERT is limited: it is the name-free bridging line ("someone's gone
+    # off!"), it fires from two independent paths (an off-track report and a
+    # yellow flag) that had no shared cooldown, and a busy AI race triggers
+    # both within seconds of each other. A transcript showed two of these four
+    # seconds apart with no named follow-up between them, and fifteen across
+    # one race — by far the most repeated thing in the broadcast. The NAMED
+    # line still airs; only the redundant generic bridge in front of it is
+    # dropped. lightsout / victory are one-shot signature moments: never gated.
+    _STING_MIN_GAP = {"alert": 12.0}
+
     def sting(self, group="alert", persona="PUNDIT", on_play=None):
         """Play a pre-rendered incident sting RIGHT NOW (no synth wait). Cuts the
         current audio (epoch bump + purge) and jumps the cached clip to the front
@@ -725,6 +737,12 @@ class Tts:
         interrupt (that would purge this sting)."""
         if not self.enabled:
             return False
+        gap = self._STING_MIN_GAP.get(group)
+        if gap is not None:
+            last = self._sting_t.get(group, -1e9)
+            if time.time() - last < gap:
+                _log(f"sting SKIP-recent group={group}")
+                return False
         clips = self._stings.get((persona, group))
         if not clips:
             return False
@@ -752,6 +770,9 @@ class Tts:
                     _write_wav(dst, _rate, _smp, gain=self.volume)
         except Exception:
             return False
+        # stamp only once it is genuinely going to play — a sting that bailed
+        # out above must not start the cooldown for one that would have worked
+        self._sting_t[group] = time.time()
         self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
                    (dst, _Cue(on_play), text, persona, self._epoch, None,
                     None, -1), prio=-1)

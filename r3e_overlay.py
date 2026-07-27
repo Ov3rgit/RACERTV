@@ -91,6 +91,13 @@ def _proc_image(pid):
 
 _WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
+# How many booth lines must go by before any one line may be heard again,
+# across every pool and both voices. An instrumented race airs roughly 12 lines
+# a minute, so 60 is about five minutes between repeats — comfortably longer
+# than anyone holds a line in their head, without starving the smaller pools
+# (when everything on offer is recent the least recently used one is dealt).
+RECENT_LINE_WINDOW = 60
+
 
 def find_game_rect():
     """Return (x, y, w, h) of the RaceRoom (RRRE64.exe) main window, or None."""
@@ -1235,6 +1242,21 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
     _BAG_FILE = os.path.join(_DIR, "_heard.json")
     _HCACHE = {}
 
+    @property
+    def _recent_lines(self):
+        """{line hash: the pick number it was last dealt on} — the global
+        anti-repeat memory shared by every pool and both booth voices. In
+        memory only: it is about not repeating yourself within a broadcast,
+        which the persistent per-pool decks already handle across sessions."""
+        r = getattr(self, "_recent_lines_map", None)
+        if r is None:
+            r = self._recent_lines_map = {}
+        return r
+
+    @_recent_lines.setter
+    def _recent_lines(self, v):
+        self._recent_lines_map = v
+
     @classmethod
     def _line_h(cls, text):
         h = cls._HCACHE.get(text)
@@ -1367,7 +1389,23 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
 
     def _pick(self, pool, key):
         """Deal a line from the pool's shuffle-bag: no repeats for this key
-        until every line in the pool has been used once."""
+        until every line in the pool has been used once, AND no repeat of any
+        line the booth has aired in the last RECENT_LINE_WINDOW picks, whatever
+        pool or persona it came from.
+
+        The per-key bag alone was not enough, for three measured reasons. The
+        `analysis` filler pool supplies the overwhelming majority of booth lines
+        (516 of 538 in an instrumented race), so its 77-line deck reshuffles
+        every few minutes and starts dealing the same lines again — one race
+        aired 110 duplicate lines, several of them five and six times. The
+        COMMENTATOR and the PUNDIT keep SEPARATE bags for the same pool, so
+        both could deal the same line independently. And 31 lines exist in more
+        than one pool, each with its own bag.
+
+        All three are the same symptom to a listener: the booth repeating
+        itself. A global recency window over the line TEXT catches all of them
+        at once. When every candidate is recent (a small pool under pressure)
+        the least recently used one is dealt rather than going silent."""
         if not pool:
             return ""
         if len(pool) == 1:
@@ -1386,7 +1424,26 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                       list(range(len(pool)))
             st = {"bag": set(hs), "last": last}
             bags[k] = st
+        # GLOBAL RECENCY, across every pool, key and persona.
+        seen = self._recent_lines
+        self._pick_n = n = getattr(self, "_pick_n", 0) + 1
+        # the window must be at least a full trip through this pool, or a line
+        # becomes legal again before its own deck has finished cycling — which
+        # is exactly how a 77-line pool still managed to repeat itself
+        win = max(RECENT_LINE_WINDOW, len(pool) - 1)
+        fresh = [i for i in choices
+                 if n - seen.get(hs[i], -10 ** 9) > win]
+        if fresh:
+            choices = fresh
+        else:
+            # everything on offer has been heard recently — take whichever was
+            # heard longest ago instead of repeating the most recent one
+            choices = [min(choices, key=lambda i: seen.get(hs[i], -10 ** 9))]
         idx = random.choice(choices)
+        seen[hs[idx]] = n
+        if len(seen) > 4000:                  # keep the map from growing forever
+            cut = n - max(RECENT_LINE_WINDOW, 200)
+            self._recent_lines = {h: t for h, t in seen.items() if t >= cut}
         st["bag"].discard(hs[idx])
         st["last"] = hs[idx]
         self._bag_save()
