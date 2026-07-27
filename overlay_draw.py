@@ -906,14 +906,29 @@ class DrawMixin:
         # three lines of chrome shouting over the game before a lap is turned.
         # The hamburger already WAS the icon; the word next to it was pure
         # width. A square chip on the clock row: [≡] [14:49:07].
-        gx, gy, gw, gh = 12, 40, 28, 28
+        gear_x, _ = self._corner_layout()
+        gx, gy = gear_x, self.CORNER_Y
+        gw = gh = self.CORNER_GEAR_W
         self._begin_panel("gear", gx, gy, gw, gh)
         open_ = getattr(self, "_menu_open", False)
-        self._card(gx, gy, gw, gh, fill=CARD_BG2,
-                   accent=HEADER_ACCENT if open_ else DIM, side="left")
-        self.text(gx + gw // 2 + 1, gy + gh // 2, "≡",
-                  fill=(HEADER_ACCENT if open_ else TEXT),
-                  font=self.f_row_b, anchor="center")
+        # NO _card() here, deliberately. The standard panel frame — notched
+        # corners, chunky border, accent rail down the left — is right for a
+        # timing panel and absurd on a 29px button: the rail plus three
+        # horizontal strokes read as the spine and lines of a notepad icon
+        # rather than a menu. A plain slab matching the clock's panel next to
+        # it lets the three strokes be the whole icon.
+        c = self.canvas
+        c.create_rectangle(gx, gy, gx + gw, gy + gh, fill=CARD_BG2,
+                           outline=(HEADER_ACCENT if open_ else PANEL_OUTLINE))
+        # DRAWN, not typed. This was "≡" in the mono pixel face: three cramped
+        # hairlines at whatever weight and spacing the font chose, sitting on
+        # the font's baseline instead of in the middle of the chip. Strokes in
+        # the clock's accent tie the two halves of the corner together.
+        ink = TEXT if open_ else HEADER_ACCENT
+        bx, by = gx + gw // 2, gy + gh // 2
+        for dy in (-5, 0, 5):
+            c.create_line(bx - 6, by + dy, bx + 6, by + dy,
+                          fill=ink, width=2, capstyle="round")
         self._menu_hits.append(((gx, gy, gw, gh), self._menu_flip))
         # the ● OVERLAY chip is its own tk window whose click events don't
         # arrive over the game — give it the same polled treatment

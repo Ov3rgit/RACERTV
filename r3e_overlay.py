@@ -29,8 +29,8 @@ import tkinter.font as tkfont
 import r3e_data as R
 import avatars
 from overlay_panel import (_TC)
-from overlay_common import (CORNER_NBINS, DIM, DRIVER_COLORS, GREEN, TEXT,
-    PLACE_CONFIRM_TICKS, PURPLE, TYRE_COLORS, UPDATE_MS,
+from overlay_common import (CARD_BG2, CORNER_NBINS, DIM, DRIVER_COLORS, GREEN,
+    HEADER_ACCENT, PLACE_CONFIRM_TICKS, PURPLE, TYRE_COLORS, UPDATE_MS,
     VK_C, VK_CONTROL, VK_E, VK_LBUTTON, VK_M, VK_O, VK_Q, VK_SHIFT, VK_D,
     VK_R, YELLOWT, _LEET)
 from overlay_booth import BoothMixin
@@ -504,23 +504,58 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.clock_win = tk.Toplevel(self.root)
         self.clock_win.overrideredirect(True)
         self.clock_win.attributes("-topmost", True)
-        self.clock_win.configure(bg="#0a0d12")
-        # TWO-TONE, so it reads as a clock at a glance instead of a row of
-        # equally-loud digits. It was accent-coloured Consolas bold at the same
-        # weight the whole way across, which made the seconds — the fastest
-        # moving thing on screen and the least important — the loudest element
-        # in the corner. Hours:minutes carry the glance; the seconds sit back
-        # in the dim colour but stay there, because timing the top of the hour
-        # for an online session start is the entire reason this clock exists.
-        _bg = "#0a0d12"
-        wrap = tk.Frame(self.clock_win, bg=_bg, padx=9, pady=3)
-        wrap.pack()
-        self.clock_lbl = tk.Label(wrap, text="--:--", fg=TEXT, bg=_bg,
-                                  font=("Consolas", 11))
-        self.clock_lbl.pack(side="left")
-        self.clock_secs = tk.Label(wrap, text="--", fg=DIM, bg=_bg,
-                                   font=("Consolas", 8), padx=3)
-        self.clock_secs.pack(side="left", anchor="s", pady=(0, 1))
+        self.clock_win.configure(bg=CARD_BG2)
+        # DRAWN, not labelled, so the digits can carry the accent GLOW that
+        # made this readable at a glance in the first place. A flat tk.Label
+        # can only be one colour; the glow is built by stacking the same text
+        # several times — widest and darkest first, brightest last — which on a
+        # dark panel reads as light bleeding off the numerals.
+        #
+        # Hours:minutes hold the glow and the eye. The seconds sit beside them
+        # small and unlit: they are the fastest-moving thing on screen and the
+        # least important, and at full brightness they were the loudest object
+        # in the corner. They stay, though — timing the top of the hour for an
+        # online session start is the whole reason this clock exists.
+        self._clk_f = tkfont.Font(family="Consolas", size=12)
+        self._clk_fs = tkfont.Font(family="Consolas", size=8)
+        pad_x, pad_y = 10, 5
+        w = pad_x * 2 + self._clk_f.measure("00:00") + 4 + self._clk_fs.measure("00")
+        h = pad_y * 2 + self._clk_f.metrics("linespace")
+        self.clock_cv = tk.Canvas(self.clock_win, width=w, height=h,
+                                  bg=CARD_BG2, highlightthickness=0)
+        self.clock_cv.pack()
+        self._clk_geom = (pad_x, h // 2, w)
+        self._clk_text = None
+
+    # Glow stack: (offset in px, colour), drawn outermost-first so the core
+    # lands on top. Tk has no alpha, so the falloff is hand-mixed against the
+    # panel background rather than computed.
+    #
+    # Kept DELIBERATELY faint. The first attempt stacked three rings out to 3px
+    # in near-core brightness and read as a neon sign — "wayyyy too bright" —
+    # which is the opposite of the point: this is a small clock in the corner
+    # of a racing game, and the glow is meant to lift the digits off the panel,
+    # not light the room. Two close rings, both much darker than the core.
+    _CLK_GLOW = ((2, "#0d262c"), (1, "#164851"))
+
+    def _paint_clock(self, hhmm, ss):
+        """Repaint the clock only when the digits actually change — this runs
+        at 20Hz and redrawing ~14 canvas items every tick for a value that
+        moves once a second is free frame time thrown away."""
+        if (hhmm, ss) == self._clk_text:
+            return
+        self._clk_text = (hhmm, ss)
+        c = self.clock_cv
+        c.delete("all")
+        x, cy, w = self._clk_geom
+        for off, col in self._CLK_GLOW:
+            for dx, dy in ((-off, 0), (off, 0), (0, -off), (0, off)):
+                c.create_text(x + dx, cy + dy, text=hhmm, fill=col,
+                              font=self._clk_f, anchor="w")
+        c.create_text(x, cy, text=hhmm, fill=HEADER_ACCENT, font=self._clk_f,
+                      anchor="w")
+        c.create_text(x + self._clk_f.measure(hhmm) + 4, cy + 3, text=ss,
+                      fill="#3f7d88", font=self._clk_fs, anchor="w")
         try:
             h = ctypes.windll.user32.GetAncestor(self.clock_win.winfo_id(), 2)
             ex = ctypes.windll.user32.GetWindowLongW(h, -20)
@@ -528,6 +563,29 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             self._clock_hwnd = h
         except Exception:
             self._clock_hwnd = None
+
+    # ---- top-left corner: ONE ROW of [status] [menu] [clock] ---------------
+    # These three were stacked over two rows, which is a lot of vertical
+    # furniture for a status light, a button and a clock. Side by side they
+    # read as one strip of chrome instead of three separate announcements.
+    CORNER_X = 12            # left margin, shared with the canvas panels
+    CORNER_Y = 8             # every chip sits on this baseline
+    CORNER_GAP = 6
+    CORNER_GEAR_W = 29       # the menu button is a square
+
+    def _corner_layout(self):
+        """Canvas-space x for the menu button and the clock.
+
+        The status chip changes width with its state: normally a bare dot, but
+        "● SHOW" when the overlay is hidden, because that is the one state that
+        has to advertise itself. draw_settings runs even with the UI off, so
+        both neighbours have to step aside for the wide form or they end up
+        underneath it. One helper so the canvas and the toplevel windows can
+        never disagree about where the row sits."""
+        status_w = 26 if self.visible else 70
+        gear_x = self.CORNER_X + status_w + self.CORNER_GAP
+        clock_x = gear_x + self.CORNER_GEAR_W + self.CORNER_GAP
+        return gear_x, clock_x
 
     def _place_button(self, found):
         """Pin the toggle to the game's top-LEFT and the logo to the top-RIGHT."""
@@ -559,12 +617,11 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                                     SWP_NOMOVE_NOSIZE_NOACT)
         except Exception:
             pass
-        # real-world clock sits just below the toggle, top-left — shifted right
-        # so the settings chip fits BEFORE it on the same row. The chip is a
-        # 28px square icon now (it was a 126px "≡ SETTINGS" word), so the clock
-        # tucks in right beside it instead of a third of the way across.
+        # clock finishes the row, to the right of the menu button
         try:
-            self.clock_win.geometry(f"+{lx + 34}+{by + 32}")
+            _, _clock_x = self._corner_layout()
+            self.clock_win.geometry(
+                f"+{lx + (_clock_x - self.CORNER_X)}+{by}")
             self.clock_win.attributes("-topmost", True)
             chwnd = (user32.GetAncestor(self.clock_win.winfo_id(), 2)
                      or self._clock_hwnd)
@@ -702,8 +759,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
 
         self._update_button(game_running, in_action)
         try:
-            self.clock_lbl.config(text=time.strftime("%H:%M"))
-            self.clock_secs.config(text=time.strftime("%S"))
+            self._paint_clock(time.strftime("%H:%M"), time.strftime("%S"))
         except Exception:
             pass
         self._place_button(found)
