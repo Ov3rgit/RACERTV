@@ -29,8 +29,8 @@ import tkinter.font as tkfont
 import r3e_data as R
 import avatars
 from overlay_panel import (_TC)
-from overlay_common import (CORNER_NBINS, DIM, DRIVER_COLORS, GREEN,
-    HEADER_ACCENT, PLACE_CONFIRM_TICKS, PURPLE, TYRE_COLORS, UPDATE_MS,
+from overlay_common import (CORNER_NBINS, DIM, DRIVER_COLORS, GREEN, TEXT,
+    PLACE_CONFIRM_TICKS, PURPLE, TYRE_COLORS, UPDATE_MS,
     VK_C, VK_CONTROL, VK_E, VK_LBUTTON, VK_M, VK_O, VK_Q, VK_SHIFT, VK_D,
     VK_R, YELLOWT, _LEET)
 from overlay_booth import BoothMixin
@@ -477,9 +477,12 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.btn_win.overrideredirect(True)
         self.btn_win.attributes("-topmost", True)
         self.btn_win.configure(bg="#0a0d12")
-        self.btn_lbl = tk.Label(self.btn_win, text="● OVERLAY", fg=GREEN,
+        # padding tuned to leave a comfortable click target around a chip that
+        # is usually a single dot — it is still the control that shows a hidden
+        # overlay, so it must not shrink to something you have to aim at
+        self.btn_lbl = tk.Label(self.btn_win, text="●", fg=GREEN,
                                 bg="#0a0d12", font=("Segoe UI", 10, "bold"),
-                                padx=12, pady=5, cursor="hand2")
+                                padx=9, pady=4, cursor="hand2")
         self.btn_lbl.pack()
         # NB no tk <Button-1> bindings: click events don't arrive reliably
         # over the game, so clicks on this chip are POLLED and hit-tested in
@@ -502,10 +505,22 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.clock_win.overrideredirect(True)
         self.clock_win.attributes("-topmost", True)
         self.clock_win.configure(bg="#0a0d12")
-        self.clock_lbl = tk.Label(self.clock_win, text="--:--:--", fg=HEADER_ACCENT,
-                                  bg="#0a0d12", font=("Consolas", 11, "bold"),
-                                  padx=12, pady=4)
-        self.clock_lbl.pack()
+        # TWO-TONE, so it reads as a clock at a glance instead of a row of
+        # equally-loud digits. It was accent-coloured Consolas bold at the same
+        # weight the whole way across, which made the seconds — the fastest
+        # moving thing on screen and the least important — the loudest element
+        # in the corner. Hours:minutes carry the glance; the seconds sit back
+        # in the dim colour but stay there, because timing the top of the hour
+        # for an online session start is the entire reason this clock exists.
+        _bg = "#0a0d12"
+        wrap = tk.Frame(self.clock_win, bg=_bg, padx=9, pady=3)
+        wrap.pack()
+        self.clock_lbl = tk.Label(wrap, text="--:--", fg=TEXT, bg=_bg,
+                                  font=("Consolas", 11))
+        self.clock_lbl.pack(side="left")
+        self.clock_secs = tk.Label(wrap, text="--", fg=DIM, bg=_bg,
+                                   font=("Consolas", 8), padx=3)
+        self.clock_secs.pack(side="left", anchor="s", pady=(0, 1))
         try:
             h = ctypes.windll.user32.GetAncestor(self.clock_win.winfo_id(), 2)
             ex = ctypes.windll.user32.GetWindowLongW(h, -20)
@@ -544,10 +559,12 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                                     SWP_NOMOVE_NOSIZE_NOACT)
         except Exception:
             pass
-        # real-world clock sits just below the toggle, top-left — shifted
-        # right so the ≡ SETTINGS chip fits BEFORE it on the same row
+        # real-world clock sits just below the toggle, top-left — shifted right
+        # so the settings chip fits BEFORE it on the same row. The chip is a
+        # 28px square icon now (it was a 126px "≡ SETTINGS" word), so the clock
+        # tucks in right beside it instead of a third of the way across.
         try:
-            self.clock_win.geometry(f"+{lx + 132}+{by + 32}")
+            self.clock_win.geometry(f"+{lx + 34}+{by + 32}")
             self.clock_win.attributes("-topmost", True)
             chwnd = (user32.GetAncestor(self.clock_win.winfo_id(), 2)
                      or self._clock_hwnd)
@@ -685,7 +702,8 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
 
         self._update_button(game_running, in_action)
         try:
-            self.clock_lbl.config(text=time.strftime("%H:%M:%S"))
+            self.clock_lbl.config(text=time.strftime("%H:%M"))
+            self.clock_secs.config(text=time.strftime("%S"))
         except Exception:
             pass
         self._place_button(found)
@@ -763,14 +781,34 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
 
 
     def _update_button(self, game_running, in_action):
+        """STATE AS A LAMP, not a sentence. This chip used to read "● OVERLAY:
+        waiting for RaceRoom" — a caption longer than most of the timing tower,
+        parked over the game's top-left corner for an entire session. It is a
+        status light, so it now looks like one:
+
+            ●  green   LIVE, on air
+            ●  yellow  standby — game is up, you're in the menus
+            ●  dim     no RaceRoom window yet
+            ●  amber   overlay hidden (keeps the word, see below)
+
+        COLOUR, not shape, carries the state, and that is a deliberate limit
+        rather than a preference. Only ● and ≡ are proven to render here — both
+        are on screen in the build today — and the obvious alternatives (◐, ○,
+        ■, ▶) could not be told apart from a missing-glyph box by width or by
+        bounding box when measured. A tofu square in the corner of the screen
+        would be a worse outcome than the words were, so they are not used.
+
+        The hidden state keeps its word. It is the one state where the icon has
+        to advertise that clicking does something, and the only one you can sit
+        in while not racing — so the width costs nothing when it matters."""
         if not self.visible:
-            txt, col = "● OVERLAY: OFF — click to show", "#ffa94d"
+            txt, col = "● SHOW", "#ffa94d"
         elif not game_running:
-            txt, col = "● OVERLAY: waiting for RaceRoom", YELLOWT
+            txt, col = "●", DIM
         elif in_action:
-            txt, col = "● OVERLAY: LIVE", GREEN
+            txt, col = "●", GREEN
         else:
-            txt, col = "● OVERLAY: standby (menus)", YELLOWT
+            txt, col = "●", YELLOWT
         try:
             self.btn_lbl.config(text=txt, fg=col)
         except Exception:
@@ -1695,7 +1733,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.toggle_visible()
         self._toast("UI ON" if self.visible
                     else "UI HIDDEN — broadcast audio stays live"
-                         "  (Ctrl+Shift+O or ≡ SETTINGS to restore)")
+                         "  (Ctrl+Shift+O, or click ● SHOW top-left)")
 
     def _do_toggle_booth(self):
         self.commentary_on = not self.commentary_on

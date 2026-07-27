@@ -901,15 +901,19 @@ class DrawMixin:
                     action()
                     break
         self._menu_hits = []
-        # chip sits on the clock row: [≡ SETTINGS] [11:25:49], under ● OVERLAY
-        gx, gy, gw, gh = 12, 40, 126, 28
+        # ICON ONLY. This corner carried "● OVERLAY: waiting for RaceRoom",
+        # "≡ SETTINGS" and a bold ticking clock stacked on top of each other —
+        # three lines of chrome shouting over the game before a lap is turned.
+        # The hamburger already WAS the icon; the word next to it was pure
+        # width. A square chip on the clock row: [≡] [14:49:07].
+        gx, gy, gw, gh = 12, 40, 28, 28
         self._begin_panel("gear", gx, gy, gw, gh)
         open_ = getattr(self, "_menu_open", False)
         self._card(gx, gy, gw, gh, fill=CARD_BG2,
                    accent=HEADER_ACCENT if open_ else DIM, side="left")
-        self.text(gx + 12, gy + gh // 2, "≡ SETTINGS",
+        self.text(gx + gw // 2 + 1, gy + gh // 2, "≡",
                   fill=(HEADER_ACCENT if open_ else TEXT),
-                  font=self.f_row_b, anchor="w")
+                  font=self.f_row_b, anchor="center")
         self._menu_hits.append(((gx, gy, gw, gh), self._menu_flip))
         # the ● OVERLAY chip is its own tk window whose click events don't
         # arrive over the game — give it the same polled treatment
