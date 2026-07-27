@@ -13,6 +13,14 @@ import r3e_data as R
 import avatars
 import random
 import time
+
+# Seconds between the engineer's IDLE filler (gap reads, status checks, a word
+# of encouragement). Was 15, which is a line every quarter of a minute for the
+# whole race whether or not anything has happened. Everything that actually
+# matters — incidents, objectives, position changes, damage, penalties — has
+# its own trigger and does not wait on this gate, so raising it removes noise
+# without ever delaying news.
+ENC_CD = 42.0
 from overlay_common import (_BUBBLE_H, _safe_format, ACCENT, CARD_BG, DIM, ENGINEER_COLOR,
     ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, STRIKE_GAP, TEXT, _RADIO_LOCK)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
@@ -827,19 +835,39 @@ class RadioMixin:
         if self._eng_flags.get("finseen"):
             return
 
-        # INCIDENT POINTS — report EVERY point you pick up and escalate hard as
-        # you near the disqualification limit. Checked from the GREEN flag (they
-        # count from lap one) and BYPASSES the chatter-drop so you never miss one
-        # — the whole point is you should never get DQ'd by surprise.
+        # INCIDENT POINTS — you must never be DQ'd by surprise. That guarantee
+        # is kept, but it used to be implemented as "report EVERY point on a 5s
+        # cooldown", and a contact-heavy AI race hands out points constantly: a
+        # single transcript had FOURTEEN of these, "1 of 30", "2 of 30", "4 of
+        # 30", "5 of 30", all the way up, which is a roll-call rather than a
+        # warning and trains you to tune the engineer out — the one voice that
+        # must not become background noise.
+        #
+        # So he speaks when the SITUATION changes, not when the number does:
+        # the first point (so you know the tally is being kept), each crossing
+        # into a new quarter of the allowance, and then every single point once
+        # you are in the critical zone, where each one really is news. A floor
+        # cooldown spaces the rest.
         ip, mip = s.incident_points, s.max_incident_points
         if ip >= 0 and ip < getattr(self, "_eng_ip", 0):
             self._eng_ip = ip                  # game reset the counter — re-seed
+            self._eng_ip_band = -1
         if (self._racing and mip > 0 and ip > getattr(self, "_eng_ip", 0)
                 and now - getattr(self, "_eng_ip_cd", -1e9) > 5.0):
+            prev = getattr(self, "_eng_ip", 0)
+            left = mip - ip
+            critical = left <= max(2, int(mip * 0.15))
+            band = int((ip * 4) // mip) if mip else 0
+            first = prev <= 0
+            moved = band > getattr(self, "_eng_ip_band", -1)
+            spaced = now - getattr(self, "_eng_ip_said_t", -1e9) > 75.0
             self._eng_ip = ip
             self._eng_ip_cd = now
-            left = mip - ip
-            cat = ("points_critical" if left <= max(2, int(mip * 0.15))
+            if not (critical or first or moved or spaced):
+                return                          # tally noted, nothing to say
+            self._eng_ip_band = max(band, getattr(self, "_eng_ip_band", -1))
+            self._eng_ip_said_t = now
+            cat = ("points_critical" if critical
                    else "points_high" if ip >= mip * 0.5
                    else "warn_points")
             line = _safe_format(self._pick(ENGINEER_LINES[cat], ("ENGINEER", cat)),
@@ -1284,7 +1312,14 @@ class RadioMixin:
         # a gap to the car ahead/behind, or POSITION-AWARE encouragement (never
         # "you're perfect" when you're dead last). When the car's healthy, an
         # occasional "gap's good, no damage, keep pushing" status.
-        if now - self._enc_cd > 15.0:
+        # FILLER CADENCE. This block is the engineer's idle chatter — a gap
+        # read, a status check, a word of encouragement — and it ran every 15
+        # SECONDS, which over a race is a line every quarter minute forever.
+        # The transcript shows what that sounds like: six gap calls to the same
+        # car inside two and a half minutes ("4.9 seconds", "4.8", "4.3", "4.1",
+        # "4.6", "6.1"), none of which told the driver anything the last one
+        # hadn't. Real engineers stay off the radio unless they have something.
+        if now - self._enc_cd > ENC_CD:
             self._enc_cd = now
             # occasionally drop a real track tip to help find pace (across all
             # sessions) instead of generic encouragement
@@ -1296,9 +1331,12 @@ class RadioMixin:
                                    "ENGINEER", "neutral"))
                     return
             opts = []
-            if ahead and gap:
+            # A GAP READ HAS TO BE NEWS. Quoting a number that is within a few
+            # tenths of the one he last quoted is the definition of nagging, so
+            # each of these is offered only once the gap has actually moved.
+            if ahead and gap and self._gap_is_news("ahead", gap):
                 opts.append("info_ahead")
-            if behind and gapb:
+            if behind and gapb and self._gap_is_news("behind", gapb):
                 opts.append("info_behind")
             healthy = not any(self._eng_flags.get(f"dmg_{p}") for p in
                               ("engine", "transmission", "aero", "suspension"))
@@ -1306,7 +1344,40 @@ class RadioMixin:
                 opts.append("status_good")
             opts.append("enc_top" if fp <= 3 else "enc_mid" if fp <= 10
                         else "enc_back")
-            return add(random.choice(opts), 3)
+            # never the same KIND of line twice running: with only four or five
+            # options a plain random.choice repeats itself constantly, which is
+            # how "Commanding stuff, P3" and "Gap's good, no damage" each came
+            # round twice in the same race
+            last = getattr(self, "_enc_last", None)
+            fresh = [o for o in opts if o != last] or opts
+            pick = random.choice(fresh)
+            self._enc_last = pick
+            # remember the number he actually SAID, so the next read is judged
+            # against what the driver heard rather than the last tick's value
+            said = getattr(self, "_gap_said", None)
+            if said is None:
+                said = self._gap_said = {}
+            if pick == "info_ahead":
+                said["ahead"] = gap
+            elif pick == "info_behind":
+                said["behind"] = gapb
+            return add(pick, 3)
+
+    def _gap_is_news(self, key, gap):
+        """True if this gap has moved enough since he last read it out to be
+        worth saying again. "He's 4.9 seconds up the road" followed a minute
+        later by "4.6 seconds" is not information, it is the same sentence with
+        a different decimal — and the transcript has six of them in a row.
+
+        The threshold scales: a tenth matters when you are on someone's gearbox
+        and is meaningless when they are five seconds away."""
+        said = getattr(self, "_gap_said", None)
+        if said is None:
+            said = self._gap_said = {}
+        prev = said.get(key)
+        if prev is None:
+            return True
+        return abs(gap - prev) >= max(0.4, prev * 0.25)
 
     def _radio_line(self, d, category, who=""):
         persona = self._persona_for(d)

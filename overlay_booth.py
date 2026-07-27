@@ -480,7 +480,7 @@ class BoothMixin:
             # has happened yet. Stories need a race behind them: four laps, or
             # a quarter of the distance, whichever comes first.
             _story_ok = (ll >= 4 or (total and total > 0 and ll >= total * 0.25))
-            story_d = self._story_pick(order) if _story_ok else None
+            story_d = self._story_pick(order, s.vehicle_info.slot_id) if _story_ok else None
             if story_d is None and _story_ok and random.random() < 0.3:
                 # quiet race, nobody's swung much — a "steady afternoon" recap
                 # of a front-runner still beats never mentioning anyone's race.
@@ -1443,7 +1443,7 @@ class BoothMixin:
             # happened yet
             _ll = leader.completed_laps if leader is not None else 0
             _sok = (_ll >= 4 or (total and total > 0 and _ll >= total * 0.25))
-            story_d = self._story_pick(order) if _sok else None
+            story_d = self._story_pick(order, s.vehicle_info.slot_id) if _sok else None
             if story_d is not None and rdy("driverstory", 30):
                 types.append("driverstory")
             # colour-padding types only in mid (not late — urgency wins)
@@ -1843,12 +1843,26 @@ class BoothMixin:
             {"nm": nm, "grid": grid, "best": best, "worst": worst, "now": now,
              "comm": COMMENTATOR_NAME, "pundit": PUNDIT_NAME})
 
-    def _story_pick(self, order):
+    def _story_pick(self, order, vslot=None):
         """Pick a driver whose race has an INTERESTING arc worth discussing
         (climbed a lot, fell a lot, or fell-then-recovered). Returns a driver or
-        None. Prefers bigger swings; the player is eligible too."""
+        None. Prefers bigger swings.
+
+        THE PLAYER IS THE ONE VIEWER. They were technically eligible before but
+        held to the same bar as everyone else, and a broadcast that recaps four
+        AI drivers' afternoons while never once mentioning the race the viewer
+        is actually driving gets it exactly backwards. Reported after a race
+        where the booth told four other drivers' stories and skipped a P4->P3
+        podium drive — which was correct by the old rules, because a one-place
+        net swing did not clear the two-place bar.
+
+        So their bar is lower (any real movement counts) and, once eligible,
+        they are usually the pick rather than one candidate among four. Not
+        always: a booth that only ever talks about you is its own kind of
+        broken, and the AI drivers' races are what make the grid feel alive."""
         told = getattr(self, "_story_told", set())
         elig = []
+        mine = None
         for d in order:
             sl = d.driver_info.slot_id
             if sl in told:                  # already recapped this driver — skip
@@ -1859,13 +1873,20 @@ class BoothMixin:
                 continue
             net = grid - st["now"]          # + climbed / - dropped
             dip = st["worst"] - grid        # how far below the start they fell
+            is_me = (vslot is not None and sl == vslot)
             # a 2-place net swing or a 3-place dip is already a story worth
             # telling (the old >=3/>=4 bar meant a normal race produced NO
-            # eligible drivers and the recap never aired at all)
-            if abs(net) >= 2 or dip >= 3:
+            # eligible drivers and the recap never aired at all). YOUR race
+            # only has to have gone somewhere at all.
+            bar_net, bar_dip = (1, 2) if is_me else (2, 3)
+            if abs(net) >= bar_net or dip >= bar_dip:
                 elig.append((d, abs(net) + dip))
+                if is_me:
+                    mine = d
         if not elig:
             return None
+        if mine is not None and random.random() < 0.6:
+            return mine
         elig.sort(key=lambda e: -e[1])
         return random.choice(elig[:4])[0]   # one of the most eventful
 

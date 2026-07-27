@@ -43,7 +43,19 @@ for n, pts in enumerate([1, 2, 4, 16, 20, 27, 29], start=1):
 print(f"  incident-point reports: {len(reports)}")
 for pts, t in reports:
     print(f"    @{pts}: {t[:66]}")
-assert len(reports) >= 6, f"engineer missed incident points (only {len(reports)})"
+# NOT every point any more, deliberately — see engnagtest.py. Reporting each
+# one on a 5s cooldown produced fourteen calls in a single transcript, which
+# is a roll-call rather than a warning. What must survive is the guarantee:
+# the FIRST point (so you know a tally is being kept) and then every point
+# once you are near the limit, where each one really is news.
+got = [pts for pts, _ in reports]
+assert 1 in got, f"the first incident point was never reported: {got}"
+for pts in (27, 29):
+    assert pts in got, (
+        f"a point inside the danger zone was skipped ({pts} of 30) — that is "
+        f"the one thing this feature must never do: {got}")
+assert len(reports) <= 5, (
+    f"back to a roll-call: {len(reports)} calls for 7 pickups ({got})")
 # the count must be spoken, and it must escalate near the limit
 assert any("of 30" in t for _, t in reports), "engineer must say 'X of 30'"
 crit = [t for pts, t in reports if pts >= 27]
@@ -51,7 +63,7 @@ assert any("danger" in t.lower() or "no more" in t.lower() or "back right off" i
            or "disqualif" in t.lower() or "brink" in t.lower() or "last warning" in t.lower()
            or "this is it" in t.lower() or "any more" in t.lower()
            for t in crit), f"no critical escalation near the limit: {crit}"
-print("  reports every point, says 'X of 30', escalates near DQ: OK")
+print("  first point + every point near DQ, says 'X of 30', escalates: OK")
 
 
 print("\n===== ENGINEER INTRO (bypass busy queue) =====")
