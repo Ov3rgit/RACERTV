@@ -298,6 +298,10 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self._q_cuts = 0         # prev cut_track_warnings (track-limits edge)
         self._sess_gen = 0       # bumped on a detected race restart
         self._prev_lead_laps = None  # leader lap count last tick (restart detect)
+        self._prev_rem = None        # session clock last tick — a jump UP is a
+                                     # restart (it only ever counts down)
+        self._prev_my_laps = None    # your own lap count — it only ever rises,
+                                     # so a fall means the session was replaced
         self._last_found_t = 0.0     # last time the RaceRoom window was seen
         self._tts_silenced = False   # audio stopped because the game is gone
 
@@ -962,6 +966,32 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         if self._prev_lead_laps is not None and lead_laps + 2 < self._prev_lead_laps:
             self._sess_gen += 1
         self._prev_lead_laps = lead_laps
+
+        # RESTART DETECTION, the other two ways round.
+        #
+        # The session key is (track, layout, type, iteration, gen), and
+        # restarting the SAME session at the same track changes none of the
+        # first four — RaceRoom does not always advance session_iteration. That
+        # left `gen` above as the only signal, and it needs the leader's lap
+        # count to fall by two or more. Restart during the opening laps and it
+        # never fires: reported as the overlay still showing the previous
+        # session's data instead of starting fresh.
+        #
+        # Two unambiguous signals. A session clock only ever counts DOWN while
+        # you are in a session, so it jumping up is a new one. And your own lap
+        # count only ever goes up, so it falling means the session under you was
+        # replaced. Either alone is enough; both are cheap.
+        rem = getattr(s, "session_time_remaining", 0.0) or 0.0
+        prev_rem = getattr(self, "_prev_rem", None)
+        me_now = next((d for d in order
+                       if d.driver_info.slot_id == s.vehicle_info.slot_id), None)
+        my_laps = me_now.completed_laps if me_now is not None else 0
+        prev_my = getattr(self, "_prev_my_laps", None)
+        if ((prev_rem is not None and rem > prev_rem + 5.0)
+                or (prev_my is not None and my_laps < prev_my)):
+            self._sess_gen += 1
+        self._prev_rem = rem
+        self._prev_my_laps = my_laps
 
         # reset everything on a new session/track/restart
         key = (s.track_id, s.layout_id, s.session_type, s.session_iteration,
