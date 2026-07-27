@@ -27,6 +27,16 @@ ENC_CD = 42.0
 # (every further place lost pushes the window out again), short enough that a
 # normal racing pass you immediately fight back against isn't muted.
 RADIO_FALL_QUIET = 8.0
+
+# The car directly ahead must hold that slot this long before the driver in it
+# reacts to being chased. A real chase clears it instantly; a player whose
+# position is churning (spin, pit exit) never does, so no cascade can form.
+CHASE_TARGET_STABLE_S = 1.5
+
+# Deadline on an objective SET line. Its content is a live position, so unlike
+# a verdict it goes false with time; paired with OBJ_SET_STALE_S in
+# overlay_objective, which withdraws a target whose set line never got said.
+OBJ_SET_TTL = 10.0
 from overlay_common import (_BUBBLE_H, _safe_format, ACCENT, CARD_BG, DIM, ENGINEER_COLOR,
     ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, STRIKE_GAP, TEXT, _RADIO_LOCK)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
@@ -245,10 +255,41 @@ class RadioMixin:
 
             # ARE YOU GOING BACKWARDS? Remember when you last LOST a place, so
             # the chase radio below can tell an attack from a fall.
+            #
+            # ARMED OFF THE **LIVE** PLACE, NOT THE CONFIRMED ONE. This is the
+            # bug that survived the first attempt at the spin-cascade fix. The
+            # chase block targets placemap[fp - 1] — the LIVE place, which
+            # moves the instant you drop — while the guard armed off cp(), the
+            # DEBOUNCED place, which needs several ticks to agree. A spin
+            # outruns the debounce, so for the first fraction of a second the
+            # block was already seeing a brand-new car ahead while the guard
+            # still believed nothing had happened. The debug log caught it
+            # exactly: three "caught" lines queued inside one second at
+            # 18:31:03, right as the player speared off.
+            #
+            # A live place flickers, which is why nothing else trusts it — but
+            # for arming a SUPPRESSION window the asymmetry is all in our
+            # favour: a false arm costs a few seconds of rival quiet, a missed
+            # arm costs the whole field announcing you are hunting them while
+            # you spin. Confirmed place still drives _fall_from, so the "you
+            # lost N places" count stays honest.
+            # TWO CLOCKS, deliberately. _fall_t is the SUPPRESSION timer and is
+            # armed by the live place so it reacts instantly. _fall_cp_t tracks
+            # falls on the CONFIRMED place and exists only to decide where a
+            # fall began. They were one variable at first, and the live arming
+            # then kept _fall_t permanently fresh — so "has it been quiet long
+            # enough for this to be a NEW fall?" was never true, _fall_from was
+            # never set, and the big-fall acknowledgement stopped latching at
+            # all. Caught by fallcovertest, which is exactly what it is for.
+            _prev_live = getattr(self, "_radio_my_live", None)
+            if _prev_live is not None and fp > _prev_live:
+                self._fall_t = now
+            self._radio_my_live = fp
             _prev_my = getattr(self, "_radio_my_place", None)
             if _prev_my is not None and fpc > _prev_my:
-                if now - getattr(self, "_fall_t", -1e9) > RADIO_FALL_QUIET:
+                if now - getattr(self, "_fall_cp_t", -1e9) > RADIO_FALL_QUIET:
                     self._fall_from = _prev_my       # a NEW fall starts here
+                self._fall_cp_t = now
                 self._fall_t = now
             self._radio_my_place = fpc
             # A BIG CUMULATIVE FALL gets acknowledged as ONE event. The old
@@ -286,8 +327,25 @@ class RadioMixin:
             if fp > 1 and now - getattr(self, "_fall_t", -1e9) > RADIO_FALL_QUIET:
                 ahead = placemap.get(fp - 1)
                 itv = self.interval.get(vslot)
+                tslot = None
                 if ahead is not None and itv is not None and itv > 0:
                     tslot = ahead.driver_info.slot_id
+                    # THE TARGET MUST HOLD STILL FIRST. Independent of the fall
+                    # guard above, and deliberately so: any way the player's
+                    # place can churn — a spin, a pit exit, a lag spike — makes
+                    # placemap[fp - 1] a different car every tick, and each new
+                    # car is fresh to _chase so it fires immediately. Requiring
+                    # the SAME car to have been ahead for a moment means a
+                    # cascade cannot form no matter what caused the churn,
+                    # while a genuine chase (you sit behind one car for laps)
+                    # clears it in the first second and a half.
+                    _pa = getattr(self, "_chase_ahead", None)
+                    if _pa is None or _pa[0] != tslot:
+                        self._chase_ahead = (tslot, now)
+                        tslot = None
+                    elif now - _pa[1] < CHASE_TARGET_STABLE_S:
+                        tslot = None
+                if tslot is not None:
                     fired = self._chase.get(tslot, set())
                     if itv > 2.5:
                         fired = set()
@@ -652,8 +710,26 @@ class RadioMixin:
                     # heard giving the order before the commentators remark on it,
                     # never the other way round.
                     self._obj_eng_aired_t = now
+                # A SET LINE QUOTES A POSITION, SO IT MUST NOT AIR LATE.
+                # set/met/miss bypass the spacing AND carry no deadline, which
+                # is right for a VERDICT (it describes something that already
+                # happened and stays true) but wrong for a SET line, whose
+                # whole content is where you are right now. Measured: "P5 is
+                # worth real points, Marco Wittmann ahead" was computed at
+                # 18:31:02 and aired at 18:31:14, and "Defend P7" was computed
+                # at 18:31:39 and aired at 18:32:12 — 33 seconds, by which time
+                # the player had spun and the numbers were fiction. Reported as
+                # the engineer still thinking the player was P5.
+                #
+                # A stale target is worse than no target: the HUD card follows
+                # the objective, so an unheard set line leaves a card the
+                # driver was never told about. If it can't be said while it is
+                # still true, the objective is withdrawn with it (below).
+                _ttl = "default"
+                if ocat.startswith("obj_set_"):
+                    _ttl = OBJ_SET_TTL
                 return add(ocat, 2 if is_nudge else 1, bypass=not is_nudge,
-                           **okw)
+                           ttl=_ttl, **okw)
 
         # ---- BIG FALL: you spun and tumbled through the field ---------------
         # Latched in update_radio (cumulative, since debounced places fall one

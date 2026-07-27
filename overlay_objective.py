@@ -59,6 +59,9 @@ OBJ_MIN_LIFE = 15.0      # an objective may not resolve MET before it has been
 OBJ_REPEAT_CD = 150.0    # ...and the same (kind, driver) can't come back for
                          # this long once resolved, so the engineer finds
                          # something new to ask for instead of looping one job
+OBJ_SET_STALE_S = 12.0   # a set line still undrained this long after the target
+                         # was chosen is announcing a position that has moved on;
+                         # withdraw the target rather than say something false
 
 
 class ObjectiveMixin:
@@ -919,6 +922,21 @@ class ObjectiveMixin:
         vslot = s.vehicle_info.slot_id
         me = next((d for d in order if d.driver_info.slot_id == vslot), None)
         if me is None:
+            return None
+
+        # NEVER SHOW A TARGET THE DRIVER WAS NEVER GIVEN. _obj_say is the set
+        # line waiting to be drained by the engineer; if it is STILL sitting
+        # there long after the objective was set, the radio never even got to
+        # queue it (measured: a defend set at 18:31:39 was not queued until
+        # 18:31:50 and aired at 18:32:12 — 33s, by which time the player had
+        # spun and the numbers were fiction). Announcing it then is worse than
+        # not setting it, and leaving the card up is a target nobody was told
+        # about, so both go and the next offer comes round with live numbers.
+        if (self._obj and getattr(self, "_obj_say", None)
+                and now - self._obj.get("set_at", now) > OBJ_SET_STALE_S):
+            self._obj = None
+            self._obj_say = None
+            self._obj_last_t = now
             return None
 
         if self._obj:                                 # one active at a time
