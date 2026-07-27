@@ -825,6 +825,20 @@ class RadioMixin:
                     since_green >= ENG_START_MIN_S
                     and since_stable >= ENG_START_STABLE_S):
                 self._eng_flags["start"] = True
+                # THE NUMBER IS FROZEN AT QUEUE TIME. bypass means no deadline
+                # (must be heard), so in a backed-up lights-out queue this line
+                # can air 15-20s after fpc was read — long enough for lap-one
+                # to have reshuffled it, which is the reported "the lap 1
+                # position call can be inaccurate". Reintroducing a TTL brings
+                # back the old silent-start bug, so instead: when the pipeline
+                # is busy enough that the number will be stale by the time it
+                # sounds, say a NUMBER-FREE launch call. A claim we can't keep
+                # fresh is a claim we don't make; the periodic position reads
+                # pick the number up seconds later, current.
+                busy = (self.tts is not None and self.tts._pending() >= 2
+                        and "start_busy" in ENGINEER_LINES)
+                if busy:
+                    return add("start_busy", 0, bypass=True)
                 gained_c = grid - fpc          # CONFIRMED, not the live flicker
                 if gained_c >= 1 and "start_gain" in ENGINEER_LINES:
                     return add("start_gain", 0, bypass=True,

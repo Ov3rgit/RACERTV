@@ -1007,5 +1007,11 @@
   "Okay, damage done: down {n} spots to P{pos}. Reset. One car at a time from here.",
   "We're P{pos} after that, {n} places gone. Forget it — show me your recovery drive.",
   "Rough one — {n} places lost, P{pos}. Stay with me, there's still racing to do."
+ ],
+ "start_busy": [
+  "We're racing — good launch. Settle in, I'll come back with positions once it calms down.",
+  "Green green green. Head down, find your rhythm — position call coming when the dust settles.",
+  "And away we go. Forget the scrap around you for now — clean laps first, numbers in a minute.",
+  "We're underway. Breathe, hit your marks — I'll read the board to you shortly."
  ]
 }
