@@ -1258,7 +1258,6 @@
   "There's a real chess match developing through the field.",
   "Keep an eye on that battle further back, it's heating up.",
   "Brake temperatures will be a real concern in this phase of the race.",
-  "It's all about who can keep their tyres alive to the flag now.",
   "The dirty air is making it so hard to follow closely through here.",
   "You can see them saving the tyres for one last push.",
   "Whoever times their move best is going to come out on top here.",
@@ -1286,9 +1285,7 @@
   "This is the phase where a race quietly slips away from you.",
   "Consistency over heroics — that's what wins races like this.",
   "There's grip coming to the circuit by the lap, and the times reflect it.",
-  "A long, long way to go, and plenty of twists left in this tale.",
   "The thing that separates the great races from the good ones is moments — and we're building them.",
-  "Psychology plays a massive part in the closing stages; who blinks first loses.",
   "Tyre degradation is the great leveller — no amount of raw pace covers it.",
   "The overtaking opportunities here are few and far between — every attempt must count.",
   "There's a real craft to following without overtaking — keeping the pressure applied.",
@@ -1432,7 +1429,9 @@
   "The race is entering its defining phase right now.",
   "With {togo} laps left, this is where it's won and lost.",
   "The tyres are going away and the tension is rising — {togo} to go.",
-  "Squeaky-bum time now — {togo} laps remaining."
+  "Squeaky-bum time now — {togo} laps remaining.",
+  "It's all about who can keep their tyres alive to the flag now.",
+  "Psychology plays a massive part in the closing stages; who blinks first loses."
  ],
  "final_lap": [
   "THIS IS IT — the FINAL LAP! Who takes the glory?",
@@ -1768,7 +1767,7 @@
   "It hasn't come off for {drv} — the pace just wasn't quite there.",
   "That one's slipped away from {drv}. The pit wall will be regrouping.",
   "{stake} has got away from {drv} there — and you sense the plan is about to change.",
-  "No {stake} for {drv} this time. These things happen — the race is still long.",
+  "No {stake} for {drv} this time. These things happen; that is motor racing.",
   "{drv} came up just short of {stake}. The engineer will be back on the radio."
  ],
  "obj_booth_brief": [

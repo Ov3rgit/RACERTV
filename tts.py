@@ -561,8 +561,12 @@ class Tts:
         Only booth commentary is play-by-play and stale after a cut; radio
         lines still make sense a few seconds later (their TTL still applies)."""
         self._epoch += 1
-        self._answer_due = 0.0             # purged exchange can't be waited on
         if not keep_engineer:
+            # A FULL purge really does take everything, so there is no longer
+            # an answer to wait for. An INTERRUPT keeps exchange replies now
+            # (see below), so clearing the hold here would let other lines
+            # wedge into the gap the hold exists to protect.
+            self._answer_due = 0.0
             self._eng_epoch = self._epoch
         kept = []
         for q in (self.gen_q, self.play_q):
@@ -572,7 +576,20 @@ class Tts:
                     if payload is None:
                         continue
                     per = payload[1 if len(payload) == 9 else 3]
-                    if keep_engineer and per not in CLEAN_PERSONAS:
+                    # AN AIRED QUESTION MUST GET ITS ANSWER. prio < 0 is an
+                    # exchange reply, queued from the moment its question
+                    # actually started playing — so by the time it exists, the
+                    # viewer has already heard "what do you make of that,
+                    # Brett?" out loud. Dropping it here left the question
+                    # hanging and the pundit apparently ignoring his co-host: a
+                    # transcript shows two questions whose next pundit line was
+                    # an incident call, and one that went 72 seconds before he
+                    # spoke again, by which point he answered a LATER question.
+                    # Incidents are frequent, and a booth interrupt is exactly
+                    # when this used to happen. A full purge (stop/flush) still
+                    # takes everything; this only survives an interrupt.
+                    if keep_engineer and (per not in CLEAN_PERSONAS
+                                          or payload[-1] < 0):
                         kept.append((q, per, payload))
                     else:
                         _log(f"purge DROP persona={per}")
@@ -585,7 +602,12 @@ class Tts:
             # gen jobs are 9-tuples (epoch at [5]), play jobs 8-tuples ([4]);
             # stamp the new epoch so the survivor isn't dropped as stale
             lst[5 if len(lst) == 9 else 4] = self._epoch
-            self._qput(q, per, tuple(lst))
+            # KEEP THE PRIORITY. _qput recomputes it from the persona when it
+            # isn't given one, which would demote a surviving exchange reply
+            # from -1 to 1 and bury it behind the very commentary it is meant
+            # to pre-empt — the answer would survive the purge only to arrive
+            # far too late to belong to its question.
+            self._qput(q, per, tuple(lst), prio=lst[-1])
 
     def _stale(self, persona, epoch):
         """True if a pipeline job was superseded by an interrupt. Team radio
