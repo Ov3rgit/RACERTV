@@ -1,132 +1,143 @@
-RaceRoom Replay Overlay
-=======================
+RacerTV  —  a broadcast for your RaceRoom races
+===============================================
+v1.0.7
 
-A transparent, always-on-top, click-through, broadcast-style overlay that
-reads RaceRoom's live shared memory (works in races AND replays):
+RacerTV turns a RaceRoom session into a televised race. A commentary booth
+(Miles Crawford on play-by-play, Brett Calloway on colour) calls the action,
+your race engineer talks to you on team radio, and rival drivers key the mic
+about their own races. On screen you get a broadcast timing tower, a relative
+panel, sector times, flags, and a race-objective card.
 
-  - Timing tower: position box, ▲/▼ position-change arrows vs grid, tyre
-    compound dot, car number, driver name, P2P/DRS tag, INT (interval to car
-    ahead) and LEAD (cumulative gap to leader) columns. Viewed car = gold,
-    leader = blue, fastest-lap holder = purple edge. Close battles (<1s)
-    are highlighted white.
-  - Relative panel (right): the cars immediately around the focused car with
-    +/- time gaps - best for following a battle.
-  - Fastest-lap banner (lower third): purple flash when a new fastest lap is
-    set, with driver + time.
-  - Focused-car sector strip: running lap time + S1/S2/S3 colored purple
-    (session best) / green (personal best) / yellow.
-  - Flag & penalty chips: yellow (per sector), blue, black, white, chequered,
-    and the viewed car's penalty.
-  - Header: track + layout, session type, REPLAY flag, lap counter / time left.
-  - Track map (bottom-left): auto-traced circuit outline with start/finish
-    marker, yellow-sector highlighting, multiclass car colors, and live dots.
+It reads RaceRoom's shared memory and nothing else. It is read-only: it cannot
+touch your race, your inputs or your files.
 
-HOW TO RUN
-----------
-1. In RaceRoom video settings set Display Mode to BORDERLESS (or Windowed).
-   Exclusive Fullscreen will hide any overlay.
-2. Double-click "Start Overlay.bat"  (or run: python r3e_overlay.py)
-3. Load a replay or session. The overlay updates automatically.
 
-TOGGLE BUTTON
--------------
-A small "● OVERLAY" button stays pinned to the top-left of the game and is
-ALWAYS visible (in races, menus, and even if you click to another window), so
-you always know the overlay is there. Click it to hide/show. It shows status:
-  LIVE (green) = race/replay        standby (yellow) = in menus
-  waiting (yellow) = game not up     OFF (orange) = you hid it
-The full overlay (tower, map, etc.) only appears during a RACE or REPLAY;
-otherwise just the toggle button shows.
+-------------------------------------------------------------------------
+INSTALL  —  three steps
+-------------------------------------------------------------------------
 
-TEAM RADIO
-----------
-Driver radio bubbles pop up (bottom-right) reacting to the action around the
-car you're watching. Each driver has a PERSONALITY (hothead / cocky / veteran /
-dramatic / joker), assigned consistently by name, with its own explicit lines:
-  - you pass a driver  -> they complain (in character)
-  - a driver passes you -> they taunt you
-  - you're closing on the car ahead -> they react
-  - any spin/crash (loses 2+ places) -> they react to their new position
-Crashes near your battle are high priority; crashes elsewhere still get an
-occasional reaction but yield to your own race.
-Up to 3 bubbles can stack at once (a big multi-car incident airs a burst),
-each gone after ~6s, hard-capped at 3 on screen so it never floods. Then a
-~6s quiet window. Tunables at top of r3e_overlay.py: RADIO_GLOBAL_CD,
-RADIO_DRIVER_CD, RADIO_NEAR, RADIO_FAR_CHANCE, RADIO_MAX_BUBBLES,
-RADIO_MAX_BURST. Seven personalities (HOTHEAD, COCKY, VETERAN, DRAMATIC,
-JOKER, ROOKIE, VILLAIN) live in the PERSONAS dict - add your own lines freely.
+1. UNZIP the whole folder anywhere you like (Desktop is fine).
+   Keep the folder together — RacerTV.exe needs the files next to it.
 
-CONTROLS (work even though clicks pass through to the game)
-----------------------------------------------------------
-  Click "≡ SETTINGS" (top-left, under the clock) for a menu with ALL the
-  toggles below — no hotkeys needed:
-    Overlay UI · Booth commentary · All voices · Compact tower · Debug · Quit
+2. In RaceRoom: Settings -> Video -> Display Mode = BORDERLESS or WINDOWED.
+   *** Exclusive Fullscreen hides ALL overlays, including this one. ***
 
-  Click "● OVERLAY"  hide / show the overlay
-  Ctrl + Shift + O   UI on / off — commentary-only mode: with the UI hidden
-                     the full broadcast audio (booth, engineer, driver radio)
-                     KEEPS RUNNING, so you can race with voices only
-  Ctrl + Shift + C   booth commentary on / off (Miles & Brett) — your race
-                     engineer and the driver radio stay live
-  Ctrl + Shift + R   team radio on / off (race engineer + driver radio) —
-                     the booth commentary stays live; cards still show muted
-  Ctrl + Shift + E   compact tower (racing) <-> full tower (replay watching)
-  Ctrl + Shift + M   mute / unmute ALL spoken audio (TTS)
-  Ctrl + Shift + Q   close the overlay
+3. Double-click RacerTV.exe, then load a session.
 
-LOOK & FONTS
-------------
-RacerTV uses a broadcast-graphics identity: the wide "Michroma" display face
-on the chyron/header and "Chakra Petch" on all timing data and captions (both
-SIL Open Font License, bundled next to the exe as Michroma-Regular.ttf +
-ChakraPetch-*.ttf and loaded privately at runtime - no install needed). If the
-ttf files are missing it falls back to Bahnschrift so the UI never blanks.
-Panels fade in/out, the commentary lower-third slides up, radio cards pop in,
-the header shows a blinking LIVE/REPLAY tag over CRT scanlines, and tower rows
-flash green/red on a position change.
+That's it. Nothing to install, no drivers, no config files.
 
-TEAM RADIO VOICE (TTS)
-----------------------
-Radio messages are spoken aloud through a "team radio" effect (band-pass +
-static + squelch click), each driver with a persona voice.
+Windows may warn about an unknown publisher the first time (the app isn't
+code-signed). Click "More info" -> "Run anyway". The full source is public at
+github.com/Ov3rgit/RACERTV if you want to check it first.
 
-VOICES: nothing to install. The overlay uses Microsoft's online neural
-voices (edge-tts) — a full international cast of accents, synthesized in
-the cloud — so you get broadcast-quality voices out of the box. The only
-requirement is an INTERNET CONNECTION while playing.
+You need an INTERNET CONNECTION for the good voices — they are Microsoft's
+online neural voices, so there is nothing to download. Offline, RacerTV falls
+back to Windows' built-in voices, which sound noticeably more robotic. That is
+expected, not a bug. (Optional: to improve the offline fallback, add voices in
+Windows Settings -> Time & Language -> Speech, reboot, then right-click
+setup_voices.ps1 -> Run as administrator.)
 
-OFFLINE FALLBACK: with no internet, the overlay automatically drops back
-to Windows' built-in offline voices (System.Speech). Most PCs only have
-one or two of these, so it sounds far more robotic — that's expected.
-To improve the fallback, install extra voices via Windows Settings ->
-Time & Language -> Speech -> Add voices, reboot, then run
-setup_voices.ps1 AS ADMINISTRATOR (it exposes the new voices to the
-overlay). This is optional and only affects offline play.
 
-tts.py holds the FX knobs (NOISE, DRIVE, MASTER_VOL) and the voice cast
-tables (NEURAL_VOICES, PERSONA_VOICE).
+-------------------------------------------------------------------------
+THE CORNER  —  what the top-left icons mean
+-------------------------------------------------------------------------
 
-NOTE: data only streams while a replay is PLAYING (RaceRoom freezes the field
-when paused). Press play and the timing appears within ~2s.
+  ●        status light.  green = on air        yellow = in the menus
+                          dim   = no RaceRoom   amber "SHOW" = overlay hidden
+  ≡        settings menu — click it, everything is in there
+  19:04    the real-world clock (handy for online session start times)
 
-The overlay stays on top of the game and keeps showing the last frame if you
-briefly click away, so it won't blink out. It also shows yellow/blue/black/
-white/chequered flags and the viewed car's penalty as broadcast chips under
-the header.
+Click the dot to hide or show the overlay. Clicks pass straight through to the
+game everywhere else, so the overlay never steals your mouse or keyboard.
 
-NOTES
------
-- The overlay is click-through: it never steals mouse/keyboard from the game.
-- It reads only; it cannot affect your race or inputs.
-- Files:
-    r3e_data.py     shared-memory struct + reader (matches r3e.h v3.5)
-    r3e_overlay.py  the GUI overlay
-    r3e.h / R3E.cs  official Sector3 reference (for future tweaks)
 
-TWEAKS (top of r3e_overlay.py)
-------------------------------
-  WIN_ALPHA   overall opacity
-  MAX_ROWS    how many cars to show in the tower
-  UPDATE_MS   refresh rate (80 = ~12.5 fps)
-  colors      ACCENT / LEADER / panel colors
-Tell me what to change and I'll adjust it.
+-------------------------------------------------------------------------
+RACE OBJECTIVES  —  new in 1.0.7
+-------------------------------------------------------------------------
+
+Your engineer now sets you real targets and holds you to them: pass the car
+ahead, close a gap, defend a place, recover after an incident, nurse the
+tyres, keep it clean, or bring the lead home.
+
+He only sets a target the maths says is actually on. If nothing is realistic,
+he says nothing — a goal you could never reach is worse than no goal.
+
+The card sits under the relative panel on the right:
+
+  TARGET        what you're being asked to do, with laps left and live gap
+  progress bar  fills as you close it out
+  border glow   green while a gain is being confirmed, red while a loss is
+                counting down, solid on the verdict
+
+Targets resolve out loud — "that's the job done" or "just didn't have it" —
+and the booth reacts to what it can see you doing.
+
+
+-------------------------------------------------------------------------
+CONTROLS
+-------------------------------------------------------------------------
+
+Everything is in the ≡ menu, so you never need a hotkey. If you prefer them:
+
+  Ctrl+Shift+O   overlay UI on / off  (audio KEEPS running — commentary-only)
+  Ctrl+Shift+C   booth commentary on / off  (engineer + radio stay live)
+  Ctrl+Shift+R   team radio on / off  (booth stays live)
+  Ctrl+Shift+M   mute ALL spoken audio
+  Ctrl+Shift+E   compact tower <-> full tower
+  Ctrl+Shift+D   debug HUD
+  Ctrl+Shift+Q   quit
+
+The menu also has a master volume slider for the voices.
+
+
+-------------------------------------------------------------------------
+WHAT'S ON SCREEN
+-------------------------------------------------------------------------
+
+  Timing tower (left)     position, gain/loss vs grid, tyre compound, car
+                          number, name, P2P/DRS, interval + gap to leader.
+                          You = gold, leader = blue, fastest lap = purple.
+  Relative panel (right)  the cars immediately around you, with gaps
+  Objective card          under the relative panel (see above)
+  Sector strip            running lap + S1/S2/S3, purple/green/yellow
+  Lower third             what the booth is saying, in sync with the audio
+  Radio cards             engineer and rival drivers, bottom right
+  Header                  track, session, lap/time left, LIVE tag
+  Flags & penalties       yellow, blue, black, white, chequered
+
+Works in replays too.
+
+
+-------------------------------------------------------------------------
+TROUBLESHOOTING
+-------------------------------------------------------------------------
+
+I can't see the overlay
+  Display Mode must be Borderless or Windowed, not Exclusive Fullscreen.
+
+No voices, or robotic voices
+  Robotic = you're offline and on the Windows fallback. Silent = check the
+  ≡ menu (All voices may be muted) and your internet connection.
+
+The timing is frozen in a replay
+  RaceRoom stops sending data while a replay is paused. Press play and it
+  comes back within a couple of seconds.
+
+It says nothing and the dot stays dim
+  The dot stays dim until the real game window is up. RacerTV deliberately
+  ignores the small red "Loading RaceRoom" splash and waits for the game.
+
+
+-------------------------------------------------------------------------
+CREDITS & LICENCE
+-------------------------------------------------------------------------
+
+RacerTV is a fan-made overlay for RaceRoom Racing Experience. It is not
+affiliated with, endorsed by or connected to Sector3 Studios or KW Studios,
+and it is not a copy of any real broadcaster — Miles and Brett are original
+characters for an invented channel.
+
+Fonts: Michroma and Chakra Petch, both SIL Open Font License, bundled and
+loaded at runtime (nothing is installed on your system).
+
+Source: github.com/Ov3rgit/RACERTV
