@@ -979,6 +979,24 @@ class ObjectiveMixin:
         o["lap0"] = me.completed_laps
         o["gap0"] = self.interval.get(vslot)
         o["set_at"] = now
+        # DIAGNOSTIC. Reported: targets whose deadline outruns the race ("close
+        # the gap in 4 laps" with 3 left, "hold to the line" on a 3-lap target
+        # with 4 to run). The deadline IS clamped to laps_left just above, so
+        # either laps_left is wrong or the phrasing implies the flag when the
+        # target ends sooner — and the transcript alone cannot tell those
+        # apart. Record what the maths actually saw, so the next race decides
+        # it instead of me guessing.
+        try:
+            from tts import _log as _objlog
+            _lead = order[0].completed_laps if order else -1
+            _objlog(f"obj SET kind={o['kind']} laps={o['laps']} "
+                    f"laps_left={laps_left} total={s.number_of_laps} "
+                    f"lead_done={_lead} my_done={me.completed_laps} "
+                    f"rem={getattr(s, 'session_time_remaining', 0):.0f}s "
+                    f"white={getattr(getattr(s, 'flags', None), 'white', 0)} "
+                    f"hud={o.get('hud','')!r}")
+        except Exception:
+            pass
         o["_new_until"] = now + 6.0      # HUD shows a NEW TARGET flash
         self._obj = o
         self._obj_notice("set", now)
