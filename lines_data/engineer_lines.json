@@ -1000,5 +1000,12 @@
   "Box stop scrubs that objective. Clean stop, then we reset and go again.",
   "Pit lane resets everything — forget that last target, fresh plan on the way out.",
   "That target's parked while we service the car. New goal once you rejoin."
+ ],
+ "fell_big": [
+  "Big moment — we've dropped to P{pos}, {n} places gone. Deep breath, we rebuild from here.",
+  "That's cost us — P{pos} now, {n} places lost. Head down, the race isn't over.",
+  "Okay, damage done: down {n} spots to P{pos}. Reset. One car at a time from here.",
+  "We're P{pos} after that, {n} places gone. Forget it — show me your recovery drive.",
+  "Rough one — {n} places lost, P{pos}. Stay with me, there's still racing to do."
  ]
 }

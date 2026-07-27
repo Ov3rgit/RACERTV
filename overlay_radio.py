@@ -232,16 +232,39 @@ class RadioMixin:
                     events.append((1, osl, self._dname(over), line, revenge,
                                    self._persona_for(over), "smug"))
             elif pvf is not None and fpc >= pvf + 2:            # you spun / lost places
+                # bypass=True: your own spin is a one-shot that MUST land.
+                # As a normal event it inherited the engineer's 9s digit-TTL
+                # and, queued into the incident chaos its own spin causes, it
+                # aged out — the debug log shows "Dropped a spot to P14.
+                # Regroup" as play DROP-stale while four booth lines about the
+                # same spin were purged. The driver lost eleven places and
+                # nobody on the radio acknowledged it.
                 events.append((0, vslot, self._dname(focused),
-                               self._radio_line(focused, "crash"), False,
+                               self._radio_line(focused, "crash"), True,
                                self._persona_for(focused), "shock"))
 
             # ARE YOU GOING BACKWARDS? Remember when you last LOST a place, so
             # the chase radio below can tell an attack from a fall.
             _prev_my = getattr(self, "_radio_my_place", None)
             if _prev_my is not None and fpc > _prev_my:
+                if now - getattr(self, "_fall_t", -1e9) > RADIO_FALL_QUIET:
+                    self._fall_from = _prev_my       # a NEW fall starts here
                 self._fall_t = now
             self._radio_my_place = fpc
+            # A BIG CUMULATIVE FALL gets acknowledged as ONE event. The old
+            # trigger (confirmed place dropping 2+ in a single tick) never
+            # fired in practice: debounced places fall ONE at a time, so an
+            # eleven-place spin reads as eleven single steps and the engineer
+            # said nothing at all about it — reported, and visible in the
+            # transcript where a P3->P14 spin got only a stale one-place ack.
+            # Latched here, drained by _engineer_events like _obj_say so it
+            # goes through the real emit path with bypass (must land).
+            _ff = getattr(self, "_fall_from", None)
+            if (_ff is not None and fpc - _ff >= 3
+                    and now - getattr(self, "_fall_said_t", -1e9) > 30.0):
+                self._fall_said_t = now
+                self._fall_from = None
+                self._fall_say = (fpc, fpc - _ff)    # (pos now, places lost)
 
             # closing on the car ahead -> ESCALATING chase radio: distinct lines
             # at each tier (1.5s / 0.8s / 0.3s), each aired once per chase, so a
@@ -632,6 +655,17 @@ class RadioMixin:
                 return add(ocat, 2 if is_nudge else 1, bypass=not is_nudge,
                            **okw)
 
+        # ---- BIG FALL: you spun and tumbled through the field ---------------
+        # Latched in update_radio (cumulative, since debounced places fall one
+        # step per tick and a single-tick trigger never fires). One line, must
+        # land: an eleven-place spin with a silent engineer reads as the radio
+        # being broken.
+        fall = getattr(self, "_fall_say", None)
+        if fall:
+            self._fall_say = None
+            _fpos, _fn = fall
+            return add("fell_big", 1, bypass=True, pos=_fpos, n=_fn)
+
         # PRACTICE / QUALIFY / WARMUP: EVENT-DRIVEN. The engineer reacts to YOUR
         # actual laps — a lap completed (with gap to pole), a personal best,
         # provisional pole, a slow lap, a deleted lap — plus a real track tip to
@@ -970,6 +1004,21 @@ class RadioMixin:
         cut_edge = cuts_now > self._eng_cuts
         lap_edge = (getattr(self, "_eng_plv", 1) == 1 and plv == 0
                     and self._racing and focused.in_pitlane != 1)
+        # DIAGNOSTIC — reported: "the engineer isn't calling track limits."
+        # The code paths are all here, so either the signals never fire in
+        # this session type (cut_track_warnings is a SERVER field, -1 offline;
+        # lap_valid may never read 1 in a race) or the calls are generated and
+        # starved downstream. The transcript cannot tell those apart, so log
+        # every raw edge and let the next race say which it is.
+        if cut_edge or (plv != getattr(self, "_dbg_plv", None)):
+            try:
+                from tts import _log as _limlog
+                _limlog(f"limits EDGE cuts={cuts_now} prev={self._eng_cuts} "
+                        f"plv={plv} racing={self._racing} "
+                        f"pit={focused.in_pitlane}")
+            except Exception:
+                pass
+        self._dbg_plv = plv
         # clamp at 0 so an N/A (-1) reading can never manufacture a rising
         # edge when the counter comes back; a decrease = reset, no edge
         self._eng_cuts = max(0, cuts_now)
@@ -1291,14 +1340,24 @@ class RadioMixin:
         # periodic "where are we in the race" update so you always know how far is
         # left (laps or, in a timed race, minutes) — on its own slow cooldown
         if self._racing and now - getattr(self, "_eng_laps_cd", 0.0) > 70.0:
+            # DON'T queue it to die: this is take-it-or-leave-it filler, and
+            # queued into a busy spell it aged past its TTL and aired nothing —
+            # "Lap 0 of 11 done" sat 24s in the queue and play DROP-stale'd.
+            # Skipping WITHOUT burning the cooldown retries as soon as the
+            # queue clears instead of going quiet for another 70 seconds.
+            busy = self.tts is not None and self.tts._pending() >= 2
             if s.number_of_laps > 0:
                 done = focused.completed_laps
                 lt = s.number_of_laps - done
-                if lt >= 4:                       # last few handled by the countdown
+                # done >= 1: completed_laps is 0 for the whole of lap one, and
+                # "Lap 0 of 11 done" is telemetry-true and radio-nonsense —
+                # reported verbatim. There's nothing to update on lap one
+                # anyway; the start call just said where you are.
+                if lt >= 4 and done >= 1 and not busy:
                     self._eng_laps_cd = now
                     return add("laps_update", 2, togo=lt, done=done,
                                total=s.number_of_laps)
-            elif s.session_time_remaining > 90:
+            elif s.session_time_remaining > 90 and not busy:
                 self._eng_laps_cd = now
                 return add("time_update", 2,
                            mins=int(s.session_time_remaining // 60))
@@ -1622,7 +1681,7 @@ class RadioMixin:
         if not self.tts:
             return
 
-        def say(cat, persona, cutoff=False, **kw):
+        def say(cat, persona, cutoff=False, protect=False, **kw):
             pool = COMMENTARY_LINES.get(cat)
             if not pool:
                 return
@@ -1633,10 +1692,21 @@ class RadioMixin:
             text = _safe_format(self._pick(pool, ("COMM", cat)), kw)
             if cutoff:
                 self.tts.interrupt()
+            # protect=True rides the exchange lane (prio -1): force already
+            # stops the TTL, but a CHAIN of incidents purges the booth every
+            # few seconds and force does nothing against an epoch purge. In a
+            # crash-happy opening lap the player's own spin was named FOUR
+            # times and every one died as render DROP-cut to the next
+            # incident's interrupt — the debug log shows the sting airing and
+            # then "I think that was Over Boy who went off", "Over Boy went
+            # off the circuit there", "There's a job on for Over Boy here"
+            # all cut mid-render. The viewer heard "somebody's off" three
+            # times and never once who.
             self.tts.speak(self._spoken(text), persona,
                            seed=("PUNDIT" if persona == "PUNDIT" else "COMM"),
                            intensity=(2 if persona == "PUNDIT" else 0),
-                           on_play=self._show_caption, force=True)
+                           on_play=self._show_caption, force=True,
+                           exchange=protect)
 
         active = now < getattr(self, "_incident_until", 0.0)
         # ONE INCIDENT PER DRIVER. The window above coalesces by TIME but never
@@ -1678,7 +1748,9 @@ class RadioMixin:
             stung = (not active) and self.tts.sting(
                 "alert", "PUNDIT", on_play=self._show_caption)
             cat = ("offtrack" if (stung or not cutting_lead) else "offtrack_cut")
-            say(cat, "PUNDIT", cutoff=not stung, drv=name)
+            # the PLAYER's own off is the story of the moment — its named line
+            # must survive whatever incident chain follows (see say/protect)
+            say(cat, "PUNDIT", cutoff=not stung, drv=name, protect=primary)
             say("offtrack_ack", "COMMENTATOR")
             self._incident_until = now + 7.0
             self._incident_extra = 0
