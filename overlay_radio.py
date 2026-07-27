@@ -21,6 +21,12 @@ import time
 # its own trigger and does not wait on this gate, so raising it removes noise
 # without ever delaying news.
 ENC_CD = 42.0
+
+# Seconds of quiet on the "he's hunting me" chase radio after you LOSE a place.
+# Long enough to cover a spin and the whole slide through the field it causes
+# (every further place lost pushes the window out again), short enough that a
+# normal racing pass you immediately fight back against isn't muted.
+RADIO_FALL_QUIET = 8.0
 from overlay_common import (_BUBBLE_H, _safe_format, ACCENT, CARD_BG, DIM, ENGINEER_COLOR,
     ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, STRIKE_GAP, TEXT, _RADIO_LOCK)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
@@ -230,11 +236,31 @@ class RadioMixin:
                                self._radio_line(focused, "crash"), False,
                                self._persona_for(focused), "shock"))
 
+            # ARE YOU GOING BACKWARDS? Remember when you last LOST a place, so
+            # the chase radio below can tell an attack from a fall.
+            _prev_my = getattr(self, "_radio_my_place", None)
+            if _prev_my is not None and fpc > _prev_my:
+                self._fall_t = now
+            self._radio_my_place = fpc
+
             # closing on the car ahead -> ESCALATING chase radio: distinct lines
             # at each tier (1.5s / 0.8s / 0.3s), each aired once per chase, so a
             # long chase tells a story instead of repeating one line. Resets when
             # the gap opens back up (a new chase later sounds fresh).
-            if fp > 1:
+            #
+            # NOT WHILE YOU ARE FALLING THROUGH THE FIELD. This fires off the
+            # gap to whoever is directly ahead, and when you spin and drop from
+            # P3 to P15 that is a DIFFERENT driver every few seconds — each one
+            # brand new to the _chase map, each one genuinely within a second of
+            # you as they stream past your stricken car. So every single driver
+            # you fell past keyed the mic to say you were hunting them down:
+            # seven of them in a row in one transcript, "I can see the bastard
+            # in my mirrors", "he's on my gearbox", "Over Boy's right behind
+            # me", while the player was spinning to P15. The gap was real; the
+            # story it implied was the exact opposite of what happened. Every
+            # fresh place lost pushes this window out, so it stays quiet for the
+            # whole fall rather than a fixed time from the spin.
+            if fp > 1 and now - getattr(self, "_fall_t", -1e9) > RADIO_FALL_QUIET:
                 ahead = placemap.get(fp - 1)
                 itv = self.interval.get(vslot)
                 if ahead is not None and itv is not None and itv > 0:
