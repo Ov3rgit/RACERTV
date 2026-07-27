@@ -93,16 +93,27 @@ print("  fell_big pool formats cleanly (%d lines): OK"
       % len(ENGINEER_LINES["fell_big"]))
 
 # ---- 2. "Lap 0 of 11" can never air -------------------------------------
-def laps_events(o, s, you, done, pend=0):
+def laps_events(o, s, you, done, pend=0, tries=6):
+    """_engineer_events emits ONE candidate per tick, so any other branch
+    (sector coaching, limits watch) can legitimately win a given tick. Loop a
+    few ticks with the competing cooldowns parked, or this test races them."""
     o.tts._pend = pend
-    o._eng_laps_cd = 0.0
     you.completed_laps = done
-    evts = []
-    o._engineer_events(s, you, {d.place: d for d in s.all_drivers_data_1[:16]},
-                       evts, time.time())
+    out = []
+    for _ in range(tries):
+        o._eng_laps_cd = 0.0
+        o._eng_sec_cd = time.time()        # park the sector coach
+        o._eng_tip_cd = time.time()        # ...and the track-tip branch
+        evts = []
+        o._engineer_events(s, you,
+                           {d.place: d for d in s.all_drivers_data_1[:16]},
+                           evts, time.time())
+        out += [e[3] for e in evts if "of %d" % s.number_of_laps in e[3]
+                or "laps in" in e[3] or "left" in e[3].lower()]
+        if out:
+            break
     o.tts._pend = 0
-    return [e[3] for e in evts if "of %d" % s.number_of_laps in e[3]
-            or "laps in" in e[3] or "left" in e[3].lower()]
+    return out
 
 
 o, s, you = race()

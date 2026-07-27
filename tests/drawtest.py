@@ -119,6 +119,18 @@ for _kind, _goal in (("position", 2), ("chase", 3), ("recover", 5),
               "_laps_left": 2, "_gap": 0.9, "_trend": -1, "kind": _kind,
               "goal_pos": _goal, "laps": 4, "lap0": 2}
     check(f"draw_objective (icon: {_kind})", lambda: o.draw_objective(None))
+# HOLD-STATE GLOW: a maturing loss (red ramp), a maturing gain (green ramp)
+# and the fractional ring maths at several ages — an unexercised glow branch
+# is exactly the _card(glass=) class of bug this file exists to catch.
+import time as _t
+for _key, _age in (("_hold_lose", 0.5), ("_hold_lose", 6.0),
+                   ("_hold_pass", 0.2), ("_hold_pass", 2.9),
+                   ("_hold_clear", 3.9)):
+    o._obj = {"hud": "Hold P5", "_prog": 0.5, "_badge": "P5",
+              "_laps_left": 2, "_gap": 0.6, "_trend": 1, "kind": "defend",
+              "goal_pos": 5, "laps": 4, "lap0": 2, _key: _t.time() - _age}
+    check(f"draw_objective (glow {_key} @{_age}s)",
+          lambda: o.draw_objective(None))
 o._obj = None
 o._obj_result = {"ok": True, "hud": "Pass Pierre Dubois",
                  "until": 9e18}

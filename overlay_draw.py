@@ -14,6 +14,8 @@ from overlay_panel import _Panel
 from overlay_common import (BG_STIPPLE, _BUBBLE_H, ACCENT, CARD_BG, CARD_BG2, CARD_BORDER,
     COMMENTATOR_COLOR, CYAN, DIM, GREEN, HEADER_ACCENT, LEADER, MAX_ROWS,
     PANEL_BG, PANEL_OUTLINE, PANEL_STIPPLE, PURPLE, TEXT, _RADIO_LOCK)
+from overlay_objective import (OBJ_HOLD_GAIN, OBJ_HOLD_LOSE,
+    OBJ_DEFEND_CLEAR_HOLD)
 from lines import (COMMENTATOR_NAME, PUNDIT_NAME)
 
 
@@ -888,6 +890,44 @@ class DrawMixin:
                 litw = max(1, int(round(sw_ * frac)))
                 self.canvas.create_rectangle(sx, by, sx + litw, by + bh,
                                              fill=c_lit, outline="")
+
+        # --- HOLD-STATE GLOW on the border. The resolver already runs every
+        # verdict through a debounce (_obj_held: a gained place must stick, a
+        # lost one must stay lost) — but that deliberation was invisible, so a
+        # rival nosing ahead for two corners LOOKED instantly fatal on the HUD
+        # even though the maths was still waiting. The border now shows the
+        # deliberation: it warms toward green while a gain is maturing, toward
+        # red while a loss is counting down, brightening ring by ring as the
+        # hold approaches its verdict (tk has no alpha — the ramp is stacked
+        # inset outlines, same trick as the clock glow). A resolved card glows
+        # at full strength in its verdict colour for its whole result window.
+        # Rings sit INSIDE the card edge: the panel window is exactly card-
+        # sized, so anything drawn outside it would simply be clipped away.
+        glow = None
+        if res is not None and not obj:
+            glow = ((GREEN if res.get("ok") else "#ff6b6b"), 1.0)
+        elif obj:
+            for k, dur, colr in (("lose", OBJ_HOLD_LOSE, "#ff6b6b"),
+                                 ("drop", OBJ_HOLD_LOSE, "#ff6b6b"),
+                                 ("pass", OBJ_HOLD_GAIN, GREEN),
+                                 ("close", OBJ_HOLD_GAIN, GREEN),
+                                 ("gain", OBJ_HOLD_GAIN, GREEN),
+                                 ("clear", OBJ_DEFEND_CLEAR_HOLD, GREEN)):
+                t0 = obj.get("_hold_" + k)
+                if t0:
+                    glow = (colr, max(0.15, min(1.0, (now - t0) / dur)))
+                    break
+        if glow is not None:
+            gcol, gfrac = glow
+            rings = ((("#12331b", "#1e5c30", GREEN) if gcol == GREEN
+                      else ("#331212", "#5c1e1e", "#ff6b6b")))
+            # 1..3 rings, outside-in: faint outer hint first, the bright inner
+            # ring only once the hold is nearly decided (or already resolved)
+            nring = 1 + min(2, int(gfrac * 2.999))
+            for (off, cring) in tuple(zip((4, 2, 0), rings))[:nring]:
+                self.canvas.create_rectangle(x + off, y + off,
+                                             x + w - off, y + h - off,
+                                             outline=cring, width=2)
 
     def draw_settings(self):
         """Clickable '≡ SETTINGS' chip pinned to the game's top-left (under

@@ -108,7 +108,11 @@ print("  a place lost then regained within the window does NOT fail: OK")
 you.place = 6                             # lost it and it stays lost
 o.cplace[vs] = 6
 chk(o, s, base + 3.0)                      # re-arm
-r = chk(o, s, base + 3.0 + 6.0)           # held past OBJ_HOLD_LOSE
+from overlay_objective import OBJ_HOLD_LOSE
+r = chk(o, s, base + 3.0 + OBJ_HOLD_LOSE + 2.0)   # held past OBJ_HOLD_LOSE
+# (the margin was hardcoded at 6s when the hold was 4s; it now tracks the
+# constant — raised to 8s after a real race where a rival held the place ~7s,
+# overshot and spun, and the 4s hold called the miss a second too early)
 assert r and r[0] == "obj_miss_defend", f"a place lost for good didn't fail: {r}"
 print("  a place lost past the window DOES fail: OK")
 

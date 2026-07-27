@@ -37,8 +37,18 @@ OBJ_NUDGE_CD = 22.0      # min seconds between mid-objective progress lines from
                          # the engineer — encouragement, not a running commentary
 OBJ_HOLD_GAIN = 3.0      # a gained/passed place must STICK this long before it
                          # counts as met — a yo-yo battle shouldn't insta-resolve
-OBJ_HOLD_LOSE = 4.0      # ...and a lost place must stay lost this long before it
-                         # fails, so being briefly repassed mid-fight isn't a miss
+OBJ_HOLD_LOSE = 8.0      # ...and a lost place must stay lost this long before it
+                         # fails. Was 4.0, and a real race proved that too
+                         # short: the car behind sent it up the inside, held the
+                         # place through the corner sequence for ~7s, overshot
+                         # and spun — and the 4s hold had already called
+                         # "obj_miss_defend" one second before the player's
+                         # regain ack was queued. A miss verdict is a one-shot
+                         # with no second chance, so waiting longer costs a late
+                         # call at worst; being wrong costs the engineer's
+                         # credibility. 8s outlasts a pass that immediately
+                         # unravels while still failing a genuine loss well
+                         # before the next objective could be offered.
 OBJ_MIN_LIFE = 15.0      # an objective may not resolve MET before it has been
                          # live this long. A target set and "achieved" seconds
                          # later was never a target — in the closing laps
