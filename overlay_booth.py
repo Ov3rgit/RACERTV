@@ -22,6 +22,18 @@ from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
     PUNDIT_NAME, PUNDIT_PICK, STORY_REPORT, TRACK_COACH, TRACK_FACTS,
     TRACK_PUNDIT, TRACK_PUNDIT_BY_TRACK, TRACK_TIPS)
 
+# --- accuracy thresholds ---------------------------------------------------
+# The booth may only make a factual claim the timing screen agrees with. Each
+# of these exists because a line asserted something the race had not done.
+DUEL_FINISH_GAP = 2.0    # a win is a "duel to the flag" only if the runner-up
+                         # is still this close at the chequered — cumulative
+                         # pressure earlier in the race does not make a 3s win
+                         # "a fight for every single inch"
+TIGHT_TRIO_GAP = 1.5     # P1..P3 must be covered by this for the booth to say
+                         # the podium places are "covered by a second"
+CLOSE_CHASE_GAP = 1.5    # "he's all over the back of him" / "only needs one
+                         # clean run" — the chaser must actually be this close
+
 
 class BoothMixin:
     """See module docstring."""
@@ -486,16 +498,23 @@ class BoothMixin:
                 L("driverstory_q", 1, persona="COMMENTATOR",
                   drv=self._crosstalk_drv)
             else:
-                d = random.choice(order[:min(6, len(order))])
-                topic = random.choice([t for t in CROSSTALK
-                                       if self._pits_live(order)
-                                       or t not in self._PIT_TOPICS])
-                self._crosstalk_topic = topic
-                self._crosstalk_drv = self._dname(d)
-                self._crosstalk_pos = d.place
-                L("crosstalk_q", 1, persona="COMMENTATOR",
-                  line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
-                  drv=self._crosstalk_drv, pos=d.place)
+                # GROUNDED. The topic and the driver used to be two independent
+                # random.choice() calls — a topic out of every topic there is,
+                # and a driver out of the top six — which is why the booth
+                # asserted things the timing screen flatly denied: "three cars
+                # covered by a second" with P3 six seconds adrift, and "what's
+                # going through the leading cockpit" answered about the driver
+                # in P5. The answer pools are full of specific claims, so the
+                # QUESTION has to be one the race can actually support.
+                pick = self._crosstalk_pick(order)
+                if pick is not None:
+                    topic, d = pick
+                    self._crosstalk_topic = topic
+                    self._crosstalk_drv = self._dname(d)
+                    self._crosstalk_pos = d.place
+                    L("crosstalk_q", 1, persona="COMMENTATOR",
+                      line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
+                      drv=self._crosstalk_drv, pos=d.place)
 
         # GRID-SORT window: for the first ~8s after lights-out the field is still
         # sorting from the standing grid, so big position swaps are NOT incidents.
@@ -1507,15 +1526,16 @@ class BoothMixin:
                            else "criticism")
                     L(cat, 6, persona=who2(), drv=self._dname(dd))
             elif pick == "crosstalk":                    # lead asks the pundit
-                d = random.choice(order[:5])
-                topic = random.choice([t for t in CROSSTALK
-                                       if pits or t not in self._PIT_TOPICS])
-                self._crosstalk_topic = topic
-                self._crosstalk_drv = self._dname(d)
-                self._crosstalk_pos = d.place
-                L("crosstalk_q", 6, persona="COMMENTATOR",
-                  line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
-                  drv=self._crosstalk_drv, pos=d.place)
+                # same grounding as the periodic exchange — see _crosstalk_pick
+                _xt = self._crosstalk_pick(order)
+                if _xt is not None:
+                    topic, d = _xt
+                    self._crosstalk_topic = topic
+                    self._crosstalk_drv = self._dname(d)
+                    self._crosstalk_pos = d.place
+                    L("crosstalk_q", 6, persona="COMMENTATOR",
+                      line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
+                      drv=self._crosstalk_drv, pos=d.place)
             elif pick == "objective":
                 pdrv = next((d for d in order
                              if d.driver_info.slot_id == s.vehicle_info.slot_id),
@@ -1868,10 +1888,25 @@ class BoothMixin:
         return random.choice(picks) if picks else None
 
     def _lead_challenger(self, wslot, order):
-        """The name of the rival who HOUNDED the winner all race, or None. Reads
-        the accumulated lead-pressure seconds: a challenger who sat within ~1.5s
-        of the leader for a real cumulative stretch (>= 45s) turns a flag-to-flag
-        win into a duel held on to. Skips a same-named car (duplicate AI grid)."""
+        """The name of the rival who HOUNDED the winner TO THE FLAG, or None.
+
+        Reads the accumulated lead-pressure seconds: a challenger who sat within
+        ~1.5s of the leader for a real cumulative stretch (>= 45s) turns a
+        flag-to-flag win into a duel held on to. Skips a same-named car
+        (duplicate AI grid).
+
+        The cumulative total ALONE is not enough, and saying so cost the booth
+        its credibility in the other direction. Every win_duel line claims a
+        close FINISH -- "right in their mirrors to the flag", "keeps them at bay
+        all the way to the chequered" -- but pressure seconds are banked from
+        anywhere in the race. A rival who harried the leader early, then faded
+        to finish three seconds down, still tripped the 45s total and the booth
+        called a comfortable win "a fight for every single inch". Reported after
+        a race where the winner finished a clear 3s up the road.
+
+        So the challenger must also still BE the challenger at the end: second
+        place, and close enough that the last lap was genuinely in doubt.
+        Anything else takes the generic (still celebratory) win call."""
         press = {s: t for (l, s), t in getattr(self, "_lead_press", {}).items()
                  if l == wslot}
         if not press:
@@ -1881,6 +1916,13 @@ class BoothMixin:
             return None
         chdrv = next((d for d in order if d.driver_info.slot_id == chsl), None)
         if chdrv is None:
+            return None
+        # STILL a duel at the flag? Must be the runner-up, and within a margin
+        # that makes "to the chequered" true rather than merely dramatic.
+        if self.cplace.get(chsl, chdrv.place) != 2:
+            return None
+        fgap = self.interval.get(chsl)
+        if fgap is None or fgap > DUEL_FINISH_GAP:
             return None
         wdrv = next((d for d in order if d.driver_info.slot_id == wslot), None)
         nm = self._dname(chdrv)
@@ -2029,6 +2071,84 @@ class BoothMixin:
             return True
         d = order[0] if order else None
         return d is not None and getattr(d, "pitstop_status", -1) in (0, 1, 2)
+
+    def _crosstalk_pick(self, order):
+        """Choose a crosstalk (topic, driver) the RACE ACTUALLY SUPPORTS, or
+        None when nothing fits and the booth is better off staying quiet.
+
+        The answer pools are not neutral colour — many of them state a checkable
+        fact ("three cars covered by a second", "{drv} is all over the back of
+        that car", "{drv} has managed the gap perfectly"). Picking the topic and
+        the driver at random meant those claims were true only by luck. The
+        reported symptoms both came from here: the podium question answered
+        "covered by a second" while P3 sat six seconds back, and a question
+        about the leading cockpit answered about the driver running fifth.
+
+        So each grounded topic states its own precondition and supplies the
+        driver it is ABOUT. Opinion topics (banter, racecraft, era) assert
+        nothing checkable and are always available, which is what keeps the
+        booth talking when the race is strung out."""
+        if not order:
+            return None
+        pits = self._pits_live(order)
+        gap = lambda d: self.interval.get(d.driver_info.slot_id)
+        leader = order[0]
+        second = order[1] if len(order) > 1 else None
+        third = order[2] if len(order) > 2 else None
+
+        cands = []
+
+        # --- grounded: only offered when the timing screen agrees ----------
+        # the podium three genuinely covered by a small margin
+        if third is not None:
+            g2, g3 = gap(second), gap(third)
+            if (g2 is not None and g3 is not None
+                    and g2 + g3 <= TIGHT_TRIO_GAP):
+                cands.append(("podium_fight", third))
+        # the leader is actually being chased (answers talk about managing a
+        # gap and mirrors getting bigger)
+        if second is not None:
+            g2 = gap(second)
+            if g2 is not None and g2 <= 3.0:
+                cands.append(("hold_on", leader))
+                cands.append(("pressure", leader))
+        # somebody is genuinely close behind the car ahead -> "the move's on"
+        for d in order[1:8]:
+            g = gap(d)
+            if g is not None and g <= CLOSE_CHASE_GAP:
+                cands.append(("move_on", d))
+                cands.append(("pressure", d))
+                break
+        # "goes down to the final lap", "the leader holds on by less than a
+        # second", "too closely matched for a quiet ending" — prediction reads
+        # as neutral punditry but every answer in it claims the race is CLOSE,
+        # so it belongs here rather than with the opinion topics.
+        if second is not None:
+            g2 = gap(second)
+            if g2 is not None and g2 <= 3.0:
+                cands.append(("prediction", leader))
+        # driver-opinion topics: any real runner, no gap claim involved
+        for d in order[:6]:
+            cands.append(("rate", d))
+            cands.append(("standout", d))
+        if pits:
+            for d in order[:6]:
+                cands.append(("pitwall", d))
+
+        # --- opinion: nothing checkable is asserted, always fair game ------
+        # `drv` still gets filled for the pools that mention one, but these
+        # answers make no claim about gaps or positions, so any front-runner is
+        # a truthful subject.
+        neutral = [t for t in ("won_lost", "strategy", "era",
+                               "racecraft", "nerves", "booth", "tyres")
+                   if t in CROSSTALK and (pits or t not in self._PIT_TOPICS)]
+        for t in neutral:
+            cands.append((t, leader))
+
+        cands = [(t, d) for (t, d) in cands if t in CROSSTALK]
+        if not cands:
+            return None
+        return random.choice(cands)
 
     def _report_wide(self, name, now):
         """Lighter booth note for a MODERATE off — you ran wide / had a moment but

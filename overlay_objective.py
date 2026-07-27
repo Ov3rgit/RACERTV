@@ -39,6 +39,16 @@ OBJ_HOLD_GAIN = 3.0      # a gained/passed place must STICK this long before it
                          # counts as met — a yo-yo battle shouldn't insta-resolve
 OBJ_HOLD_LOSE = 4.0      # ...and a lost place must stay lost this long before it
                          # fails, so being briefly repassed mid-fight isn't a miss
+OBJ_MIN_LIFE = 15.0      # an objective may not resolve MET before it has been
+                         # live this long. A target set and "achieved" seconds
+                         # later was never a target — in the closing laps
+                         # `immediate` skips every hysteresis hold, so a defend
+                         # could be set and banked within six seconds, twice in
+                         # a row. A genuine miss is exempt: losing the place IS
+                         # the answer, however fast it happens.
+OBJ_REPEAT_CD = 150.0    # ...and the same (kind, driver) can't come back for
+                         # this long once resolved, so the engineer finds
+                         # something new to ask for instead of looping one job
 
 
 class ObjectiveMixin:
@@ -53,6 +63,12 @@ class ObjectiveMixin:
         self._obj_result = None     # last outcome, for the HUD chip
         self._obj_kinds = set()     # kinds used this race (one-shot ones)
         self._obj_nudge_t = 0.0     # last mid-objective progress line
+        # (kind, target_slot) -> when it last resolved. The repeatable targets
+        # (defend / position / chase) are not one-shot like `clean` or `tyres`,
+        # so nothing stopped the engineer setting the SAME job against the SAME
+        # driver over and over: a race ended with "hold P3 from Pano Papas" set
+        # and resolved four times in three minutes, twice inside six seconds.
+        self._obj_recent = {}
         # BOOTH NOTICE: ("set"|"met"|"miss", kind, target_name, when). The booth
         # can't see a private radio call, but it CAN see a driver visibly
         # working to one — so it nods at the pit wall in the right terms at
@@ -322,16 +338,27 @@ class ObjectiveMixin:
                 }
             # can't pass, but can we at least CLOSE onto them? (a real, honest
             # smaller goal — and the one the tester described)
+            #
+            # The target SCALES with the gap now. It was pinned at 1.0s, which
+            # is a huge ask from four seconds back and meant _obj_can_close
+            # rejected it in exactly the strung-out races that most needed a
+            # goal — leaving defend as the only repeatable objective, which is
+            # how one race ended up looping "hold P3" four times. From a long
+            # way back "get it under three seconds" is a proper stint's work and
+            # a target the driver can actually feel progress against; from close
+            # range it still asks for the full second.
             if gap and gap > 1.5:
+                want = 1.0 if gap <= 2.5 else min(3.0, round(gap * 0.55, 1))
                 need = self._obj_can_close(gap, mine, theirs, laps_left,
-                                           want_gap=1.0)
+                                           want_gap=want)
                 if need is not None:
                     deadline = max(2, min(laps_left, int(need) + 2))
+                    _w = self._obj_gap_text(want)
                     return {
                         "kind": "chase", "target_slot": aslot,
                         "target_name": self._dname(ahead), "goal_pos": None,
-                        "gap_target": 1.0, "laps": deadline,
-                        "hud": f"Within 1s of {self._dname(ahead)}",
+                        "gap_target": float(want), "laps": deadline,
+                        "hud": f"Within {_w} of {self._dname(ahead)}",
                     }
 
         # --- DEFEND: someone quicker is closing on you.
@@ -518,6 +545,23 @@ class ObjectiveMixin:
                 # you were holding and you made the flag — call it done
                 if kind == "leadhome" and me.place > 1:
                     return self._obj_fail(now, "obj_miss_leadhome", {"drv": nm})
+                # ...but only if it was ever REALLY a job. At the flag this
+                # branch banks any live hold instantly, so a defend handed out
+                # seconds earlier was congratulated for surviving a deadline it
+                # never had time to face: the transcript shows "1 lap to
+                # withstand it" at 09:35:02 and "P3 is yours" at 09:35:08, then
+                # the identical pair again half a minute later. Withdraw it
+                # quietly instead — no verdict line, no booth reaction, nothing
+                # on the HUD. Nothing happened, so nobody says anything.
+                #
+                # SERVING THE LAPS COUNTS. If the driver actually ran the laps
+                # the target asked for, it was a real job however the clock
+                # looks — only a target the flag cut short is hollow.
+                _served = (me.completed_laps - o["lap0"]) >= o["laps"]
+                if not _served and self._obj_too_soon(now):
+                    self._obj = None
+                    self._obj_last_t = now
+                    return None
                 met = {"defend": "obj_met_defend", "damage": "obj_met_damage",
                        "leadhome": "obj_met_leadhome", "tyres": "obj_met_tyres",
                        "clean": "obj_met_clean",
@@ -549,11 +593,21 @@ class ObjectiveMixin:
         # via the same hysteresis every other yo-yo-prone transition uses — a
         # gap that yo-yos back inside 3s (traffic, a backmarker tow) doesn't
         # bank the defend as won.
+        #
+        # PASSIVE resolution, so it also has to have been a REAL job first. The
+        # driver did not achieve this one — the chaser simply fell away — and in
+        # the closing laps `immediate` skips the hold above entirely, which let
+        # a defend be set at 1.5s and banked the moment the gap touched 2.2s.
+        # The transcript showed it set and "won" twice inside six seconds each
+        # ("Pano Papas's fallen away, no more threat there") and offered again
+        # 25s later. Congratulating someone for a threat that never materialised
+        # is worse than saying nothing, so it must have stood for a while.
         if o["kind"] in ("defend", "damage") and tgt is not None:
             bgap_now = self.interval.get(o["target_slot"])
-            if self._obj_held(o, "clear",
-                              bgap_now is not None and bgap_now > OBJ_DEFEND_CLEAR_GAP,
-                              now, OBJ_DEFEND_CLEAR_HOLD, immediate=ending):
+            if (self._obj_held(o, "clear",
+                               bgap_now is not None and bgap_now > OBJ_DEFEND_CLEAR_GAP,
+                               now, OBJ_DEFEND_CLEAR_HOLD, immediate=ending)
+                    and not self._obj_too_soon(now)):
                 return self._obj_done(now, "obj_met_defend_clear",
                                       {"drv": nm, "pos": me.place})
         # CHASE / POSITION: target retired or fell unreachably far ahead, OR you
@@ -794,6 +848,7 @@ class ObjectiveMixin:
         return (cat, kw)
 
     def _obj_done(self, now, cat, kw):
+        self._obj_mark_resolved(now)
         self._obj_notice("met", now)
         self._obj_result_set(True, now)
         self._obj = None
@@ -802,11 +857,43 @@ class ObjectiveMixin:
         return (cat, kw)
 
     def _obj_fail(self, now, cat, kw):
+        self._obj_mark_resolved(now)
         self._obj_notice("miss", now)
         self._obj_result_set(False, now)
         self._obj = None
         self._obj_last_t = now
         return (cat, kw)
+
+    def _obj_mark_resolved(self, now):
+        """Remember that this exact job against this exact driver has just been
+        answered, so _obj_offer doesn't hand it straight back (OBJ_REPEAT_CD)."""
+        o = self._obj
+        if o:
+            self._obj_recent[(o["kind"], o.get("target_slot"))] = now
+
+    def _obj_too_soon(self, now):
+        """True while the active objective is too young to be called MET.
+
+        Guards the closing-laps path in particular: `immediate` deliberately
+        skips every hysteresis hold at the flag (there is no 'later' to wait
+        for), which also meant a defend offered at 1.5s could bank itself the
+        moment the gap touched 2.2s — set and won inside six seconds, then
+        re-offered and won again. A target has to have been a target for a
+        while to be worth congratulating."""
+        o = self._obj
+        return bool(o) and (now - o.get("set_at", 0.0)) < OBJ_MIN_LIFE
+
+    @staticmethod
+    def _obj_gap_text(g):
+        """Spoken/HUD form of a gap target: '2s', '2.5s'. One helper so the
+        card and the radio call can never disagree about the number."""
+        g = float(g)
+        return f"{g:.0f}s" if g.is_integer() else f"{g:.1f}s"
+
+    def _obj_repeat_blocked(self, kind, slot, now):
+        """True if this (kind, driver) was resolved too recently to re-offer."""
+        t = self._obj_recent.get((kind, slot))
+        return t is not None and (now - t) < OBJ_REPEAT_CD
 
     # ---- entry point ----------------------------------------------------
     def objective_event(self, s, order, placemap, now):
@@ -874,6 +961,13 @@ class ObjectiveMixin:
         o = self._obj_offer(s, order, placemap, now)
         if not o:
             return None                               # nothing credible: silence
+        # JUST DID THAT ONE. Without this the repeatable kinds (defend, chase,
+        # position) loop against the same driver for the rest of the race: the
+        # situation that produced the objective is still the situation the
+        # moment it resolves, so the very next offer is identical. Staying
+        # quiet is better than asking for the same job a fourth time.
+        if self._obj_repeat_blocked(o["kind"], o.get("target_slot"), now):
+            return None
         # RACE ENDING: don't hand out a fresh multi-lap target with the flag
         # about to fall — "hold P5 for 4 laps" with two laps of time left is the
         # reported bug. A closing-laps push (its own laps already clamped to
@@ -892,7 +986,10 @@ class ObjectiveMixin:
         self._obj_kinds = getattr(self, "_obj_kinds", set()) | {o["kind"]}
         kw = {"drv": o["target_name"], "laps": o["laps"],
               "pos": o.get("goal_pos") or me.place,
-              "gap": f"{o['gap_target']:.0f}s" if o.get("gap_target") else "a second"}
+              # match the HUD exactly: a 2.5s chase target announced as "2s"
+              # (%.0f) contradicted the card the driver was looking at
+              "gap": (self._obj_gap_text(o["gap_target"])
+                      if o.get("gap_target") else "a second")}
         return (f"obj_set_{o['kind']}", kw)
 
     # ---- practice / qualifying -----------------------------------------
