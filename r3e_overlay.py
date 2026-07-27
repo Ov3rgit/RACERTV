@@ -99,6 +99,12 @@ _WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 RECENT_LINE_WINDOW = 60
 
 
+# Smallest window that can plausibly BE the game, rather than RaceRoom's
+# loading splash (~750x475). Sits under the 1024x768 minimum the game itself
+# supports, so it never rejects a real window, windowed play included.
+MIN_GAME_W, MIN_GAME_H = 900, 600
+
+
 def find_game_rect():
     """Return (x, y, w, h) of the RaceRoom (RRRE64.exe) main window, or None."""
     best = {"area": 0, "rect": None}
@@ -116,7 +122,15 @@ def find_game_rect():
             return True
         w, h = r.right - r.left, r.bottom - r.top
         area = w * h
-        if w > 200 and h > 200 and area > best["area"]:
+        # SKIP THE SPLASH. RaceRoom's "Loading RaceRoom..." window belongs to
+        # rrre64.exe like the game does, so the old 200x200 floor accepted it
+        # and the overlay pinned its chrome to the corner of a red splash
+        # screen — reported as the settings button being stuck in the small
+        # launcher window, with no way back short of killing the app.
+        # Measured from a screenshot of it: roughly 750x475. RaceRoom will not
+        # run below 1024x768, so nothing this small can be the game window,
+        # while any real resolution (windowed included) clears it comfortably.
+        if w >= MIN_GAME_W and h >= MIN_GAME_H and area > best["area"]:
             best["area"] = area
             best["rect"] = (r.left, r.top, w, h)
         return True
