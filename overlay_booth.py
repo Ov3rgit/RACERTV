@@ -513,7 +513,7 @@ class BoothMixin:
                     self._crosstalk_drv = self._dname(d)
                     self._crosstalk_pos = d.place
                     L("crosstalk_q", 1, persona="COMMENTATOR",
-                      line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
+                      line=self._crosstalk_question(topic),
                       drv=self._crosstalk_drv, pos=d.place)
 
         # GRID-SORT window: for the first ~8s after lights-out the field is still
@@ -1263,12 +1263,13 @@ class BoothMixin:
                 # in CROSSTALK) so it actually responds to what was asked, not a
                 # random non-sequitur. CROSSTALK_ANSWERS is the safe fallback.
                 topic = getattr(self, "_crosstalk_topic", None)
-                apool = (CROSSTALK[topic]["a"] if topic in CROSSTALK
-                         else CROSSTALK_ANSWERS)
-                ans = _safe_format(self._pick(apool, ("XANS", topic or "")),
-                                   {"drv": getattr(self, "_crosstalk_drv", ""),
-                                    "pos": getattr(self, "_crosstalk_pos", 0),
-                                    **nmkw})
+                qi = getattr(self, "_crosstalk_qi", None)
+                apool = self._crosstalk_answers(topic, qi)
+                ans = _safe_format(
+                    self._pick(apool, ("XANS", topic or "", qi)),
+                    {"drv": getattr(self, "_crosstalk_drv", ""),
+                     "pos": getattr(self, "_crosstalk_pos", 0),
+                     **nmkw})
                 followups.append((self._spoken(ans), "PUNDIT", 0, True))
                 if random.random() < 0.7:
                     followups.append((_safe_format(
@@ -1534,7 +1535,7 @@ class BoothMixin:
                     self._crosstalk_drv = self._dname(d)
                     self._crosstalk_pos = d.place
                     L("crosstalk_q", 6, persona="COMMENTATOR",
-                      line=self._pick(CROSSTALK[topic]["q"], ("XQ", topic)),
+                      line=self._crosstalk_question(topic),
                       drv=self._crosstalk_drv, pos=d.place)
             elif pick == "objective":
                 pdrv = next((d for d in order
@@ -2071,6 +2072,35 @@ class BoothMixin:
             return True
         d = order[0] if order else None
         return d is not None and getattr(d, "pitstop_status", -1) in (0, 1, 2)
+
+    def _crosstalk_question(self, topic):
+        """Draw a question for `topic` and REMEMBER WHICH ONE, so the pundit's
+        reply can be the one written to answer it.
+
+        The pools used to be two independent lists picked independently, and
+        many of the pairs were written positionally -- "how many world
+        championships did the analysis desk win this year?" has a reply,
+        "Same number as the commentary chair", that only aired together by
+        luck (one time in seven). What the driver actually heard was the lead
+        asking about the podium and Brett answering about his own era."""
+        qa = (CROSSTALK.get(topic) or {}).get("qa") or []
+        if not qa:
+            self._crosstalk_qi = None
+            return ""
+        q = self._pick([e["q"] for e in qa], ("XQ", topic))
+        self._crosstalk_qi = next((i for i, e in enumerate(qa)
+                                   if e["q"] == q), 0)
+        return q
+
+    def _crosstalk_answers(self, topic, qi):
+        """The answers written for THAT question. Falls back to the topic's
+        whole answer set, then to the generic pool, so a data edit can never
+        leave the pundit mute mid-exchange."""
+        qa = (CROSSTALK.get(topic) or {}).get("qa") or []
+        if qa and qi is not None and 0 <= qi < len(qa) and qa[qi].get("a"):
+            return qa[qi]["a"]
+        pooled = [a for e in qa for a in e.get("a", ())]
+        return pooled or CROSSTALK_ANSWERS
 
     def _crosstalk_pick(self, order):
         """Choose a crosstalk (topic, driver) the RACE ACTUALLY SUPPORTS, or

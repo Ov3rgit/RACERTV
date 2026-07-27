@@ -21,8 +21,14 @@ def tmpl_to_re(t):
     return re.compile("^" + rx + "$")
 
 
-Q_RX = [(topic, tmpl_to_re(q)) for topic, d in CROSSTALK.items() for q in d["q"]]
-A_RX = [(topic, tmpl_to_re(a)) for topic, d in CROSSTALK.items() for a in d["a"]]
+# CROSSTALK is now {topic: {"qa": [{"q":..., "a":[...]}]}} -- each question
+# carries the answers written for it, so a Q/A pair can be matched to the exact
+# QUESTION rather than just to a shared topic (see crosstalkpairtest.py).
+Q_RX = [((topic, i), tmpl_to_re(e["q"]))
+        for topic, d in CROSSTALK.items() for i, e in enumerate(d["qa"])]
+A_RX = [((topic, i), tmpl_to_re(a))
+        for topic, d in CROSSTALK.items() for i, e in enumerate(d["qa"])
+        for a in e["a"]]
 
 
 def topic_of(text, table):
@@ -56,16 +62,24 @@ exchanges = 0
 for i, (p, t) in enumerate(spoken):
     if p != "COMMENTATOR":
         continue
-    qtopic = topic_of(t, Q_RX)
-    if not qtopic:
+    asked = topic_of(t, Q_RX)
+    if not asked:
         continue
     # the next PUNDIT line is the answer
     ans = next((tt for pp, tt in spoken[i + 1:i + 4] if pp == "PUNDIT"), None)
     assert ans is not None, f"question with no pundit answer: {t!r}"
-    atopic = topic_of(ans, A_RX)
-    assert atopic == qtopic, (
-        f"MISMATCH: question topic {qtopic!r} answered from {atopic!r}\n"
-        f"  Q: {t}\n  A: {ans}")
+    # Must come from the pool written for THIS question. Membership, not a
+    # first-match lookup: the same answer is deliberately reachable from
+    # several questions in a topic (all four "rate {drv} out of ten" phrasings
+    # share their answers), so resolving an answer back to one index would
+    # fail on perfectly correct pairs.
+    topic, qi = asked
+    own = [tmpl_to_re(a) for a in CROSSTALK[topic]["qa"][qi]["a"]]
+    assert any(rx.match(ans) for rx in own), (
+        f"MISMATCH: the pundit answered a question he was not asked.\n"
+        f"  Q ({topic}[{qi}]): {t}\n  A: {ans}\n"
+        f"  written for that question: "
+        f"{[a[:48] for a in CROSSTALK[topic]['qa'][qi]['a']]}")
     exchanges += 1
 
 assert exchanges >= 3, f"crosstalk barely fired ({exchanges}) — can't trust the check"
