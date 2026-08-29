@@ -298,6 +298,77 @@ class DrawMixin:
             self.text(x + w / 2, cy + warn_h / 2, warn, fill="#ffd23f",
                       font=self.f_small_b, anchor="center")
 
+    @staticmethod
+    def _fmt_clock(t):
+        """A race clock, not a lap time. M:SS, or H:MM:SS for an endurance
+        length. fmt_time() is for lap times and counts milliseconds, which is
+        unreadable as a countdown and wrong as a piece of broadcast furniture."""
+        t = max(0, int(t))
+        h, rem = divmod(t, 3600)
+        m, sec = divmod(rem, 60)
+        if h:
+            return f"{h}:{m:02d}:{sec:02d}"
+        return f"{m}:{sec:02d}"
+
+    def _is_timed(self, s):
+        # NOT _timed: the booth stores a bool on self._timed (overlay_booth),
+        # and a method of that name on the same object would be shadowed by it
+        # the first tick the booth ran — then called, and crash.
+        """Is this session run to a clock rather than a lap count?"""
+        # 0 = TimeBased, 2 = TimeAndLapBased (an extra lap after time is up).
+        # See R3E.cs SessionLengthFormat. The lap-count fallback covers builds
+        # or modes that leave the format unset.
+        fmt = getattr(s, "session_length_format", -1)
+        if fmt in (0, 2):
+            return True
+        if fmt == 1:
+            return False
+        return not (s.number_of_laps and s.number_of_laps > 0)
+
+    def _race_clock_ok(self, s):
+        """Is session_time_remaining safe to PUT ON SCREEN?
+
+        The old header refused to show a clock in replays at all, and it was
+        right to be suspicious — but the cost of that suspicion was a timed
+        replay with no indication of how long was left, which is exactly the
+        case that got reported. So the value is verified rather than trusted:
+        it has to be in range, and it has to have been SEEN COUNTING DOWN.
+        A field that never moves, or moves upward, never reaches the screen.
+
+        One observation is enough to start, and the clock is dropped again
+        the moment it stops behaving — a scrubbed replay, a new session — so
+        a stale number can't sit there looking authoritative."""
+        if not self._is_timed(s):
+            return False
+        rem = getattr(s, "session_time_remaining", 0.0) or 0.0
+        dur = getattr(s, "session_time_duration", 0.0) or 0.0
+        if rem <= 0.0:
+            # TIME UP is a legitimate reading, not a broken one. Clearing the
+            # "seen counting down" flag here would erase the very knowledge
+            # _timed_over needs to tell a finished clock from a field that was
+            # always zero, and the header would fall back to a bare lap number
+            # for the last lap and a half of every timed race.
+            return False
+        if rem > max(dur, 0.0) + 60.0:
+            self._clock_seen = False
+            return False
+        prev = getattr(self, "_clock_prev", None)
+        self._clock_prev = rem
+        if prev is not None:
+            if rem < prev:                     # counting down, as a clock does
+                self._clock_seen = True
+            elif rem > prev + 1.0:             # jumped up: new session or scrub
+                self._clock_seen = False
+        return bool(getattr(self, "_clock_seen", False))
+
+    def _timed_over(self, s):
+        """A timed race whose clock has run out but which is still running —
+        RaceRoom finishes the leader's current lap."""
+        if not self._is_timed(s) or s.session_type != 2:
+            return False
+        rem = getattr(s, "session_time_remaining", 0.0) or 0.0
+        return bool(getattr(self, "_clock_seen", False)) and rem <= 0.0
+
     def draw_header(self, s):
         track = R.u8_to_str(s.track_name)
         if not track:
@@ -305,15 +376,42 @@ class DrawMixin:
         stype = {0: "PRACTICE", 1: "QUALIFY", 2: "RACE", 3: "WARMUP"}.get(
             s.session_type, "")
 
-        # progress: prefer lap counter; in replays/time sessions fall back to
-        # the leader's actual lap (RaceRoom's time-remaining is unreliable here)
+        # PROGRESS. A lap race has a lap counter; a timed race has a clock, and
+        # until now it had neither — reported by a viewer running 25-minute
+        # races with nothing on screen to say how much of it was left.
+        #
+        # The clock is the headline and the lap number goes underneath it,
+        # because in a timed race the lap you are on tells you nothing about
+        # how much racing is left, and the clock tells you everything. That is
+        # also the way every real timed-race chyron is laid out.
+        #
+        # The old fallback formatted the remaining time with fmt_time, which is
+        # the LAP-TIME format: a race clock read "12:38.417", counting
+        # milliseconds down from twenty-five minutes.
         lead_laps = max((d.completed_laps for d in self._drivers(s)), default=0)
         total = s.number_of_laps
+        sub_prog = ""
+        prog_col = HEADER_ACCENT
         if total and total > 0:
             prog = f"LAP {min(lead_laps + 1, total)}/{total}"
-        elif (s.game_in_replay != 1 and s.session_time_remaining
-                and s.session_time_remaining > 0):
-            prog = R.fmt_time(s.session_time_remaining)
+        elif self._race_clock_ok(s):
+            rem = s.session_time_remaining
+            prog = self._fmt_clock(rem)
+            sub_prog = f"LAP {lead_laps + 1}"
+            # the last minute is the story of a timed race, so it changes
+            # colour rather than relying on the viewer watching the digits
+            if rem <= 10.0:
+                prog_col = "#ff3b3b"
+            elif rem <= 60.0:
+                prog_col = "#ffb000"
+        elif self._timed_over(s):
+            # TIME UP. RaceRoom's timed races run to the end of the leader's
+            # current lap, so zero on the clock is not the end of the race —
+            # showing "0:00" for a lap and a half would be a lie, and hiding
+            # the panel would be worse.
+            prog = "FINAL LAP"
+            prog_col = "#ff3b3b"
+            sub_prog = f"LAP {lead_laps + 1}"
         else:
             prog = f"LAP {lead_laps + 1}"
 
@@ -329,7 +427,7 @@ class DrawMixin:
         # bottom status row (dot + tag + session), so nothing overlaps
         title = track[:30]
         tw = self.f_hdr.measure(title)
-        pw = self.f_hdr.measure(prog)
+        pw = max(self.f_hdr.measure(prog), self.f_sub.measure(sub_prog))
         bw = 14 + self.f_sub.measure(bottom)
         w = max(420, 16 + max(tw, bw) + 40 + pw + 16)
         x = (self.sw - w) // 2
@@ -339,8 +437,11 @@ class DrawMixin:
         for sy in range(14 + 8, 14 + 50 - 4, 3):
             self.canvas.create_line(x + 4, sy, x + w - 4, sy, fill="#070b10")
         self.text(x + 16, 29, title, fill=TEXT, font=self.f_hdr, anchor="w")
-        self.text(x + w - 16, 31, prog, fill=HEADER_ACCENT, font=self.f_hdr,
+        self.text(x + w - 16, 31, prog, fill=prog_col, font=self.f_hdr,
                   anchor="e")
+        if sub_prog:
+            self.text(x + w - 16, 48, sub_prog, fill=DIM, font=self.f_sub,
+                      anchor="e")
         # bottom status row (blink dot leads it), retro-camcorder 1s cycle
         by = 48
         if int(time.time() * 2) % 2 == 0:

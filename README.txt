@@ -111,7 +111,14 @@ WHAT'S ON SCREEN
   Sector strip            running lap + S1/S2/S3, purple/green/yellow
   Lower third             what the booth is saying, in sync with the audio
   Radio cards             engineer and rival drivers, bottom right
-  Header                  track, session, lap/time left, LIVE tag
+  Header                  track, session, LIVE tag, and the progress
+                          readout: LAP 4/10 in a lap race, or a counting-
+                          down race clock (25:00) with the leader's lap
+                          underneath it in a timed one. The clock turns
+                          amber inside the last minute and red in the last
+                          ten seconds; when time is up it reads FINAL LAP,
+                          because RaceRoom runs a timed race to the end of
+                          the leader's current lap.
   Flags & penalties       yellow, blue, black, white, chequered
 
 Works in replays too.
