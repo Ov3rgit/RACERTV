@@ -1796,5 +1796,30 @@
   "A timed race, this — {mins} minutes at {trk}, and every one of them will count.",
   "The format: {mins} minutes of racing at {trk}. Manage the clock, manage the tyres.",
   "No lap count today — {mins} minutes at {trk}, a straight race against the clock."
+ ],
+ "formation": [
+  "And they're rolling. The formation lap is under way at {trk}, {drv} leading them round.",
+  "Off they go on the formation lap — {drv} setting the pace at the head of the queue.",
+  "The field is away on the formation lap here at {trk}. No racing yet, but everything to play for.",
+  "Formation lap begins. {drv} out in front, weaving to get the temperature into those tyres.",
+  "They're circulating now, {drv} at the front, the pack strung out behind on the formation lap.",
+  "Here we go — formation lap at {trk}. {drv} controls the pace from the front.",
+  "The lap that doesn't count, but it matters. {drv} leads the field around at {trk}.",
+  "Away on the formation lap, and {drv} has the job of leading them to the green."
+ ],
+ "formation_pundit": [
+  "This is where races get lost, {comm}. Cold tyres, cold brakes, and everybody wants the first corner.",
+  "Watch the weaving, {comm} — they're scrubbing every degree of heat they can into those tyres.",
+  "The getaway from a rolling start is all about where you are when the green comes out, {comm}.",
+  "Nobody wins on the formation lap, {comm}, but plenty have thrown a race away on one.",
+  "Keep an eye on the gaps forming up, {comm}. A sloppy formation lap makes for a messy start.",
+  "Brakes are the worry here, {comm}. One lap is not much time to get everything up to temperature.",
+  "The leader dictates everything now, {comm}. Pace, spacing, when the pack gets to breathe."
+ ],
+ "formation_end": [
+  "They're coming round now — the formation lap is done and the race is about to begin.",
+  "Final corner of the formation lap. Get ready, this is about to go green.",
+  "Here they come, forming up for the start. Any moment now at {trk}.",
+  "Formation lap complete. The field is lining up and the green is imminent."
  ]
 }

@@ -28,7 +28,10 @@ def make_shared(session_type, ncars=6, track="Spa-Francorchamps - Grand Prix"):
     s.layout_id = 1
     s.session_type = session_type           # 0 prac, 1 quali, 2 race
     s.session_iteration = 1
-    s.session_phase = 3
+    # 5 = Green. Phase 3 is FORMATION (R3E.cs SessionPhase) and the overlay
+    # now reads it: a race left on 3 with the cars moving is a rolling start's
+    # formation lap, and correctly refuses to go green.
+    s.session_phase = 5
     s.game_in_menus = 0
     s.game_player_in_garage = 0
     s.game_in_replay = 0

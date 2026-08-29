@@ -87,7 +87,16 @@ Everything is in the ≡ menu, so you never need a hotkey. If you prefer them:
   Ctrl+Shift+D   debug HUD
   Ctrl+Shift+Q   quit
 
-The menu also has a master volume slider for the voices.
+The menu also has a master volume slider for the voices, and a SPECTATOR
+MODE switch.
+
+SPECTATOR MODE is for watching rather than driving — replays of somebody
+else's race, or spectating a session you are not in. Half of RacerTV talks
+TO a driver: the engineer in your ear, the objective card, the relative
+panel. With nobody in the seat, that half is addressed to no one, so
+spectator mode drops it and leaves the broadcast — Miles and Brett, the
+timing tower, the track map, flags, sectors and the fastest-lap banner.
+The setting is remembered between runs.
 
 
 -------------------------------------------------------------------------

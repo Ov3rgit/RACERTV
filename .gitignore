@@ -12,3 +12,6 @@ _eng_*.wav
 _career.json
 _heard_backup.json
 _transcript.log
+_volume.json
+_prefs.json
+_tts_render*

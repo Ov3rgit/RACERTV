@@ -269,6 +269,46 @@ class BoothMixin:
             self._comm_flags["pregrid"] = True
             self._intro_emit_t = now            # engineer gate: scene being set
             L("pregrid", 2, drv=self._dname(leader))
+        # FORMATION LAP. A rolling start used to be dead air followed by a
+        # lights-out call in the wrong place: the booth had nothing to say
+        # about the one lap where the field is on track and not yet racing.
+        # `self._formation` is the phase-3 latch from update_stats, so this
+        # covers formation laps and rolling starts alike.
+        #
+        # Three beats, no more. This lap lasts a minute or two and the booth's
+        # job here is to set the scene, not to fill it — the start call is the
+        # moment everything is building towards, and talking over the run-up
+        # to it would cost more than the silence does.
+        #
+        # OFFERED UNTIL IT WINS, never "offered and assumed spoken". Only
+        # cands[0] is ever said; the rest of a tick's candidates are thrown
+        # away. Marking the beat done at the moment it was BUILT meant any
+        # louder line in the same tick — a lore aside, a track fact — silently
+        # ate the formation call and left the flag set, so the lap went quiet.
+        # It is intermittent by nature, which is exactly why it must not
+        # depend on winning first time. The beat is re-offered until
+        # _emit_commentary confirms it actually went out (see _form_won).
+        #
+        # AFTER the welcome, not against it: the two are both prio 2, and on
+        # air you introduce the programme before saying what is happening in
+        # it. The 1.2s spacing stops a re-offer redrawing from the line pool
+        # twenty times a second and burning the deck.
+        if (is_race and self._formation and leader is not None
+                and now - getattr(self, "_intro_emit_t", 0.0) > 3.5
+                and now - getattr(self, "_form_offer_t", 0.0) > 1.2):
+            if "open" not in self._form_said:
+                self._form_offer_t = now
+                L("formation", 2, drv=self._dname(leader))
+            elif ("colour" not in self._form_said
+                  and now - getattr(self, "_form_open_t", 0.0) > 11.0):
+                self._form_offer_t = now
+                L("formation_pundit", 3, persona="PUNDIT")
+            # the run to the line: only once the leader is genuinely round
+            elif ("end" not in self._form_said
+                  and "colour" in self._form_said
+                  and leader.lap_distance_fraction > 0.86):
+                self._form_offer_t = now
+                L("formation_end", 2)
         # START call fires the instant the race goes green (the _racing edge),
         # naming the leader — "Lights out and {leader} leads them away!" Fired
         # DIRECTLY with force (like the finish wrap) so this signature moment can
@@ -1152,6 +1192,16 @@ class BoothMixin:
             return
         cands.sort(key=lambda c: c[0])
         _prio, text, cat, inten, persona = cands[0]
+        # THE FORMATION BEATS ARE MARKED HERE, not where they were built —
+        # this is the only place a line is known to have actually won.
+        _fb = {"formation": "open", "formation_pundit": "colour",
+               "formation_end": "end"}.get(cat)
+        if _fb:
+            self._form_said = getattr(self, "_form_said", set())
+            self._form_said.add(_fb)
+            if _fb == "open":
+                self._form_open_t = now
+                self._intro_emit_t = now   # engineer waits: scene being set
         # big live moments (overtakes/spins/lead changes/start/finish = prio <=2)
         # jump the cooldown so the booth reacts right away. Everything else only
         # starts when the audio queue has ROOM, so the booth never lags the race
@@ -1182,8 +1232,11 @@ class BoothMixin:
         # later). A change at the front is the biggest single story a race
         # can produce — it earns the same "never dropped, always cuts in"
         # guarantee as the start/final-lap/pregrid calls.
+        # The formation calls are once-per-race scene-setters on a lap with
+        # nothing else happening — if they drop, a rolling start is silent.
         signature = cat in ("start", "final_lap", "pregrid", "leadchange",
-                            "leadchange_comeback", "leadchange_charge")
+                            "leadchange_comeback", "leadchange_charge",
+                            "formation", "formation_end")
         if urgent and not signature and cat not in RECAP_CATS:
             # DON'T HAND A LINE TO A QUEUE THAT IS ALREADY FULL. speak() would
             # discard it on arrival (`DROP-busy`), so returning here loses

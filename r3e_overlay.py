@@ -45,6 +45,33 @@ if getattr(_sys, "frozen", False):       # PyInstaller: assets sit next to the e
 else:
     _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# SPECTATOR MODE, remembered between runs. Someone who watches replays wants
+# the broadcast, not the cockpit, and having to re-tick that box every launch
+# would make the mode feel like a debug switch rather than a way to watch.
+_PREFS_FILE = os.path.join(_DIR, "_prefs.json")
+
+
+def _load_prefs():
+    try:
+        with open(_PREFS_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_pref(key, value):
+    if os.environ.get("RACERTV_EPHEMERAL"):    # tests: never touch the disk
+        return
+    d = _load_prefs()
+    d[key] = value
+    try:
+        with open(_PREFS_FILE, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+    except Exception:
+        pass
+
+
 # ----- team-radio personalities ----------------------------------------------
 # Each driver is assigned ONE persona (consistently, by name) and speaks from
 # its pools. {pos} is replaced with the driver's current position.
@@ -316,8 +343,31 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                                      # restart (it only ever counts down)
         self._prev_my_laps = None    # your own lap count — it only ever rises,
                                      # so a fall means the session was replaced
+        self._prev_simt = None       # game_simulation_time last tick — THE
+                                     # restart signal (see update_stats)
         self._last_found_t = 0.0     # last time the RaceRoom window was seen
         self._tts_silenced = False   # audio stopped because the game is gone
+
+        # SPECTATOR MODE: watching, not driving. Suppresses everything that
+        # only makes sense addressed to a driver — team radio, the objective
+        # card, the relative panel — and leaves the broadcast: booth, tower,
+        # map, flags, sectors, fastest lap.
+        self.spectator = bool(_load_prefs().get("spectator", False))
+
+        # REPLAY PLAYBACK. A loaded-but-paused replay still publishes a full
+        # session, and the booth used to spend its whole introduction on a
+        # frozen frame while the viewer was still setting up their camera.
+        self._rep_rolling = False    # replay is actually PLAYING right now
+        self._rep_moving_since = None  # first tick we saw it advance
+        self._rep_prev = None        # (sim time, field distance, clock) last
+                                     # tick — is the replay actually PLAYING?
+        self._rep_still_since = None # first tick the replay stopped advancing
+
+        # FORMATION LAP (session_phase 3, incl. rolling starts).
+        self._formation = False      # currently on the formation lap
+        self._form_seen = False      # this session HAD a formation lap
+        self._form_said = set()      # formation beats already called
+        self._form_open_t = 0.0      # when the formation opener was spoken
 
         # team-radio engine state
         self.radio_on = True     # engineer + driver radio VOICE on/off (bubbles
@@ -790,10 +840,22 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             # UPDATE stages always run during action — hiding the UI
             # (Ctrl+Shift+O) must NOT kill the broadcast: audio-only mode is
             # "radio on, telly off". Only the DRAW stages are gated on visible.
-            stages = [("stats", self.update_stats), ("radio", self.update_radio),
+            # SPECTATOR MODE drops the driver-facing half of the product: the
+            # radio engine (and its bubbles), the objective card and the
+            # relative panel all address a driver who, in a replay of someone
+            # else's race, isn't watching. The radio is skipped at the UPDATE
+            # stage rather than muted at the speak() call, so it never builds
+            # the messages in the first place.
+            spec = getattr(self, "spectator", False)
+            stages = [("stats", self.update_stats),
                       ("comm", self.update_commentary)]
+            if not spec:
+                stages.insert(1, ("radio", self.update_radio))
             if self.visible:
-                stages += [
+                # the gated stages are FILTERED OUT of the list rather than
+                # appended after it, so spectator mode cannot quietly reorder
+                # the frame
+                stages += [(nm, fn) for nm, fn in [
                       ("header", self.draw_header), ("flags", self.draw_flags),
                       ("penalty", self.draw_penalty),
                       ("tower", self.draw_tower), ("relative", self.draw_relative),
@@ -802,6 +864,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                       ("sectors", self.draw_sectors), ("map", self.draw_map),
                       ("bubbles", self.draw_radio), ("caption", self.draw_commentary),
                       ("podium", self.draw_podium)]
+                    if not (spec and nm in ("relative", "objective", "bubbles"))]
             for nm, fn in stages:
                 try:
                     fn(s)
@@ -847,7 +910,83 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         if s.game_paused == 1:
             return False
         if s.game_in_replay == 1:
-            return True
+            # A REPLAY THAT IS LOADED IS NOT A REPLAY THAT IS PLAYING.
+            #
+            # RaceRoom publishes the whole session the moment a replay is
+            # loaded, and this used to return True on that first frame. So the
+            # broadcast opened — welcome, drivers, track, the pregrid build-up
+            # — into a frozen picture, while the viewer was still choosing a
+            # camera and arming their recorder. By the time they pressed play
+            # the introduction had already been spoken to nobody, and the
+            # opening lap's events had been consumed by edge detectors that had
+            # long since seen them. Reported as the intro being lost and the
+            # first lap never being picked up.
+            #
+            # WHAT "MOVING" IS MEASURED FROM, and why it is not one field.
+            #
+            # `game_simulation_time` is documented as VIRTUAL PHYSICS TIME, and
+            # a replay is played back rather than simulated — so there is no
+            # guarantee it advances during playback at all. Betting the whole
+            # gate on it risks a far worse bug than the one being fixed: an
+            # overlay that never comes on air in replays. So three independent
+            # signals, OR-ed, and the gate opens if ANY of them says the
+            # picture is moving:
+            #
+            #   - the CARS. Track position is what the overlay already trusts
+            #     in replays (R3E's own deltas are garbage there, which is why
+            #     the gap engine derives everything from distance). If the
+            #     field's cumulative distance is growing, the replay is
+            #     playing. This is the signal that cannot be wrong.
+            #   - the SESSION CLOCK. Covers the case the cars cannot: a replay
+            #     playing while the field sits on a standing grid, where
+            #     nothing moves but the countdown. Without this the broadcast
+            #     would miss the whole pre-start build-up.
+            #   - the PHYSICS CLOCK, if this build happens to advance it.
+            #
+            # The hysteresis is the point of the two thresholds. Starting needs
+            # 0.35s of genuine movement, so a single-frame nudge while
+            # scrubbing doesn't open the show; stopping allows 1.2s of stall,
+            # so a stutter or a camera cut mid-replay doesn't tear the
+            # broadcast down and rebuild it.
+            now = time.time()
+            simt = float(getattr(s.player, "game_simulation_time", 0.0) or 0.0)
+            # cumulative field distance: laps dominate so it cannot go
+            # backwards at a start/finish line crossing
+            dist = 0.0
+            for d in s.all_drivers_data_1:
+                if d.place > 0:
+                    dist += d.completed_laps * 1e6 + max(0.0, d.lap_distance)
+            rem = float(getattr(s, "session_time_remaining", 0.0) or 0.0)
+            prev = getattr(self, "_rep_prev", None)
+            self._rep_prev = (simt, dist, rem)
+            if prev is None:
+                return False
+            p_simt, p_dist, p_rem = prev
+            moving = (dist > p_dist + 0.05 or simt > p_simt + 1e-4
+                      or abs(rem - p_rem) > 1e-3)
+            # RE-CUEING THE REPLAY. Dragging the scrubber back to the start to
+            # record the race properly is, for the broadcast, a new session:
+            # the intro should play again, and lap one should be lap one. The
+            # field's distance collapsing is that gesture. Small rewinds
+            # (watching a corner twice) are left alone — the threshold is what
+            # separates re-cueing from rewinding.
+            if dist < p_dist - 5e5 or simt < p_simt - 10.0:
+                self._sess_gen += 1
+                self._rep_rolling = False
+                self._rep_moving_since = None
+            if moving:
+                if getattr(self, "_rep_moving_since", None) is None:
+                    self._rep_moving_since = now
+                if now - self._rep_moving_since >= 0.35:
+                    self._rep_rolling = True
+                self._rep_still_since = None
+            else:
+                self._rep_moving_since = None
+                if getattr(self, "_rep_still_since", None) is None:
+                    self._rep_still_since = now
+                elif now - self._rep_still_since > 1.2:
+                    self._rep_rolling = False
+            return getattr(self, "_rep_rolling", False)
         if not self._drivers(s):
             return False
         return (s.game_in_menus != 1 and s.game_player_in_garage != 1
@@ -995,6 +1134,34 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # you are in a session, so it jumping up is a new one. And your own lap
         # count only ever goes up, so it falling means the session under you was
         # replaced. Either alone is enough; both are cheap.
+        # RESTART DETECTION, the signal that actually arrives in time.
+        #
+        # Everything above is DERIVED from race progress — lap counts, the
+        # session clock — so none of it can fire during the seconds when a
+        # restart is most likely: on the grid, before a lap exists and before
+        # the clock has moved enough to be sure. That is the reported bug. The
+        # overlay carried the old session's grid, best laps and objectives into
+        # the new race because, by every measure it was watching, nothing had
+        # happened yet.
+        #
+        # `game_simulation_time` is the session's own clock. It starts at the
+        # session and only ever advances, so it falling is not an inference
+        # about a restart — it IS the restart, on the first tick of the new
+        # session, whatever the lap counters say. (FACTORtv reads rF2's
+        # mCurrentET exactly this way; R3E has always published the same thing
+        # and nothing here read it.)
+        #
+        # NOT IN REPLAYS. Scrubbing a replay backwards drags this clock with
+        # it, and rewinding to watch a corner again is not a new session.
+        simt = float(getattr(s.player, "game_simulation_time", 0.0) or 0.0)
+        _psim = getattr(self, "_prev_simt", None)
+        if s.game_in_replay != 1:
+            if _psim is not None and simt < _psim - 2.0:
+                self._sess_gen += 1
+            self._prev_simt = simt
+        else:
+            self._prev_simt = None
+
         rem = getattr(s, "session_time_remaining", 0.0) or 0.0
         prev_rem = getattr(self, "_prev_rem", None)
         me_now = next((d for d in order
@@ -1037,6 +1204,11 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             # spoken the moment the new session opened)
             self._q_cuts = max(0, s.cut_track_warnings)
             self._sec_laps = {}      # slot -> completed_laps (sector-coach lap edge)
+            self._formation = False  # the new session gets its own formation lap
+            self._form_seen = False
+            self._form_said = set()
+            self._form_open_t = 0.0
+            self._prev_simt = None   # don't measure the new clock against the old
             # dump any audio still queued from the previous session/race so it
             # never carries over into the new one (everything resets to lap 1)
             if self.tts:
@@ -1071,11 +1243,38 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # were flipping this true ON the grid, flooding the radio AND breaking
         # the start call.) The START announcement fires on this same transition.
         # Non-races have no grid start, so they're always 'racing'.
+        #
+        # THE ROLLING START. The movement latch is right for a standing start
+        # and wrong for every rolling one: the field forms up at 80 km/h, the
+        # speed test passes a whole lap early, and the booth calls lights-out
+        # somewhere on the formation lap — reported as the overlay treating the
+        # formation as if it were already the race.
+        #
+        # Phase 3 is Formation (see R3E.cs SessionPhase) and it is the one
+        # phase reading that is unambiguous: it means the field is circulating
+        # BEFORE the start, which is exactly the state the speed test cannot
+        # tell from racing. It is used only to HOLD the latch, never to set it
+        # — that asymmetry is deliberate. Phase was untrustworthy here as a
+        # trigger (it flipped this true on the grid, which is what the note
+        # above is about); as a veto the worst it can do is call the green a
+        # moment late, which is a far cheaper failure than calling the race
+        # underway while everyone is still weaving behind the safety car.
+        phase = getattr(s, "session_phase", -1)
+        self._formation = (s.session_type == 2 and phase == 3
+                           and not self._racing)
+        if self._formation:
+            self._form_seen = True
+            self._form_said = getattr(self, "_form_said", set())
         if not self._racing:
             if s.session_type != 2:
                 self._racing = True
-            elif (abs(s.car_speed) > 4.0
-                  or any(d.completed_laps >= 1 for d in order)):
+            elif any(d.completed_laps >= 1 for d in order):
+                # A completed lap outranks the veto. If a build ever leaves
+                # phase parked at 3 or 4, the race must still go green.
+                self._racing = True
+            elif phase in (3, 4):
+                pass                     # formation lap / countdown: not yet
+            elif abs(s.car_speed) > 4.0:
                 # trigger as soon as the field launches (lower threshold) so the
                 # 'lights out' call lands closer to the actual moment
                 self._racing = True
@@ -1859,6 +2058,24 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             return self._toast("TTS unavailable — no voices to mute")
         on = self.tts.toggle()
         self._toast("ALL VOICES ON" if on else "ALL VOICES MUTED")
+
+    def _do_toggle_spectator(self):
+        """Watching, not driving.
+
+        Everything RacerTV says to a driver — the engineer in your ear, the
+        objective card, the relative panel — assumes there IS a driver, and in
+        a replay of someone else's race, or a race you are only spectating,
+        that half of the product is talking to nobody. Spectator mode drops it
+        and keeps the broadcast: booth, tower, map, flags, sectors, fastest
+        lap. The radio is silenced through the same path as the manual mute, so
+        anything already queued goes with it rather than arriving alone."""
+        self.spectator = not self.spectator
+        _save_pref("spectator", self.spectator)
+        if self.spectator and self.tts:
+            self.tts.interrupt()
+        self._toast("SPECTATOR MODE — broadcast only, no team radio"
+                    if self.spectator
+                    else "SPECTATOR MODE OFF — engineer & objectives are back")
 
     def _do_toggle_compact(self):
         self.compact = not self.compact
