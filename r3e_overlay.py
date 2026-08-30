@@ -310,6 +310,13 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # without enlarging the other panels)
         self.f_tow = tkfont.Font(family=_BC, size=11)
         self.f_tow_b = tkfont.Font(family=_BCB, size=11)
+        # the speedo readout. Michroma is wide, so the speed sits a size down
+        # from what the dial diameter would suggest — "289" has to fit inside
+        # the face without touching the sweep.
+        self.f_spd = tkfont.Font(family=_DISP, size=20 if _DISP == "Michroma"
+                                 else 24)
+        self.f_gear = tkfont.Font(family=_DISP, size=14 if _DISP == "Michroma"
+                                  else 17)
 
         # broadcast stats (reset per session). Initialised here too — not just in
         # update_stats' per-session reset — so the radio/commentary stages can
@@ -353,6 +360,13 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # card, the relative panel — and leaves the broadcast: booth, tower,
         # map, flags, sectors, fastest lap.
         self.spectator = bool(_load_prefs().get("spectator", False))
+
+        # SPEEDO. One control, three states: OFF -> KM/H -> MPH. A separate
+        # units switch would be a second row in the menu for a setting nobody
+        # changes twice, and it would have to grey itself out when the dial is
+        # off. Cycling reads as one idea: "the speedo, in these units".
+        _sp = _load_prefs().get("speedo", "kmh")
+        self.speedo = _sp if _sp in ("off", "kmh", "mph") else "kmh"
 
         # REPLAY PLAYBACK. A loaded-but-paused replay still publishes a full
         # session, and the booth used to spend its whole introduction on a
@@ -862,6 +876,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                       ("fastest", self.draw_fastest_banner),
                       ("objective", self.draw_objective),
                       ("sectors", self.draw_sectors), ("map", self.draw_map),
+                      ("speedo", self.draw_speedo),
                       ("bubbles", self.draw_radio), ("caption", self.draw_commentary),
                       ("podium", self.draw_podium)]
                     if not (spec and nm in ("relative", "objective", "bubbles"))]
@@ -2076,6 +2091,15 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self._toast("SPECTATOR MODE — broadcast only, no team radio"
                     if self.spectator
                     else "SPECTATOR MODE OFF — engineer & objectives are back")
+
+    def _do_cycle_speedo(self):
+        """OFF -> KM/H -> MPH -> OFF."""
+        nxt = {"off": "kmh", "kmh": "mph", "mph": "off"}
+        self.speedo = nxt[self.speedo]
+        _save_pref("speedo", self.speedo)
+        self._toast({"off": "SPEEDO OFF",
+                     "kmh": "SPEEDO ON — km/h",
+                     "mph": "SPEEDO ON — mph"}[self.speedo])
 
     def _do_toggle_compact(self):
         self.compact = not self.compact

@@ -1,6 +1,6 @@
 RacerTV  —  a broadcast for your RaceRoom races
 ===============================================
-v1.1.0
+v1.2.0
 
 RacerTV turns a RaceRoom session into a televised race. A commentary booth
 (Miles Crawford on play-by-play, Brett Calloway on colour) calls the action,
@@ -120,6 +120,12 @@ WHAT'S ON SCREEN
                           because RaceRoom runs a timed race to the end of
                           the leader's current lap.
   Flags & penalties       yellow, blue, black, white, chequered
+  Speedometer             bottom right: speed, gear and a rev sweep that
+                          turns amber at the car's own upshift point and red
+                          at the limiter. Click the menu row to cycle it
+                          OFF / KM/H / MPH. RaceRoom publishes revs and gear
+                          for the focused car only, so in a replay the dial
+                          follows the camera — which is what you want.
 
 Works in replays too.
 

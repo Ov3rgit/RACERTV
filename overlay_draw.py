@@ -18,6 +18,15 @@ from overlay_objective import (OBJ_HOLD_GAIN, OBJ_HOLD_LOSE,
     OBJ_DEFEND_CLEAR_HOLD)
 from lines import (COMMENTATOR_NAME, PUNDIT_NAME)
 
+# The speedo face is PIL-rendered (see speedo.py). PIL is bundled in the
+# frozen build, but the overlay must not refuse to start if a source run is
+# missing it — the dial simply does not draw.
+try:
+    import speedo as _speedo
+    _SPEEDO_OK = _speedo.HAVE_PIL
+except Exception:
+    _speedo, _SPEEDO_OK = None, False
+
 
 class DrawMixin:
     """See module docstring."""
@@ -451,6 +460,84 @@ class DrawMixin:
         if stype:
             self.text(x + 28 + self.f_sub.measure(tag) + 12, by, stype,
                       fill=DIM, font=self.f_sub, anchor="w")
+
+    # ---- speedometer --------------------------------------------------------
+    SPEEDO_DIAL = 168
+    SPEEDO_PAD = 9
+
+    def draw_speedo(self, s):
+        """The broadcast dial, bottom-right.
+
+        The face itself is a cached PIL image (see speedo.py — tk's canvas has
+        no antialiasing, so an arc drawn with primitives reads as pixel art);
+        only the numbers are tk, whose text rendering the platform already
+        antialiases.
+
+        EVERYTHING EXCEPT SPEED IS TOP-LEVEL in RaceRoom's shared memory —
+        revs, gear and the shift point describe whichever car the camera is
+        on, not a car you name. For a driver that is your car; in a replay it
+        follows the director's cut, which is exactly what a broadcast wants.
+        It does mean the dial can only ever show one car, so it lives in a
+        corner rather than in the timing tower.
+        """
+        if getattr(self, "speedo", "kmh") == "off" or not _SPEEDO_OK:
+            return
+        dial = self.SPEEDO_DIAL
+        pad = self.SPEEDO_PAD
+        w = h = dial + pad * 2
+        x = self.sw - w - 24
+        y = self.sh - h - 24
+        # published so the radio bubbles can stack ABOVE us instead of behind
+        self._speedo_box = (x, y, w, h)
+
+        # THE SCALE IS max_engine_rps, so the top of the sweep is the limiter.
+        # The shift point is the game's own upshift_rps rather than a guessed
+        # fraction — every car in RaceRoom carries its own, and inventing one
+        # would put the amber in the wrong place on exactly the cars that need
+        # it most. Cars that publish no rev data at all (some replays) still
+        # get a dial: the sweep sits at zero and the speed is the readout.
+        mx = float(getattr(s, "max_engine_rps", 0.0) or 0.0)
+        rps = float(getattr(s, "engine_rps", 0.0) or 0.0)
+        ups = float(getattr(s, "upshift_rps", 0.0) or 0.0)
+        if mx > 0.0:
+            rev = max(0.0, min(1.0, rps / mx))
+            shift_at = max(0.35, min(0.97, ups / mx)) if ups > 0 else 0.92
+        else:
+            rev, shift_at = 0.0, 0.92
+        # the limiter is 1.0 by construction, so the red band is the last
+        # sliver of the scale; the ticks carry the zone, the sweep carries
+        # the cue
+        redline_at = max(shift_at + 0.01, 0.98)
+
+        self._begin_panel("speedo", x, y, w, h)
+        self._card(x, y, w, h, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
+        img = _speedo.photo(dial, rev, shift_at, redline_at, CARD_BG2)
+        if img is not None:
+            self.canvas.create_image(x + pad, y + pad, image=img, anchor="nw")
+            self._speedo_img = img      # a canvas item does not own its image
+
+        cx = x + w // 2
+        cy = y + h // 2
+        mph = (getattr(self, "speedo", "kmh") == "mph")
+        # RaceRoom publishes metres per second
+        v = abs(float(getattr(s, "car_speed", 0.0) or 0.0))
+        v = v * (2.236936 if mph else 3.6)
+        self.text(cx, cy - 40, "RACERTV", fill="#3f4b5c", font=self.f_small_b,
+                  anchor="center")
+        self.text(cx, cy - 6, "%d" % int(round(v)), fill=TEXT,
+                  font=self.f_spd, anchor="center")
+        self.text(cx, cy + 16, "MPH" if mph else "KM/H", fill=DIM,
+                  font=self.f_small_b, anchor="center")
+
+        # GEAR reads as a gear, not as the integer behind it: RaceRoom uses
+        # -1 for reverse and 0 for neutral, and a dial showing "0" down a
+        # straight or "-1" in the pits is just wrong.
+        g = int(getattr(s, "gear", 0) or 0)
+        gtxt = "R" if g < 0 else ("N" if g == 0 else str(g))
+        gcol = ("#ff3b3b" if rev >= redline_at
+                else ("#ffb000" if rev >= shift_at else HEADER_ACCENT))
+        self.text(cx, cy + 44, gtxt, fill=gcol, font=self.f_gear,
+                  anchor="center")
 
     def draw_tower(self, s):
         drivers = self._drivers(s)
@@ -1101,6 +1188,11 @@ class DrawMixin:
             ("All voices (booth + radio)",
              "ON" if tts_on else "MUTED", tts_on,
              self._do_toggle_mute),
+            ("Speedometer",
+             {"off": "OFF", "kmh": "KM/H", "mph": "MPH"}[
+                 getattr(self, "speedo", "kmh")],
+             getattr(self, "speedo", "kmh") != "off",
+             self._do_cycle_speedo),
             ("Compact timing tower",
              "ON" if self.compact else "OFF", self.compact,
              self._do_toggle_compact),
@@ -1262,6 +1354,13 @@ class DrawMixin:
         heights = [_BUBBLE_H(len(self._wrap(m["text"], width=30))) for m in show]
         total = sum(heights) + gap * (len(show) - 1)
         bottom = self.sh - 150
+        # THE SPEEDO OWNS THE BOTTOM-RIGHT CORNER when it is on, and the
+        # bubbles share that column. Without this they stacked straight
+        # through the dial. Same treatment the objective card already gets
+        # from the other direction — that one is a ceiling, this is a floor.
+        sp_box = getattr(self, "_speedo_box", None)
+        if sp_box and getattr(self, "speedo", "off") != "off":
+            bottom = min(bottom, sp_box[1] - 12)
         top = bottom - total
         # don't climb into the objective card / relative tower above — both
         # live in the same right-hand column and are bottom-unaware, so clamp
