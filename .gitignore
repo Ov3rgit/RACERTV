@@ -15,3 +15,5 @@ _transcript.log
 _volume.json
 _prefs.json
 _tts_render*
+# rendered previews from tests/*shot.py -- screenshots, not source
+_previews/

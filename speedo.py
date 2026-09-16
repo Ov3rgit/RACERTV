@@ -29,7 +29,7 @@ session and has no era to ask.
 That is the useful part, because RacerTV is not a cockpit, it is a CHANNEL.
 A broadcast uses one graphic for every car on the grid: the graphic belongs
 to the programme, not to the vehicle. So there is exactly one face here, it
-wears the show's cyan, and it is built from the same dark slab as the timing
+wears the show's red, and it is built from the same dark slab as the timing
 tower and the chyron — furniture that was always there, rather than an
 instrument borrowed from the car.
 
@@ -83,13 +83,25 @@ def _ANG(f):
 # The palette is RacerTV's, deliberately. See the module docstring: this is a
 # broadcast graphic, so it uses the broadcast colours rather than the
 # near-black-and-amber of a real instrument.
-FACE = "#0d1320"
+FACE = "#16100f"       # CARD_BG
 FACE_EDGE = "#1b2534"
 TRACK = "#141c28"          # the unlit part of the sweep
-ACCENT = "#39d0e0"         # RacerTV cyan — the lit sweep
+ACCENT = "#ff3b47"         # RacerTV red — the lit sweep
 SHIFT = "#ffb000"          # upshift zone
-RED = "#ff3b3b"            # redline
-TICK = "#39d0e0"
+RED = "#ff3b3b"            # the redline MARKING on the face
+# THE SWEEP AT THE LIMITER, and it cannot be RED any more.
+#
+# The sweep used to be cyan, so red meant one thing: you are on the limiter.
+# Re-theming the overlay red made the NORMAL sweep red too, and the two states
+# became the same picture {D} a dial that looks identical at 224km/h and on the
+# rev limiter is not telling you anything.
+#
+# Violet is not an arbitrary third colour: a real F1 shift ladder runs
+# green -> red -> violet, so the top of the range reading violet is what the
+# cue already looks like to anyone who races. The printed redline arc stays
+# red, because that is a MARKING on the face rather than a state.
+LIMIT = "#b36bff"          # sweep colour past the redline
+TICK = "#ff3b47"
 TICK_DIM = "#2a3341"
 SCANLINE = "#070b10"
 
@@ -152,7 +164,7 @@ def _face(d, size, rev, shift_at, redline_at):
     # it without moving your eyes. The zones are still legible: they are
     # marked on the TICKS below, which do not move.
     if lit >= redline_at:
-        sweep_col = RED
+        sweep_col = LIMIT
     elif lit >= shift_at:
         sweep_col = SHIFT
     else:

@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 import speedo
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else r"D:\R3EOverlay\_speedo_preview.png"
+OUT = sys.argv[1] if len(sys.argv) > 1 else r"D:\R3EOverlay\_previews\_speedo_preview.png"
 
 SIZE = 168
 SHIFT_AT = 0.82          # where the game says to upshift

@@ -48,20 +48,82 @@ GLASS_ALPHA = 0.58       # backing-window opacity: lower = more see-through
 BG_STIPPLE = ""          # legacy dither fallback; keep empty
 PANEL_STIPPLE = ""        # solid panel backgrounds (stipple looked pixelated behind
 PANEL_ALPHA = 0.55        # (legacy whole-window alpha; superseded by stipple+CHROMA)
-PANEL_BG = "#0c1014"
-PANEL_OUTLINE = "#2b313b"
-CARD_BG = "#0d1320"
-CARD_BG2 = "#0a0d12"
-CARD_BORDER = "#2a3440"
-HEADER_ACCENT = "#39d0e0"
+# ---- THE THEME ----------------------------------------------------------
+#
+# RACERTV IS RED. RaceRoom's own colour is red, and this overlay used to wear
+# the same cyan-on-blue-black as FACTORtv — which is a different product for
+# a different game, and the two reading as one thing helped neither.
+#
+# CHROME MOVED; MEANING DID NOT. That split is the whole of this block:
+#
+#   chrome   the rails, the gear, the borders, the ground. Brand. It is red
+#            now, and it could be any colour without anyone misreading a
+#            timing screen.
+#   meaning  PURPLE is session best and GREEN is personal best in every
+#            timing display in motorsport. ACCENT is the car you are watching.
+#            Re-colouring these to match a brand would make the overlay
+#            prettier and harder to READ, so they are untouched.
+#
+# THE ONE HONEST COST. Red cannot carry cyan's contrast on a black ground:
+# the old #39d0e0 measured 9.97:1 against the card, and the best legible red
+# is about 5.4:1 — red is simply darker at full saturation. 5.4 still clears
+# WCAG AA for body text (4.5:1) with room, so this is a real trade rather than
+# a problem, but it is why the accent is a LIFTED red (#ff3b47) and not
+# RaceRoom's own #e2001a, which lands at 3.8:1 and is too dim to line a panel
+# with. The true brand red is kept below for FILLS, where white sits on top of
+# it and the contrast runs the other way.
+def _dim_hex(hexc, f):
+    """A colour walked towards black by factor `f`. Used where a second,
+    quieter version of an accent is wanted -- the clock's seconds, a glow.
+
+    DERIVED RATHER THAN CHOSEN, deliberately: the clock's seconds were a
+    hard-coded teal picked to sit beside a cyan accent, and when the accent
+    became red the clock went two-tone. Anything that is "the accent, but
+    quieter" should be computed from the accent so it cannot fall out of step.
+    """
+    h = str(hexc or "").lstrip("#")
+    try:
+        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except Exception:
+        return hexc
+    cl = lambda v: max(0, min(255, int(v * f)))
+    return "#%02x%02x%02x" % (cl(r), cl(g), cl(b))
+
+
+BRAND_RED = "#e2001a"    # RaceRoom's own red: for fills, never for thin lines
+PANEL_BG = "#120e0e"
+PANEL_OUTLINE = "#3a2b2d"
+CARD_BG = "#16100f"
+CARD_BG2 = "#0e0a0a"
+CARD_BORDER = "#3d2a2c"
+HEADER_ACCENT = "#ff3b47"
+CONTROL_BG = "#2a1e20"   # the slab behind sliders, arrows and pills
 TEXT = "#f2f4f7"
 DIM = "#9aa3ad"
-ACCENT = "#ffd23f"      # viewed/focused car
-LEADER = "#5cc8ff"
-PURPLE = "#c77dff"      # session best (fastest)
-GREEN = "#69db7c"       # personal best
-ENGINEER_COLOR = "#39d0e0"   # your engineer's radio colour (not a driver)
+ACCENT = "#ffd23f"      # viewed/focused car — MEANING, left alone
+# THE LEADER WAS THE LAST BLUE. It is not a timing convention the way purple
+# and green are — nothing is lost by moving it, and a cool blue was the one
+# thing still pulling the palette back towards FACTORtv. Platinum reads as
+# "first" without competing with the amber of the car you are watching.
+LEADER = "#e9ecef"
+PURPLE = "#c77dff"      # session best (fastest) — MEANING, left alone
+GREEN = "#69db7c"       # personal best — MEANING, left alone
+# WARM, BUT NOT THE CHROME RED. The engineer is a person on the radio, not a
+# panel edge, and painting him the same red as the furniture would lose him
+# against it. Coral keeps him in the warm family and clear of the booth's
+# yellow.
+ENGINEER_COLOR = "#ff8e72"   # your engineer's radio colour (not a driver)
 COMMENTATOR_COLOR = "#ffcf33"  # broadcast booth caption colour
+# THE ANALYST GETS HIS OWN, AND IT IS WARM. This was a hard-coded
+# "#7fd1ff" sitting inside the caption renderer {D} a light blue chosen
+# to pair with the old cyan chrome, and the last obviously-blue thing
+# left on screen after the retheme. Named here so the next palette
+# change finds it instead of missing it the way this one did.
+#
+# Three booth-adjacent voices, three separations: the commentator is
+# yellow, the analyst rose, the engineer coral. None of them is the
+# chrome red, or they would vanish into the furniture.
+PUNDIT_COLOR = "#ff6b83"       # the analyst's caption colour
 _LEET = {"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g"}
 CAT_INTENSITY = {
     "start": 1, "overtake": 2, "overtake_long": 2, "leadchange": 2, "fastlap": 1,
@@ -158,6 +220,12 @@ ENG_EMOTION = {
     "encourage": "neutral", "enc_top": "smug", "enc_mid": "neutral",
     "enc_back": "worried", "info_ahead": "neutral", "info_behind": "neutral",
     "nextlap": "worried", "tyres_gone": "worried",
+    # THE NEW TELEMETRY BEATS. `fuel_burn` is a number with a job attached,
+    # so it is WORRIED rather than neutral -- it only ever fires when the
+    # sums do not currently work. The two "ok" beats are the only good news
+    # the pit wall has, and they are delivered as such.
+    "fuel_burn": "worried", "fuel_ok": "happy", "tyres_ok": "happy",
+    "held_on": "fired", "retaken": "neutral",
     "tyre_cold": "neutral", "tyre_hot": "worried",
     "tyre_hot_traffic": "worried", "brake_hot": "worried",
     "engine_hot": "worried", "engine_hot_dmg": "worried",

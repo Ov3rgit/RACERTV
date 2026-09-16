@@ -1821,5 +1821,24 @@
   "Final corner of the formation lap. Get ready, this is about to go green.",
   "Here they come, forming up for the start. Any moment now at {trk}.",
   "Formation lap complete. The field is lining up and the green is imminent."
+ ],
+ "joined": [
+  "We join the action already underway here at {trk} — {drv} out in front.",
+  "You join us mid-race at {trk}, and it's {drv} who leads.",
+  "We're into this one already at {trk}. {drv} heads the field.",
+  "Straight into it at {trk} — the race is well underway, {drv} in the lead.",
+  "We pick up the race in progress here at {trk}, {drv} setting the pace.",
+  "Welcome along to {trk}, where this one is already up and running — {drv} leads.",
+  "The race is on and has been for a while here at {trk}. {drv} out in front.",
+  "We come to you mid-race at {trk} — it's {drv} at the head of the field."
+ ],
+ "still_holding": [
+  "And {drv} is still holding onto P{pos} somehow!",
+  "{drv} gets it straight back! Still P{pos}!",
+  "Not so fast — {drv} fights back and keeps P{pos}!",
+  "{drv} will not give it up! Straight back into P{pos}!",
+  "Back through goes {drv}! P{pos} is still theirs!",
+  "Somehow {drv} is still in P{pos}!",
+  "{drv} slams the door and hangs onto P{pos}!"
  ]
 }

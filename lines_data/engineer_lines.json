@@ -1013,5 +1013,39 @@
   "Green green green. Head down, find your rhythm — position call coming when the dust settles.",
   "And away we go. Forget the scrap around you for now — clean laps first, numbers in a minute.",
   "We're underway. Breathe, hit your marks — I'll read the board to you shortly."
+ ],
+ "fuel_burn": [
+  "You're burning {burn} a lap. To make the finish we need {need}.",
+  "Fuel's going at {burn} a lap — target is {need}. Lift and coast into the slow ones.",
+  "We're on {burn} a lap, need {need}. Short-shift where it doesn't cost you.",
+  "{burn} a lap right now. Get it to {need} and we're home dry.",
+  "Burn rate {burn}, target {need}. Save it on the straights, not in the corners."
+ ],
+ "fuel_ok": [
+  "Fuel's good, mate. You've got enough to race with.",
+  "Fuel number's healthy — stop saving and go racing.",
+  "We're on top of the fuel. Push on.",
+  "Fuel's fine from here. Run your own race.",
+  "Plenty in the tank. Don't think about it."
+ ],
+ "tyres_ok": [
+  "Tyres are holding up well. Keep doing what you're doing.",
+  "Wear's right where we want it. Good management.",
+  "Tyres look strong — you've got life left in these.",
+  "No worries on the tyres. They're coming to you."
+ ],
+ "held_on": [
+  "Straight back at him! Good response, still P{pos}.",
+  "That's how you answer it. P{pos}, and he knows you're there.",
+  "Brilliant, straight back through. P{pos}, keep it tight now.",
+  "He had a look and you shut it down. Still P{pos}.",
+  "Good lad, you didn't let that one go. P{pos}."
+ ],
+ "retaken": [
+  "He's come straight back at you. Go again, the move's there.",
+  "Didn't stick that time. You've got the pace, set it up better.",
+  "He fought back. Same place next lap, but get the exit right.",
+  "Close, he's back ahead. Stay on him, he's under pressure now.",
+  "Not quite. He's rattled though, keep the pressure on."
  ]
 }

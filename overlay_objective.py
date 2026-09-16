@@ -915,6 +915,18 @@ class ObjectiveMixin:
         setting a target you cannot resolve is the thing we are avoiding."""
         if getattr(self, "_obj", "missing") == "missing":
             self._obj_reset()
+        # OBJECTIVES ARE OPTIONAL. Asked for directly. This is the one place a
+        # target is born, so switching it off here silences the card, the
+        # engineer's set/met/missed calls and the booth's references together
+        # — there is no second path to forget. An objective already running
+        # when he switches it off is dropped at once rather than left to
+        # resolve, because "you did it!" for a job he just turned off would be
+        # the objective system talking after being told to stop.
+        if not getattr(self, "objectives_on", True):
+            if self._obj:
+                self._obj = None
+                self._obj_say = None
+            return None
         if s.session_type != 2:
             return self._obj_quali(s, order, now)
         if not getattr(self, "_racing", False):

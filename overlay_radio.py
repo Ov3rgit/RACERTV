@@ -38,8 +38,10 @@ CHASE_TARGET_STABLE_S = 1.5
 # overlay_objective, which withdraws a target whose set line never got said.
 OBJ_SET_TTL = 10.0
 from overlay_common import (_BUBBLE_H, _safe_format, ACCENT, CARD_BG, DIM, ENGINEER_COLOR,
+                            CONTROL_BG,
     ENG_EMOTION, HEADER_ACCENT, PENALTY_SPOKEN, STRIKE_GAP, TEXT, _RADIO_LOCK)
 from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
+    DRIVER_REPLIES,
     EASTER_EGGS, ENGINEER_LINES, ENGINEER_PRACTICE,
     ENGINEER_QUALI, EXTRA_LINES, LEAD, MOOD_FRUSTRATED, MOOD_PUMPED,
     NATIVE_RADIO, NATIVE_RADIO_QUALI, PERSONAS, PUNDIT_FULL, PUNDIT_NAME,
@@ -61,11 +63,63 @@ ENG_START_STABLE_S = 3.5
 ENG_START_MAX_S = 20.0
 
 
+# ---- THE DRIVER ANSWERS ------------------------------------------------------
+#
+# Asked for directly: a back-and-forth between the engineer and the driver,
+# and *"he must respond to objectives and completing or not completing
+# objectives"*. Ported from FACTORtv's design, which has already been lived
+# with: the driver's half is TEXT ONLY, a card a beat after the engineer's.
+#
+# Which engineer call gets which kind of answer, and how often. A number, not
+# a yes/no, because a driver who answers EVERY call reads as a script, while
+# one who never answers an objective verdict reads as not listening. The
+# objective verdicts are 1.0 because the user asked for exactly those.
+#
+# Ordered: the first prefix that matches wins, so the specific objective
+# kinds are listed before the catch-alls.
+DRIVER_REPLY_POOL = (
+    ("obj_set_", "drv_obj_set", 1.0),
+    ("obj_met_", "drv_obj_met", 1.0),
+    ("obj_miss_", "drv_obj_miss", 1.0),
+    ("obj_nudge_", "drv_obj_nudge", 0.35),
+    ("obj_withdraw_", "drv_ack", 0.5),
+    ("obj_advice_", "drv_ack", 0.4),
+    ("held_on", "drv_held_on", 0.8),
+    ("retaken", "drv_retaken", 0.8),
+    ("lead", "drv_gained", 0.8),
+    ("gained", "drv_gained", 0.6),
+    ("lost", "drv_lost", 0.6),
+    ("fell_big", "drv_lost", 0.8),
+    ("fuel_ok", "drv_good", 0.7),
+    ("tyres_ok", "drv_good", 0.7),
+    ("fuel", "drv_fuel", 0.6),
+    ("tyre", "drv_tyres", 0.5),
+    ("pit", "drv_pit", 0.9),
+)
+DRIVER_REPLY_DEFAULT = ("drv_ack", 0.25)
+# A beat after the engineer's card, never before it. Keyed off his card
+# APPEARING, which is when his audio starts -- so the reply cannot land
+# before the line it is answering, however long that line took to render.
+DRIVER_REPLY_DELAY = 1.6
+# The driver does not chatter. Objective verdicts ignore this; everything
+# else waits.
+DRIVER_REPLY_CD = 9.0
+
+
+def driver_reply_for(cat):
+    """(pool, probability) for an engineer category, or the default."""
+    for prefix, pool, prob in DRIVER_REPLY_POOL:
+        if cat and cat.startswith(prefix):
+            return pool, prob
+    return DRIVER_REPLY_DEFAULT
+
+
 class RadioMixin:
     """See module docstring."""
 
     def update_radio(self, s):
         now = time.time()
+        self._driver_reply_drain(now)
         # reset radio state on a new session
         if getattr(self, "_radio_key", None) != self._sess_key:
             self._radio_key = self._sess_key
@@ -593,6 +647,9 @@ class RadioMixin:
                     self._air_bubble(_m)
 
                 def _onp(_t, _p):
+                    # THE VOICE CHANNEL IS ALIVE. Reset the failure run.
+                    self._voice_fails = 0
+                    self._voice_ok = True
                     _air()                     # audio STARTED — card lands with it
 
                 def _ondrop(_st=st):
@@ -611,6 +668,32 @@ class RadioMixin:
                     # transmission never happened, the honest thing is silence:
                     # nothing was said, so nothing is shown. Mark it consumed
                     # so the safety net below doesn't resurrect it.
+                    #
+                    # ...UNLESS THE VOICE CHANNEL IS SIMPLY DOWN.
+                    #
+                    # Everything above is right about ONE line failing: a card
+                    # with no voice behind it is not a transmission. But
+                    # `enabled` means "we intend to speak", not "we can", and
+                    # when rendering fails for everything -- offline, the
+                    # neural voices unreachable, a broken engine -- EVERY line
+                    # takes this path. The result is no audio AND no cards: an
+                    # overlay that looks dead rather than quiet.
+                    #
+                    # Reported exactly that way: "the rival radio cards and my
+                    # own cards dont pick up, could be due to the reason
+                    # theres no audio now".
+                    #
+                    # So a RUN of failures with nothing ever having played
+                    # means there is no voice channel -- the same situation as
+                    # muted, and muted already shows the cards. One dropped
+                    # line stays silent; a dead channel falls back to a
+                    # caption-only broadcast.
+                    self._voice_fails = getattr(self, "_voice_fails", 0) + 1
+                    if (not getattr(self, "_voice_ok", False)
+                            and self._voice_fails >= getattr(
+                                self, "VOICE_DEAD_AFTER", 3)):
+                        _air()
+                        return
                     with self._bubble_lock:
                         _st["aired"] = True
                 self.tts.speak(say_text, persona, seed=nm, ttl=_ttl,
@@ -662,6 +745,11 @@ class RadioMixin:
             fmt.update(extra)
             line = _safe_format(self._pick(ENGINEER_LINES[cat], ("ENGINEER", cat)),
                                 fmt)
+            # WHAT THIS LINE IS ABOUT travels with it, so the driver can answer
+            # the call rather than just the text. The event tuple has no room
+            # for it and is read positionally in several places, so it rides
+            # alongside keyed by the words instead.
+            self._eng_tag(line, cat)
             evt = (prio, -1, "RACE ENGINEER", line, bypass, "ENGINEER",
                    ENG_EMOTION.get(cat, "neutral"))
             if ttl != "default":
@@ -1204,9 +1292,49 @@ class RadioMixin:
         # roll-call ("P14 up to P10, four places!" not P13, P12, P11...).
         early = focused.completed_laps < 2
         ack_cd = 12.0 if early else 8.0
+        # A PLACE CHANGE MUST HOLD BEFORE HE SAYS ANYTHING ABOUT IT.
+        #
+        # This fired as soon as the confirmed place moved -- about 300ms -- so
+        # a pass taken straight back got "He's through, P2. No need to
+        # overreact" for a position the driver never actually lost. The booth
+        # already waits for a pass to stick (BoothMixin.PASS_HOLD); the pit
+        # wall now waits exactly as long, so the two voices can never
+        # disagree about whether a move happened.
+        #
+        # And when it DOESN'T stick, that is worth a line of its own: the
+        # driver who fought straight back wants to hear it noticed.
+        hold = getattr(self, "PASS_HOLD", 1.5)
+        pend = getattr(self, "_eng_place_pend", None)
+        if self._eng_last_ann_place is not None:
+            if fpc != self._eng_last_ann_place:
+                if pend is None or pend[0] != fpc:
+                    # a NEW candidate place; start timing it
+                    if pend is None:
+                        self._eng_place_pend = (fpc, now,
+                                                self._eng_last_ann_place)
+                    else:
+                        # MOVED AGAIN: the new place must hold in its own
+                        # right. Keeping the first timer let a second loss
+                        # 1.4s after the first be announced after only 0.1s.
+                        # The ORIGIN is kept, so a reversal still compares
+                        # against where the driver started.
+                        self._eng_place_pend = (fpc, now, pend[2])
+                    pend = self._eng_place_pend
+            elif pend is not None:
+                # BACK WHERE WE STARTED inside the hold: the move reversed.
+                self._eng_place_pend = None
+                was_loss = pend[0] > pend[2]
+                if now - self._eng_place_cd > 4.0:
+                    self._eng_place_cd = now
+                    return add("held_on" if was_loss else "retaken", 1,
+                               bypass=True, ttl=_ACK_TTL, pos=fpc)
+                pend = None
         if self._eng_last_ann_place is None:
             self._eng_last_ann_place = fpc
-        elif fpc != self._eng_last_ann_place and now - self._eng_place_cd > ack_cd:
+        elif (fpc != self._eng_last_ann_place and pend is not None
+              and now - pend[1] >= hold
+              and now - self._eng_place_cd > ack_cd):
+            self._eng_place_pend = None
             njump = self._eng_last_ann_place - fpc      # +climbed / -dropped
             gained_now = njump > 0
             led = (fpc == 1 and self._eng_last_ann_place > 1)
@@ -1252,16 +1380,65 @@ class RadioMixin:
                 return add("clear", 2)
         # ---- TELEMETRY STATUS (fuel / tyres / damage) — lower priority, on
         # their own long cooldowns so they're useful, not naggy ----
+        # MEASURE THE BURN, don't just read the estimate.
+        #
+        # `fuel_per_lap` is RaceRoom's own figure and it is an average over the
+        # stint {D} it lags a change of driving style by laps, which is exactly
+        # the window in which fuel saving is decided. Watching the tank across
+        # a lap crossing gives what he is ACTUALLY using now.
+        #
+        # The last three laps, taken as a MEDIAN rather than a mean: an in-lap,
+        # a safety car or a lap spent behind a train is an outlier that would
+        # drag an average somewhere useless, and the median simply ignores it.
+        if s.fuel_use_active and s.fuel_left > 0:
+            lap_now = focused.completed_laps
+            prev = getattr(self, "_eng_fuel_lap", None)
+            if prev is None or lap_now < prev[0]:
+                self._eng_fuel_lap = (lap_now, s.fuel_left)
+                self._eng_burns = []
+            elif lap_now > prev[0]:
+                used = prev[1] - s.fuel_left
+                # a pit stop refuels: a NEGATIVE burn is a stop, not a lap
+                if 0.05 < used < 99.0:
+                    self._eng_burns = (getattr(self, "_eng_burns", [])
+                                       + [used])[-3:]
+                self._eng_fuel_lap = (lap_now, s.fuel_left)
+
+        burns = sorted(getattr(self, "_eng_burns", []))
+        burn = burns[len(burns) // 2] if burns else 0.0
+
         if s.fuel_use_active and s.fuel_per_lap > 0 and now - self._eng_fuel_cd > 40.0:
             laps_fuel = s.fuel_left / s.fuel_per_lap
             laps_left = (s.number_of_laps - focused.completed_laps
                          if s.number_of_laps > 0 else None)
             if laps_left is not None and 0 < laps_fuel < laps_left - 0.5:
                 self._eng_fuel_cd = now
+                # THE TARGET, WHEN WE CAN WORK ONE OUT. "Save fuel" is an
+                # instruction without a measure; "you're on 2.4 a lap, we need
+                # 2.1" is something he can actually drive to. Needs a real
+                # measured burn AND a lap count, so it degrades to the plain
+                # save call in a timed race or on lap one.
+                if burn > 0 and laps_left and laps_left > 0:
+                    need = s.fuel_left / float(laps_left)
+                    if need < burn:
+                        return add("fuel_burn", 2,
+                                   burn=("%.2f" % burn), need=("%.2f" % need))
                 return add("fuel_save", 2, laps=max(1, int(laps_fuel)))
             if laps_fuel < 3.0:
                 self._eng_fuel_cd = now
                 return add("fuel_low", 2)
+            # ...AND THE GOOD NEWS, ONCE. Every other fuel line here is a
+            # warning, so the engineer only ever spoke when something was
+            # wrong. Said a single time, well into the race, when the sums
+            # genuinely work {D} which is what makes the warnings mean
+            # something when they do come.
+            if (laps_left is not None and laps_left > 2
+                    and laps_fuel > laps_left + 1.0
+                    and focused.completed_laps >= 3
+                    and not self._eng_flags.get("fuelok")):
+                self._eng_flags["fuelok"] = True
+                self._eng_fuel_cd = now
+                return add("fuel_ok", 0)
         if s.tire_wear_active and now - self._eng_tyre_cd > 45.0:
             tw = list(s.tire_wear)
             if len(tw) == 4:
@@ -1280,6 +1457,16 @@ class RadioMixin:
                     if worn > 0.45:                   # well into the wear range
                         self._eng_tyre_cd = now
                         return add("tyres_worn", 2)
+                    # THE TYRES ARE FINE, AND THAT IS WORTH SAYING ONCE.
+                    # Same argument as `fuel_ok`: a pit wall that only ever
+                    # reports bad news trains you to dread it. Gated on being
+                    # far enough into a stint that "holding up well" is a real
+                    # observation rather than a statement about new tyres.
+                    if (worn < 0.25 and focused.completed_laps >= 5
+                            and not self._eng_flags.get("tyresok")):
+                        self._eng_flags["tyresok"] = True
+                        self._eng_tyre_cd = now
+                        return add("tyres_ok", 0)
         # CAR DAMAGE — car_damage fields are a HEALTH fraction (1.0 = pristine,
         # 0.0 = hurt; -1.0 = N/A when the damage model is off). RaceRoom's note:
         # aero damage is "a bit arbitrary", so real contact often moves health
@@ -1663,6 +1850,75 @@ class RadioMixin:
         emo = {"strong": "smug", "solid": "smug"}.get(cat, "neutral")
         events.append((prio, -1, "RACE ENGINEER", line, False, "ENGINEER", emo))
 
+    # ---- the driver's half of the conversation --------------------------
+    def _eng_tag(self, line, cat):
+        """Remember what an engineer line was ABOUT, keyed by its words."""
+        tags = getattr(self, "_eng_line_cat", None)
+        if tags is None:
+            tags = self._eng_line_cat = {}
+        tags[line] = cat
+        if len(tags) > 64:                      # bounded: oldest go first
+            for k in list(tags)[:len(tags) - 64]:
+                tags.pop(k, None)
+
+    def _driver_reply_schedule(self, msg):
+        """The engineer's card just appeared. Queue the driver's turn.
+
+        RUNS ON THE AUDIO THREAD (`_air_bubble` is called from `on_play`), so
+        it only RECORDS that a reply is due. Choosing whether to answer and
+        what to say both happen on the main thread in `_driver_reply_drain`,
+        because the line picker keeps a shuffle-bag that two threads must not
+        mutate at once.
+        """
+        cat = (getattr(self, "_eng_line_cat", None) or {}).get(msg.get("text"))
+        with _RADIO_LOCK:
+            q = getattr(self, "_driver_replies", None)
+            if q is None:
+                q = self._driver_replies = []
+            q.append((time.time() + DRIVER_REPLY_DELAY, cat))
+
+    def _driver_reply_drain(self, now):
+        """Say what is due. Main thread only."""
+        with _RADIO_LOCK:
+            q = getattr(self, "_driver_replies", None) or []
+            due = [e for e in q if e[0] <= now]
+            self._driver_replies = [e for e in q if e[0] > now]
+        if not due:
+            return
+        # ONE ANSWER PER TICK, AND THE VERDICT WINS. Two engineer lines landing
+        # together (an objective met AND a place gained, which is common: one
+        # usually causes the other) get one reply, to the thing that matters.
+        def rank(e):
+            c = e[1] or ""
+            return (0 if c.startswith(("obj_met_", "obj_miss_", "obj_set_"))
+                    else 1)
+        due.sort(key=rank)
+        cat = due[0][1]
+        pool_name, prob = driver_reply_for(cat)
+        verdict = bool(cat) and cat.startswith(("obj_set_", "obj_met_",
+                                               "obj_miss_"))
+        # AN OBJECTIVE VERDICT ALWAYS GETS AN ANSWER; everything else earns
+        # one. The cooldown and the dice are for chatter, not for "you did it".
+        if not verdict:
+            if now - getattr(self, "_driver_reply_t", -1e9) < DRIVER_REPLY_CD:
+                return
+            if random.random() > prob:
+                return
+        pool = DRIVER_REPLIES.get(pool_name) or DRIVER_REPLIES.get("drv_ack")
+        if not pool:
+            return
+        text = self._pick(pool, ("DRV", pool_name))
+        self._driver_reply_t = now
+        name = (getattr(self, "_my_name", "") or "YOU")
+        emo = {"drv_obj_met": "happy", "drv_gained": "happy",
+               "drv_held_on": "fired", "drv_obj_miss": "sad",
+               "drv_lost": "sad", "drv_retaken": "sad",
+               "drv_good": "happy"}.get(pool_name, "neutral")
+        self._air_bubble({"name": name, "text": text,
+                          "color": self._color_for_name(name),
+                          "emotion": emo, "engineer": False,
+                          "driver": True})
+
     def _air_bubble(self, msg):
         """Put a team-radio bubble on screen the instant its audio starts, so
         the bubble matches what's heard. Called from the TTS worker thread."""
@@ -1675,6 +1931,8 @@ class RadioMixin:
         with _RADIO_LOCK:
             self.radio_msgs.append(msg)
             self.radio_msgs = self.radio_msgs[-6:]
+        if msg.get("engineer"):
+            self._driver_reply_schedule(msg)
 
     def _wrap(self, text, width=34, maxlines=2):
         words, lines, cur = text.split(), [], ""
@@ -1694,7 +1952,7 @@ class RadioMixin:
         lines = self._wrap(m["text"], width=30)
         h = _BUBBLE_H(len(lines))
         # broadcast card: dark rounded box, thin border, accent strip in the
-        # driver's colour (cyan for the engineer)
+        # driver's colour (the chrome accent for the engineer)
         # SOLID (glass=False) on purpose. The icons are PNGs flattened onto
         # CARD_BG to kill their colour-key fringe, so each carries an opaque
         # CARD_BG square. Against a TRANSLUCENT glass body that square read as
@@ -1716,11 +1974,26 @@ class RadioMixin:
         # drawn); else the single tintable icon_helmet.png; else vectors.
         ph = None
         if not is_eng:
+            # THE RENDERED HELMET FIRST. `_color_for_name` fills both stores on
+            # a driver's first sighting, so one call settles which of the two
+            # this driver has — a design generated from his name, or, if he
+            # supplied his own art, a variant index.
+            # `getattr`, NOT attribute access. This runs on every frame a card
+            # is up, and the overlay is also built attribute-by-attribute by
+            # the test harness (`object.__new__`, see tests/smoke.py) -- so a
+            # store added here and not there raised mid-draw and took the
+            # bubble stage down with it. That is exactly how this line got
+            # written. The same defensiveness `spectator` already uses.
+            _hm = getattr(self, "_dhelmet", None) or {}
+            spec = _hm.get(m["name"])
             vi = self._dvariant.get(m["name"])
-            if vi is None:                     # colour not assigned yet
+            if spec is None and vi is None:    # not assigned yet
                 self._color_for_name(m["name"])
+                spec = (getattr(self, "_dhelmet", None) or {}).get(m["name"])
                 vi = self._dvariant.get(m["name"])
-            if vi is not None:
+            if spec is not None:
+                ph = avatars.helmet_icon(spec, av)
+            if ph is None and vi is not None:
                 ph = avatars.variant_icon(vi, av)
         if ph is None:
             ph = avatars.custom_icon("engineer" if is_eng else "helmet", av,
@@ -1739,7 +2012,7 @@ class RadioMixin:
         if not is_eng:                        # small "RADIO" tag pill (drivers)
             px = tx + self.f_row_b.measure(name) + 8
             self.canvas.create_rectangle(px, y + 10, px + 42, y + 23,
-                                         fill="#1c2530", outline="")
+                                         fill=CONTROL_BG, outline="")
             self.text(px + 21, y + 16, "RADIO", fill=DIM,
                       font=self.f_small_b, anchor="center")
         ly = y + 36

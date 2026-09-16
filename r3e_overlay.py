@@ -28,8 +28,9 @@ import tkinter.font as tkfont
 
 import r3e_data as R
 import avatars
+import helmet as helmet_mod
 from overlay_panel import (_TC)
-from overlay_common import (CARD_BG2, CORNER_NBINS, DIM, DRIVER_COLORS, GREEN,
+from overlay_common import (_dim_hex, CARD_BG, CARD_BG2, CORNER_NBINS, DIM, DRIVER_COLORS, GREEN,
     HEADER_ACCENT, PLACE_CONFIRM_TICKS, PURPLE, TYRE_COLORS, UPDATE_MS,
     VK_C, VK_CONTROL, VK_E, VK_LBUTTON, VK_M, VK_O, VK_Q, VK_SHIFT, VK_D,
     VK_R, YELLOWT, _LEET)
@@ -230,6 +231,31 @@ def key_down(vk):
     return ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000
 
 
+# HAS THE FIELD LAUNCHED? The green-flag latch's answer when the player's own
+# car cannot give one — a replay, or spectating.
+#
+# A MAJORITY, NOT THE LEADER. One car is not a start: a driver creeping on the
+# grid, or one who jumped it, moves while the race has not begun, and on a
+# standing grid a single twitchy reading would call the green early. At lights
+# out the whole field goes at once, so half of it moving is unambiguous and is
+# reached within a few tenths of the real moment.
+#
+# The same 4.0 threshold the player's own test uses, deliberately: the two are
+# answering one question and a field that launched by a different definition
+# than the driver did would make the call land in a different place depending
+# on whether he happened to be driving.
+def _field_launched(order, thresh=4.0):
+    n = len(order or ())
+    if not n:
+        return False
+    movers = sum(1 for d in order if abs(getattr(d, "car_speed", 0.0)) > thresh)
+    # A ONE- OR TWO-CAR SESSION HAS NO MAJORITY WORTH THE NAME. Half of two is
+    # one, and demanding two movers in a two-car race would hang the start on
+    # the slower of them. Below three cars, one car moving IS the field.
+    need = 1 if n <= 2 else max(2, n // 2)
+    return movers >= need
+
+
 
 
 
@@ -360,6 +386,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # card, the relative panel — and leaves the broadcast: booth, tower,
         # map, flags, sectors, fastest lap.
         self.spectator = bool(_load_prefs().get("spectator", False))
+        self._auto_spec = False    # set per tick from game_in_replay
 
         # SPEEDO. One control, three states: OFF -> KM/H -> MPH. A separate
         # units switch would be a second row in the menu for a setting nobody
@@ -367,6 +394,10 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # off. Cycling reads as one idea: "the speedo, in these units".
         _sp = _load_prefs().get("speedo", "kmh")
         self.speedo = _sp if _sp in ("off", "kmh", "mph") else "kmh"
+        self.speedo_size = _load_prefs().get("speedo_size", "m")
+        # ON BY DEFAULT: turning a feature off for everyone who never
+        # asked would be a regression, so it is opt-out, and remembered.
+        self.objectives_on = bool(_load_prefs().get("objectives", True))
 
         # REPLAY PLAYBACK. A loaded-but-paused replay still publishes a full
         # session, and the booth used to spend its whole introduction on a
@@ -432,6 +463,14 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # actually racing (see RADIO_FAR_CHANCE).
         self.RADIO_DRIVER_CD = 30.0  # min seconds between same driver's bubbles
         self.RADIO_HOLD = 6.0        # how long a bubble stays on screen
+        # HOW MANY LINES MAY FAIL TO SOUND, with nothing ever having
+        # played, before the overlay concludes there is no voice channel
+        # and shows its cards without one. One or two failures are a busy
+        # queue; three at the start of a session is a renderer that is
+        # never going to work. See the drop handler in overlay_radio.
+        self.VOICE_DEAD_AFTER = 3
+        self._voice_fails = 0        # consecutive lines that never sounded
+        self._voice_ok = False       # has ANY line actually played yet?
         self.RADIO_NEAR = 4          # crashes within N places of you = high priority
         # a moment involving a car you are NOT racing rarely deserves a voice
         self.RADIO_FAR_CHANCE = 0.3  # chance a far-away crash gets a reaction
@@ -483,6 +522,14 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self._dcolor = {}            # driver name -> assigned colour (unique-ish)
         self._dcolor_n = 0           # next colour index to hand out
         self._dvariant = {}          # driver name -> helmet PNG variant index
+        self._dhelmet = {}           # driver name -> rendered helmet spec
+        # HIS OWN HELMET. Everyone else's is generated from their name; this
+        # is the one design in the session that was CHOSEN, and it is the only
+        # one persisted. {} means "not chosen", which is a real answer and the
+        # default: he keeps the generated one like everybody else.
+        self._my_helmet = dict(_load_prefs().get("helmet") or {})
+        self._my_name = ""           # the local account, from s.player
+        self._menu_page = "main"     # "main" | "helmet"
 
         # diagnostics (Ctrl+Shift+D toggles an on-screen HUD)
         self.debug = False
@@ -510,9 +557,21 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # EXCLUDE the radio-card art: this glob takes the first *.png in the
         # folder, so a user's helmet/engineer icons would otherwise be picked
         # up as the broadcast logo (they sort before racer-tv.png)
+        # ...AND NOT THE WORKING FILES EITHER. This takes the first *.png in
+        # the folder, and every scratch file this project writes is named with
+        # a leading underscore {D} `_transcript.log`, `_heard.json`,
+        # `_tts_debug.log`, `_speedo_preview.png`. Underscore sorts before
+        # lowercase, so `_speedo_preview.png` beat `racer-tv.png` and the
+        # broadcast logo has quietly been a screenshot of the speedometer
+        # since it was first generated. Rendering more previews into the
+        # folder made it obvious rather than causing it.
+        #
+        # One rule, matching the convention the rest of the project already
+        # follows: a leading underscore means "mine, not the product's".
         cands += [p for p in sorted(glob.glob(os.path.join(_DIR, "*.png")))
-                  if not os.path.basename(p).startswith("icon_")]
-        cands += sorted(glob.glob(os.path.join(_DIR, "*.gif")))
+                  if not os.path.basename(p).startswith(("icon_", "_"))]
+        cands += [p for p in sorted(glob.glob(os.path.join(_DIR, "*.gif")))
+                  if not os.path.basename(p).startswith("_")]
         for p in cands:
             if not os.path.exists(p):
                 continue
@@ -618,7 +677,10 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
     # which is the opposite of the point: this is a small clock in the corner
     # of a racing game, and the glow is meant to lift the digits off the panel,
     # not light the room. Two close rings, both much darker than the core.
-    _CLK_GLOW = ((2, "#0d262c"), (1, "#164851"))
+    # WARM, like everything else in the corner. These were dark teals chosen
+    # to sit under a cyan clock; against the red one they read as a blue
+    # shadow, which is what "the time is a mix of red and blue" was.
+    _CLK_GLOW = ((2, "#2a0b0e"), (1, "#57171d"))
 
     def _paint_clock(self, hhmm, ss):
         """Repaint the clock only when the digits actually change — this runs
@@ -636,8 +698,13 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                               font=self._clk_f, anchor="w")
         c.create_text(x, cy, text=hhmm, fill=HEADER_ACCENT, font=self._clk_f,
                       anchor="w")
+        # THE SECONDS ARE A DIMMED ACCENT, not their own colour. Hard-coded
+        # teal here while the hours above use HEADER_ACCENT is precisely how
+        # the clock ended up two-tone when the theme changed; deriving it
+        # means it can never fall out of step again.
         c.create_text(x + self._clk_f.measure(hhmm) + 4, cy + 3, text=ss,
-                      fill="#3f7d88", font=self._clk_fs, anchor="w")
+                      fill=_dim_hex(HEADER_ACCENT, 0.55), font=self._clk_fs,
+                      anchor="w")
         try:
             h = ctypes.windll.user32.GetAncestor(self.clock_win.winfo_id(), 2)
             ex = ctypes.windll.user32.GetWindowLongW(h, -20)
@@ -860,7 +927,21 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             # else's race, isn't watching. The radio is skipped at the UPDATE
             # stage rather than muted at the speak() call, so it never builds
             # the messages in the first place.
-            spec = getattr(self, "spectator", False)
+            # ...AND A REPLAY IS SPECTATING WHETHER OR NOT ANYONE TICKED THE
+            # BOX. RaceRoom publishes `game_in_replay`, so the overlay never
+            # had to be TOLD this: in a replay there is, definitionally, no
+            # driver in the seat to talk to, and an engineer calling tyre
+            # temperatures at a recording is the single most immersion-breaking
+            # thing the product does. Watching one back was the common case and
+            # it required remembering a menu toggle first.
+            #
+            # IT DOES NOT TOUCH THE SAVED PREFERENCE. `self.spectator` stays
+            # exactly as he set it, and `_save_pref` is not called — the mode
+            # lifts by itself when the replay ends. Auto-detection that
+            # silently rewrote his setting would be a worse bug than the one it
+            # fixes.
+            self._auto_spec = bool(getattr(s, "game_in_replay", 0) == 1)
+            spec = self.spectating
             stages = [("stats", self.update_stats),
                       ("comm", self.update_commentary)]
             if not spec:
@@ -1274,6 +1355,17 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # above is about); as a veto the worst it can do is call the green a
         # moment late, which is a far cheaper failure than calling the race
         # underway while everyone is still weaving behind the safety car.
+        # WHOSE OVERLAY IS THIS? `s.player.player_name` is the local ACCOUNT,
+        # not the car being viewed — which is the distinction that matters in
+        # a replay or while spectating, where the viewed car is somebody else
+        # and his chosen helmet should still be his.
+        try:
+            nm = R.u8_to_str(s.player.player_name).strip()
+            if nm:
+                self._my_name = nm
+        except Exception:
+            pass
+
         phase = getattr(s, "session_phase", -1)
         self._formation = (s.session_type == 2 and phase == 3
                            and not self._racing)
@@ -1289,9 +1381,29 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                 self._racing = True
             elif phase in (3, 4):
                 pass                     # formation lap / countdown: not yet
-            elif abs(s.car_speed) > 4.0:
+            elif abs(s.car_speed) > 4.0 or _field_launched(order):
                 # trigger as soon as the field launches (lower threshold) so the
                 # 'lights out' call lands closer to the actual moment
+                #
+                # ...AND THE FIELD'S SPEED, NOT ONLY THE PLAYER'S. `s.car_speed`
+                # is YOUR car, and in a REPLAY or while SPECTATING there is no
+                # car of yours to read — it sits at zero through the whole
+                # start. The latch then had exactly one route left, the
+                # completed-lap test above, so the green flag was declared when
+                # the leader crossed the line and the booth called lights-out a
+                # lap late. Reported precisely:
+                #
+                #   *"race starts are very underwhelming and not accurate, and
+                #     it always only starts around lap 2"*
+                #
+                # Lap 2 was not an approximation. It was `completed_laps >= 1`.
+                #
+                # Every driver carries `car_speed` (see r3e_data.DriverData), so
+                # the field can answer the same question the player's car was
+                # being asked, in every mode. The player's own speed is kept and
+                # tried FIRST because it is one read and it is right the instant
+                # he launches; the field is the fallback that makes replays and
+                # spectator mode behave like driving.
                 self._racing = True
             if self._racing:
                 # Green-flag stamp for the RADIO. The booth keeps its own
@@ -1564,11 +1676,65 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             # the name and the timing tower always match the helmet on screen
             # instead of clashing with a fixed palette entry.
             n = self._dcolor_n
-            vs = avatars.helmet_variants()
             c = None
-            if vs:
-                self._dvariant[name] = n % len(vs)
-                c = avatars.variant_color(n % len(vs))
+            # A HELMET RENDERED FROM THE NAME, not dealt from a deck of nine.
+            #
+            # The sequential scheme below assigned `icon_helmet_N.png` in order
+            # of FIRST SIGHTING. Three things follow from that, and all three
+            # are wrong in an online lobby:
+            #
+            #   * it wraps at nine. A twenty-car grid had duplicates
+            #     guaranteed, and the duplicates were also colour-twins.
+            #   * it depends on arrival order, so the SAME opponent wore a
+            #     different helmet in a different session.
+            #   * it is local. You and he saw different helmets for the same
+            #     driver, because you sighted people in a different order.
+            #
+            # Rendering from the name fixes all three at once: one driver, one
+            # helmet, for ever — and the same helmet on every machine, with no
+            # networking, because the name is the only input and everybody has
+            # it. That is what makes a lobby of strangers feel like a grid of
+            # people rather than a list of lap times.
+            #
+            # The colour still comes FROM the helmet (`card_colour`), so the
+            # card accent, the name and the timing tower keep matching the
+            # picture — which is the property the old sampling scheme existed
+            # to provide, and is preserved rather than re-invented.
+            try:
+                # HIS CHOICE OUTRANKS THE GENERATOR, and nothing else does.
+                # Every other driver on the grid is generated, because nobody
+                # else's design can reach this machine — RaceRoom's shared
+                # memory carries names, not liveries.
+                spec = None
+                if name and name == getattr(self, "_my_name", ""):
+                    spec = dict(getattr(self, "_my_helmet", None) or {}) or None
+                if spec is None:
+                    spec = helmet_mod.generated(name)
+                if spec:
+                    self._dhelmet[name] = spec
+                    # LIFTED UNTIL IT CAN BE READ. This colour is not just the
+                    # accent strip — it is the driver's NAME, on a near-black
+                    # card, and a navy or forest shell straight from
+                    # `card_colour` measures barely over 1:1 against it. The
+                    # helmet stays its true colour; the text gets the same hue
+                    # walked towards white only as far as it has to go.
+                    #
+                    # Found by LOOKING at a rendered lobby, not by a test: four
+                    # of twenty names came out unreadable and every assertion
+                    # still passed, because "is it a distinct colour" and "can
+                    # you read it" are different questions.
+                    c = helmet_mod.readable(helmet_mod.card_colour(spec),
+                                            CARD_BG)
+            except Exception:
+                c = None
+            # USER-DRAWN ART STILL WINS. Someone who has put their own
+            # `icon_helmet_*.png` next to the exe chose those on purpose, and a
+            # generator must not overrule a decision.
+            if c is None:
+                vs = avatars.helmet_variants()
+                if vs:
+                    self._dvariant[name] = n % len(vs)
+                    c = avatars.variant_color(n % len(vs))
             if c is None:                      # no art (or unreadable) — palette
                 c = DRIVER_COLORS[n % len(DRIVER_COLORS)]
             self._dcolor[name] = c
@@ -2074,6 +2240,19 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         on = self.tts.toggle()
         self._toast("ALL VOICES ON" if on else "ALL VOICES MUTED")
 
+    @property
+    def spectating(self):
+        """Is the driver-facing half of the product addressed to NOBODY?
+
+        Two ways to be true and they are kept apart on purpose: `spectator` is
+        what he CHOSE and is persisted, `_auto_spec` is what the game SAYS
+        about this moment and is not. Everything that asks "should the engineer
+        talk" asks this; everything that renders or writes the setting asks
+        `spectator`.
+        """
+        return bool(getattr(self, "spectator", False)
+                    or getattr(self, "_auto_spec", False))
+
     def _do_toggle_spectator(self):
         """Watching, not driving.
 
@@ -2091,6 +2270,135 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self._toast("SPECTATOR MODE — broadcast only, no team radio"
                     if self.spectator
                     else "SPECTATOR MODE OFF — engineer & objectives are back")
+
+    # ---- the helmet designer ------------------------------------------
+    #
+    # Fitted to RacerTV's menu rather than ported with FACTORtv's: this one is
+    # a flat list of rows drawn on a click-through overlay whose clicks are
+    # POLLED, so the whole designer is spin rows with two arrows each, on a
+    # second PAGE of the settings menu. No modal, no keyboard.
+
+    # WHICH FIELDS SPIN, AND THROUGH WHAT. One table, read by both the drawing
+    # and the click handling, so a row cannot offer a value the action cannot
+    # set.
+    def _helmet_fields(self):
+        cols = [h for _n, h in helmet_mod.PALETTE]
+        return {
+            "base":     cols,
+            "accent":   cols,
+            "ink":      cols,
+            "accent2":  cols,
+            "pattern":  list(helmet_mod.PATTERNS),
+            "pattern2": ["none"] + list(helmet_mod.PATTERNS),
+            "number":   [None] + list(range(0, 100)),
+            "weight":   list(helmet_mod.WEIGHTS),
+            "weight2":  list(helmet_mod.WEIGHTS),
+        }
+
+    def _helmet_spec(self):
+        """The design being edited, always a FULL spec."""
+        return dict(helmet_mod.normalise(getattr(self, "_my_helmet", None))
+                    or helmet_mod.DEFAULT)
+
+    def _helmet_save(self, spec):
+        """Store it, persist it, and make the next card wear it.
+
+        THE CACHES MUST BE DROPPED OR NOTHING VISIBLE CHANGES. `_dcolor` and
+        `_dhelmet` are filled on a driver's FIRST sighting and never revisited
+        — that is what makes them cheap — so editing the helmet without
+        clearing his entries left the old one on screen and looked like the
+        menu was broken.
+        """
+        spec = dict(helmet_mod.normalise(spec) or {})
+        self._my_helmet = spec
+        _save_pref("helmet", spec)
+        nm = getattr(self, "_my_name", "")
+        if nm:
+            self._dcolor.pop(nm, None)
+            self._dhelmet.pop(nm, None)
+            self._dvariant.pop(nm, None)
+
+    def _helmet_spin(self, field, step):
+        """Move one field along its list, wrapping."""
+        vals = self._helmet_fields().get(field)
+        if not vals:
+            return
+        spec = self._helmet_spec()
+        cur = spec.get(field)
+        try:
+            i = vals.index(cur)
+        except ValueError:
+            i = 0
+        spec[field] = vals[(i + step) % len(vals)]
+        self._helmet_save(spec)
+
+    def _helmet_toggle(self, field):
+        spec = self._helmet_spec()
+        spec[field] = not bool(spec.get(field))
+        self._helmet_save(spec)
+
+    def _helmet_random(self):
+        """One click, a whole livery.
+
+        CONTRAST IS NOT OPTIONAL. A random accent lands on a near-identical
+        colour often enough to produce an invisible pattern, which reads as
+        the button being broken rather than as a choice.
+        """
+        cols = [h for _n, h in helmet_mod.PALETTE]
+        base = random.choice(cols)
+        accent = random.choice([c for c in cols
+                                if helmet_mod.contrast(base, c) > 2.2] or cols)
+        pat2 = (random.choice(list(helmet_mod.PATTERNS))
+                if random.random() < 0.45 else "none")
+        self._helmet_save({
+            "base": base, "accent": accent,
+            "pattern": random.choice(list(helmet_mod.PATTERNS)),
+            "weight": random.choice(list(helmet_mod.WEIGHTS)),
+            "flip": random.random() < 0.5,
+            "pattern2": pat2,
+            "accent2": random.choice([c for c in cols
+                                      if helmet_mod.contrast(base, c) > 2.2
+                                      and helmet_mod.contrast(accent, c) > 1.6]
+                                     or cols),
+            "weight2": random.choice(list(helmet_mod.WEIGHTS)),
+            "flip2": random.random() < 0.5,
+            "number": random.choice([None] + list(range(1, 100))),
+            "ink": random.choice([c for c in cols
+                                  if helmet_mod.contrast(base, c) > 3.0] or cols),
+            "trim": "",
+        })
+
+    def _helmet_reset(self):
+        """Back to the one his NAME would have given him — which is a real
+        answer, not an absence: it is what every other driver wears."""
+        self._my_helmet = {}
+        _save_pref("helmet", {})
+        nm = getattr(self, "_my_name", "")
+        if nm:
+            self._dcolor.pop(nm, None)
+            self._dhelmet.pop(nm, None)
+            self._dvariant.pop(nm, None)
+
+    def _menu_goto(self, page):
+        self._menu_page = page
+
+    def _do_toggle_objectives(self):
+        """Race objectives on or off. Remembered between launches."""
+        self.objectives_on = not getattr(self, "objectives_on", True)
+        _save_pref("objectives", self.objectives_on)
+        if not self.objectives_on:
+            self._obj = None
+            self._obj_say = None
+        self._toast("OBJECTIVES ON" if self.objectives_on
+                    else "OBJECTIVES OFF — no targets, just racing")
+
+    def _do_cycle_speedo_size(self):
+        """SMALL -> MEDIUM -> LARGE -> SMALL."""
+        nxt = {"s": "m", "m": "l", "l": "s"}
+        self.speedo_size = nxt.get(getattr(self, "speedo_size", "m"), "m")
+        _save_pref("speedo_size", self.speedo_size)
+        self._toast({"s": "SPEEDO: SMALL", "m": "SPEEDO: MEDIUM",
+                     "l": "SPEEDO: LARGE"}[self.speedo_size])
 
     def _do_cycle_speedo(self):
         """OFF -> KM/H -> MPH -> OFF."""
@@ -2111,6 +2419,11 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
 
     def _menu_flip(self):
         self._menu_open = not getattr(self, "_menu_open", False)
+        # CLOSING RETURNS TO THE TOP. Re-opening the menu into the designer,
+        # several clicks deep in a page he was last on ten sessions ago, is
+        # disorienting — the hamburger should always show the same thing.
+        if not self._menu_open:
+            self._menu_page = "main"
 
 
 

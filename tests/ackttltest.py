@@ -41,11 +41,21 @@ def build(nc=16, my=14, lap=4):
     return o, s, you
 
 
-def eng_events(o, s, you):
-    """Call _engineer_events directly and return the raw event tuples."""
-    evts = []
+def eng_events(o, s, you, t0=None):
+    """Call _engineer_events directly and return the raw event tuples.
+
+    TWICE, across the hold. A place change now has to STICK before the
+    engineer acknowledges it (see the PASS_HOLD note in overlay_radio), so
+    the first call only starts the clock and the ack comes from the second,
+    once the hold has run out. What this file checks -- coalescing and TTLs
+    -- is unchanged; only WHEN the ack arrives moved.
+    """
+    t0 = time.time() if t0 is None else t0
     placemap = {d.place: d for d in s.all_drivers_data_1[:s.num_cars]}
-    o._engineer_events(s, you, placemap, evts, time.time())
+    o._engineer_events(s, you, placemap, [], t0)
+    evts = []
+    o._engineer_events(s, you, placemap, evts,
+                       t0 + getattr(o, "PASS_HOLD", 1.5) + 0.1)
     return evts
 
 
@@ -100,5 +110,38 @@ for ln in ENGINEER_LINES["gained_multi"]:
     _safe_format(ln, {"pos": 10, "frm": 14, "gain": 4})
 print("  gained_multi pool formats cleanly (%d lines): OK"
       % len(ENGINEER_LINES["gained_multi"]))
+
+# ---- 6. NOTHING IS SAID UNTIL THE PLACE HAS HELD --------------------------
+# Reported: the engineer said "He's through, P2" about a place the driver took
+# straight back. A single call, before the hold has run, must produce no ack.
+o, s, you = build(my=3)
+you.place = 4
+o.cplace[you.driver_info.slot_id] = 4
+o._eng_last_ann_place = 3
+o._eng_place_cd = 0.0
+o._eng_place_pend = None
+_placemap = {d.place: d for d in s.all_drivers_data_1[:s.num_cars]}
+_ev = []
+o._engineer_events(s, you, _placemap, _ev, 1000.0)
+check_eng = [e for e in _ev if e[5] == "ENGINEER"
+             and any(w in e[3] for w in ("P4", "through", "dropped", "Lost"))]
+assert not check_eng, (
+    "the engineer acknowledged a lost place before it had held: %r"
+    % (check_eng[0][3],))
+print("  a place change is not acknowledged before it holds: OK")
+
+# ...AND WHEN IT IS TAKEN STRAIGHT BACK, THAT IS WHAT HE SAYS.
+you.place = 3
+o.cplace[you.driver_info.slot_id] = 3
+_ev = []
+o._engineer_events(s, you, _placemap, _ev, 1000.8)
+_eng = [e for e in _ev if e[5] == "ENGINEER"]
+assert _eng, "no line at all when the driver took the place straight back"
+assert any(_eng[0][3] == t.replace("{pos}", "3")
+           for t in ENGINEER_LINES["held_on"]), (
+    "taking the place straight back did not get a held_on line: %r"
+    % (_eng[0][3],))
+assert "P4" not in _eng[0][3], "he mentioned the place that was never lost"
+print("  taken straight back -> held_on: OK -> %s" % _eng[0][3][:50])
 
 print("\nACK-TTL CHECKS PASSED")

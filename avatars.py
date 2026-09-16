@@ -123,7 +123,10 @@ def variant_color(i):
 # transparent blends toward the key colour and shows up as a dirty halo round
 # the artwork. Flattening onto the card background first removes every
 # partial alpha, so edges land clean instead of fringed.
-FLATTEN_BG = "#0d1320"          # CARD_BG — what the icons actually sit on
+FLATTEN_BG = "#16100f"          # CARD_BG — what the icons actually sit on
+                                # MUST TRACK CARD_BG: this is the opaque ground
+                                # every icon is composited onto, and a mismatch
+                                # shows as a square halo around each helmet.
 
 
 def _flatten(img, bg=FLATTEN_BG):
@@ -134,6 +137,42 @@ def _flatten(img, bg=FLATTEN_BG):
     flat = Image.new("RGB", img.size, rgb)
     flat.paste(img, mask=img.split()[3])
     return flat
+
+
+def helmet_icon(spec, size):
+    """PhotoImage of a RENDERED helmet design at `size`, or None.
+
+    The Tk bridge for `helmet.py`: that module knows how to paint a livery
+    inside the shipped silhouette and nothing about Tk, and this function is
+    the only place the two meet.
+
+    WHY THIS EXISTS ALONGSIDE `variant_icon`. The nine shipped PNGs are one
+    silhouette flat-filled nine ways, handed out in order of first sighting —
+    so a twenty-car lobby ran out after nine, and the same opponent wore a
+    different helmet depending on when he happened to appear. Rendering from
+    the driver's NAME gives every driver his own helmet, the same one every
+    session, and — because the name is all it needs — the same one on
+    everybody else's machine too. `variant_icon` stays for the case it is
+    still right for: art the user drew himself.
+
+    Cached on the spec, like every other icon here, because a card is redrawn
+    every frame it is on screen.
+    """
+    key = ("__hlm__", tuple(sorted((k, str(v)) for k, v in (spec or {}).items())),
+           int(size))
+    if key in _PNG_CACHE:
+        return _PNG_CACHE[key]
+    ph = None
+    try:
+        from PIL import ImageTk
+        import helmet as helmet_mod
+        img = helmet_mod.render(spec, int(size))
+        if img is not None:
+            ph = ImageTk.PhotoImage(_flatten(img))
+    except Exception:
+        ph = None
+    _PNG_CACHE[key] = ph                       # ref kept or tk drops the image
+    return ph
 
 
 def variant_icon(i, size):
@@ -270,11 +309,11 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.overrideredirect(True)
     root.attributes("-topmost", True)
-    root.configure(bg="#0c1014")
+    root.configure(bg="#120e0e")
     W, H = 8 * 96 + 20, 300
     sw = root.winfo_screenwidth()
     root.geometry(f"{W}x{H}+{(sw - W) // 2}+120")
-    cv = tk.Canvas(root, width=W, height=H, bg="#0c1014", highlightthickness=0)
+    cv = tk.Canvas(root, width=W, height=H, bg="#120e0e", highlightthickness=0)
     cv.pack()
     colors = ["#e23b3b", "#36a3ff", "#ffd23f", "#54e36a"]
     cv.create_text(W // 2, 16, text="Helmet variants (large)", fill="#9aa3ad",

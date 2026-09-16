@@ -176,6 +176,17 @@ def headless_overlay(fake_tts=False):
     o._pending_bubbles = []          # card/audio sync (FakeTts airs instantly)
     o._bubble_lock = threading.Lock()
     o._dvariant = {}                 # driver -> helmet PNG variant index
+    o._dhelmet = {}                  # driver -> rendered helmet spec
+    # DRAW-STAGE STATE. The tower, flags and speedo are real stages
+    # that were never driven from here, which is how a speedo that
+    # raised on every frame stayed invisible for a whole release.
+    o._tow_rank = {}                 # slot -> live track-position rank
+    o._podium = None                 # captured top-3 snapshot
+    o._speedo_img = None
+    o.tower_logo = None              # optional logo atop the tower
+    o.VOICE_DEAD_AFTER = 3           # see the drop handler in overlay_radio
+    o._voice_fails = 0
+    o._voice_ok = False
     return o
 
 
@@ -214,6 +225,22 @@ def age_intro(o):
     real-time delay can't elapse in a millisecond-fast test)."""
     if o._intro_emit_t is not None:
         o._intro_emit_t -= 15.0
+
+
+def age_place_hold(o):
+    """Simulate a place change having HELD long enough to count.
+
+    The engineer now waits PASS_HOLD (1.5s) before acknowledging a change of
+    place, so a pass taken straight back is never called as a pass. That wait
+    is real time and cannot elapse in a millisecond-fast test -- the same
+    reason `age_intro` exists. This ages only the pending hold's START, never
+    the rule itself: a test that uses it is asserting what happens to a pass
+    that STUCK, and a test that does not is asserting what happens to one that
+    did not.
+    """
+    pend = getattr(o, "_eng_place_pend", None)
+    if pend is not None:
+        o._eng_place_pend = (pend[0], pend[1] - 100.0, pend[2])
 
 
 def drive(o, s, ticks=1):

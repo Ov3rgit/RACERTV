@@ -12,6 +12,8 @@ import r3e_data as R
 import time
 from overlay_panel import _Panel
 from overlay_common import (BG_STIPPLE, _BUBBLE_H, ACCENT, CARD_BG, CARD_BG2, CARD_BORDER,
+                            PUNDIT_COLOR,
+                            CONTROL_BG,
     COMMENTATOR_COLOR, CYAN, DIM, GREEN, HEADER_ACCENT, LEADER, MAX_ROWS,
     PANEL_BG, PANEL_OUTLINE, PANEL_STIPPLE, PURPLE, TEXT, _RADIO_LOCK)
 from overlay_objective import (OBJ_HOLD_GAIN, OBJ_HOLD_LOSE,
@@ -424,12 +426,18 @@ class DrawMixin:
         else:
             prog = f"LAP {lead_laps + 1}"
 
-        # bottom-row status: a blinking LIVE (red) / REPLAY (cyan) dot + tag,
+        # bottom-row status: a blinking LIVE / REPLAY dot + tag,
         # then the session type. Kept on the LEFT row so it can never collide
         # with the track name (top-left) or the lap counter (top-right).
         is_rep = (s.game_in_replay == 1)
         tag = "REPLAY" if is_rep else "LIVE"
-        tcol = HEADER_ACCENT if is_rep else "#ff3b3b"
+        # LIVE IS RED AND REPLAY IS NOT. This read `HEADER_ACCENT if is_rep`,
+        # which was fine while the chrome was cyan and broke the instant it
+        # became red: the accent is #ff3b47 and the live tally was #ff3b3b, so
+        # the two states were the same colour and the dot stopped meaning
+        # anything. A red on-air tally is the one colour convention a
+        # broadcast overlay cannot borrow for furniture.
+        tcol = "#ffb000" if is_rep else "#ff3b3b"
         bottom = tag + (("   " + stype) if stype else "")
 
         # size the panel to fit BOTH rows: top (title + gap + lap) and the
@@ -462,7 +470,17 @@ class DrawMixin:
                       fill=DIM, font=self.f_sub, anchor="w")
 
     # ---- speedometer --------------------------------------------------------
-    SPEEDO_DIAL = 168
+    SPEEDO_DIAL = 168        # floor: the smallest the dial may be
+    # ...AND ITS SHARE OF SCREEN HEIGHT ABOVE THAT, which is now HIS choice.
+    #
+    # 168px was chosen once and never revisited. Made proportional it was
+    # still reported as too small {D} twice {D} and the second report is the
+    # one that matters: guessing a better single number would just be a
+    # slower way of being wrong a third time. A dial is read in peripheral
+    # vision at 200km/h, and how big that needs to be depends on the screen,
+    # how far away it is, and the eyes doing the reading. None of which this
+    # code can know.
+    SPEEDO_FRACS = {"s": 0.21, "m": 0.27, "l": 0.34}
     SPEEDO_PAD = 9
 
     def draw_speedo(self, s):
@@ -482,7 +500,17 @@ class DrawMixin:
         """
         if getattr(self, "speedo", "kmh") == "off" or not _SPEEDO_OK:
             return
-        dial = self.SPEEDO_DIAL
+        # SIZED TO THE SCREEN, NOT TO A NUMBER. 168px was chosen once and
+        # never revisited; on a 1440p or 4K display it is a postage stamp, and
+        # it was reported as "very small and isnt helpfull" on 1080p too.
+        #
+        # A speedo is read in peripheral vision at 200km/h, so it has to be
+        # legible without being looked AT. Roughly a fifth of screen height
+        # puts the digits at a size you can catch out of the corner of your
+        # eye; the floor keeps the old behaviour on very small windows, where
+        # a fifth of the height would swallow the corner.
+        frac = self.SPEEDO_FRACS.get(getattr(self, "speedo_size", "m"), 0.27)
+        dial = max(self.SPEEDO_DIAL, int(self.sh * frac))
         pad = self.SPEEDO_PAD
         w = h = dial + pad * 2
         x = self.sw - w - 24
@@ -513,7 +541,22 @@ class DrawMixin:
         self._card(x, y, w, h, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
         img = _speedo.photo(dial, rev, shift_at, redline_at, CARD_BG2)
         if img is not None:
-            self.canvas.create_image(x + pad, y + pad, image=img, anchor="nw")
+            # `_cv_real` WITH THE OFFSET APPLIED, not `self.canvas`.
+            #
+            # THE DIAL NEVER DREW. `canvas` returns the translating `_TC`
+            # wrapper, and `_TC` proxies rectangle/oval/text/line/polygon --
+            # there is no `create_image` on it at all. So this raised
+            # AttributeError on every single frame, the stage loop swallowed
+            # it into `_stage_err`, and the whole of `draw_speedo` after this
+            # line -- the dial, the RACERTV mark, the speed, the gear -- never
+            # ran. The panel drew its empty card and died.
+            #
+            # `speedoshot.py` passed throughout, because it calls
+            # `speedo.render()` directly and never goes near this line. The
+            # art was right; the one line that puts it on screen was not.
+            # Found by rendering the FULL overlay rather than one component.
+            self._cv_real.create_image(x + pad - self._ox, y + pad - self._oy,
+                                       image=img, anchor="nw")
             self._speedo_img = img      # a canvas item does not own its image
 
         cx = x + w // 2
@@ -1071,7 +1114,7 @@ class DrawMixin:
                 break
             # dark base for every segment...
             self.canvas.create_rectangle(sx, by, sx + sw_, by + bh,
-                                         fill="#1c2530", outline="")
+                                         fill=CONTROL_BG, outline="")
             # ...then the lit portion, the leading segment filled fractionally
             frac = max(0.0, min(1.0, filled - i))
             if frac > 0:
@@ -1170,6 +1213,13 @@ class DrawMixin:
             pass
         if not open_:
             return
+        # A SECOND PAGE, not a second window. The overlay is click-through
+        # with POLLED clicks, so a modal dialog would have nowhere to live and
+        # nothing to receive its events. The designer is the same menu slab
+        # with a different row set.
+        if getattr(self, "_menu_page", "main") == "helmet":
+            self._draw_helmet_page(x=gx, y=gy + gh + 6)
+            return
         tts_on = bool(self.tts and getattr(self.tts, "enabled", False))
         rows = [
             ("Overlay UI (audio stays on)",
@@ -1181,9 +1231,14 @@ class DrawMixin:
             ("Spectator mode — broadcast only",
              "ON" if self.spectator else "OFF", self.spectator,
              self._do_toggle_spectator),
+            # READS `spectating`, NOT `spectator`: in a replay the radio is
+            # genuinely off, and a menu still claiming "ON" would be lying
+            # about the one thing the row exists to report. The row ABOVE
+            # deliberately keeps reading `spectator`, because that is the
+            # setting the toggle writes.
             ("Team radio — engineer + drivers",
-             "MUTED" if self.spectator else ("ON" if self.radio_on else "MUTED"),
-             self.radio_on and not self.spectator,
+             "MUTED" if self.spectating else ("ON" if self.radio_on else "MUTED"),
+             self.radio_on and not self.spectating,
              self._do_toggle_radio),
             ("All voices (booth + radio)",
              "ON" if tts_on else "MUTED", tts_on,
@@ -1193,12 +1248,23 @@ class DrawMixin:
                  getattr(self, "speedo", "kmh")],
              getattr(self, "speedo", "kmh") != "off",
              self._do_cycle_speedo),
+            ("Race objectives",
+             "ON" if getattr(self, "objectives_on", True) else "OFF",
+             getattr(self, "objectives_on", True),
+             self._do_toggle_objectives),
+            ("Speedo size",
+             {"s": "SMALL", "m": "MEDIUM", "l": "LARGE"}[
+                 getattr(self, "speedo_size", "m")],
+             getattr(self, "speedo", "kmh") != "off",
+             self._do_cycle_speedo_size),
             ("Compact timing tower",
              "ON" if self.compact else "OFF", self.compact,
              self._do_toggle_compact),
             ("Debug HUD",
              "ON" if self.debug else "OFF", self.debug,
              self._do_toggle_debug),
+            ("My helmet…", self._helmet_words(), True,
+             lambda: self._menu_goto("helmet")),
             ("Close RacerTV", "✕", False, self.quit),
         ]
         # sized for the mono pixel font: longest label + state column
@@ -1218,6 +1284,150 @@ class DrawMixin:
             self._menu_hits.append(((x + 2, ry, w - 4, rh), action))
             ry += rh
         self._draw_volume_row(x, ry, w, rh)
+
+    # ---- the helmet designer page --------------------------------------
+    def _helmet_words(self):
+        """The design in words, for the row that opens the page."""
+        try:
+            import helmet as helmet_mod
+            spec = getattr(self, "_my_helmet", None)
+            if not spec:
+                return "FROM MY NAME"
+            return helmet_mod.describe(spec).upper()[:22]
+        except Exception:
+            return ""
+
+    def _colour_name(self, hexc):
+        """'#e8202a' -> 'red'. The menu shows words; a hex code is not a
+        choice anybody makes with two arrow buttons."""
+        try:
+            import helmet as helmet_mod
+            return {h.lower(): n for n, h in helmet_mod.PALETTE}.get(
+                str(hexc or "").lower(), str(hexc or ""))
+        except Exception:
+            return str(hexc or "")
+
+    def _draw_spin_row(self, x, ry, w, rh, label, field, shown):
+        """One field, with an arrow either side of its value.
+
+        The arrows get their OWN hit boxes and the row does not — clicking
+        the label must do nothing, because on a click-through overlay a stray
+        click near a control should never change a setting silently.
+        """
+        c = self.canvas
+        self.text(x + 14, ry + 12, label, fill=TEXT, font=self.f_row,
+                  anchor="w")
+        bw = 20
+        rx = x + w - 14
+        # value sits between the two arrows, right-aligned block
+        ax1 = rx - bw
+        ax0 = rx - bw - 8 - max(64, self.f_row_b.measure(shown)) - 8 - bw
+        for bx, step, glyph in ((ax0, -1, "◀"), (ax1, +1, "▶")):
+            c.create_rectangle(bx, ry + 4, bx + bw, ry + rh - 4,
+                               fill=CONTROL_BG, outline=PANEL_OUTLINE)
+            self.text(bx + bw / 2.0, ry + 12, glyph, fill=TEXT,
+                      font=self.f_row, anchor="c")
+            self._menu_hits.append(
+                ((bx, ry + 2, bw, rh - 4),
+                 (lambda f=field, st=step: self._helmet_spin(f, st))))
+        self.text((ax0 + bw + ax1) / 2.0 + 4, ry + 12, shown,
+                  fill=GREEN, font=self.f_row_b, anchor="c")
+
+    def _draw_helmet_page(self, x, y):
+        """The designer: a preview, the fields that build it, and the way out.
+
+        ONLY THE ROWS THAT DO SOMETHING. Trim and line weight apply to a
+        minority of the catalogue, and the second layer's colour and weight
+        mean nothing while it is off — a control that does nothing on the
+        row it is sitting in is a menu that lies, so they appear and disappear
+        with the pattern they belong to.
+        """
+        import helmet as helmet_mod
+        # THE HIT LIST MUST EXIST BEFORE ANY ROW REGISTERS INTO IT. In the
+        # running app `draw_settings` clears it just above this call, so this
+        # looked unnecessary -- but the page is also drawn directly (the shot
+        # tool, and drawtest), and an AttributeError inside a draw stage is
+        # swallowed into `_stage_err` and shows up as a panel that silently
+        # stopped appearing. The same lesson `_dhelmet` taught one commit ago.
+        if not hasattr(self, "_menu_hits"):
+            self._menu_hits = []
+        spec = self._helmet_spec()
+        pat = spec.get("pattern") or "solid"
+        pat2 = spec.get("pattern2") or "none"
+        nm = self._colour_name
+
+        rows = [("Shell", "base", nm(spec.get("base"))),
+                ("Pattern", "pattern", pat),
+                ("Pattern colour", "accent", nm(spec.get("accent")))]
+        if pat in helmet_mod.WEIGHTED:
+            rows.append(("Line weight", "weight", spec.get("weight") or "normal"))
+        rows.append(("Second layer", "pattern2", pat2))
+        if pat2 != "none":
+            rows.append(("Layer 2 colour", "accent2", nm(spec.get("accent2"))))
+            if pat2 in helmet_mod.WEIGHTED:
+                rows.append(("Layer 2 weight", "weight2",
+                             spec.get("weight2") or "normal"))
+        num = spec.get("number")
+        rows.append(("Number", "number", "none" if num is None else str(num)))
+        if num is not None:
+            rows.append(("Number colour", "ink", nm(spec.get("ink"))))
+
+        acts = [("Mirror", "ON" if spec.get("flip") else "OFF",
+                 bool(spec.get("flip")), lambda: self._helmet_toggle("flip")),
+                ("Surprise me", "RANDOM", True, self._helmet_random),
+                ("Use the one from my name", "RESET", False, self._helmet_reset),
+                ("‹ Back", "", False, lambda: self._menu_goto("main"))]
+
+        PREV = 64
+        w = max(400, max(self.f_row.measure(r[0]) for r in rows) + 230)
+        rh = 28
+        h = 14 + PREV + 10 + rh * (len(rows) + len(acts))
+        self._begin_panel("menu", x, y, w, h)
+        self._card(x, y, w, h, fill=CARD_BG, accent=HEADER_ACCENT, side="left")
+
+        # THE PREVIEW, and the point of the whole page: every row below
+        # redraws this, so what he is building is on screen while he builds it.
+        ph = None
+        try:
+            import avatars
+            ph = avatars.helmet_icon(spec, PREV)
+        except Exception:
+            ph = None
+        if ph is not None:
+            # `_cv_real` WITH THE OFFSET APPLIED, not `self.canvas`. That
+            # property returns the translating `_TC` wrapper, which has no
+            # `create_image` at all -- the radio cards already draw their
+            # avatars this way for the same reason. It raises only at runtime,
+            # so it was found by rendering the page rather than by a test.
+            self._cv_real.create_image(x + 16 - self._ox, y + 10 - self._oy,
+                                       image=ph, anchor="nw")
+            self._keep_helmet_ref = ph      # tk drops an unreferenced image
+        self.text(x + 16 + PREV + 14, y + 10 + PREV / 2.0 - 8,
+                  (self._my_name or "Your helmet")[:18], fill=TEXT,
+                  font=self.f_row_b, anchor="w")
+        # TRUNCATED AT A COMMA, NOT AT A CHARACTER. A hard slice left
+        # "black, neon blade, rose visorband," on screen -- a dangling comma
+        # reads as a rendering fault rather than as a shortened list.
+        _d = helmet_mod.describe(spec)
+        if len(_d) > 34:
+            _cut = _d[:34].rsplit(",", 1)[0]
+            _d = (_cut if _cut else _d[:33]) + "…"
+        self.text(x + 16 + PREV + 14, y + 10 + PREV / 2.0 + 10,
+                  _d, fill=DIM, font=self.f_row, anchor="w")
+
+        ry = y + 10 + PREV + 10
+        for label, field, shown in rows:
+            self._draw_spin_row(x, ry, w, rh, label, field, str(shown))
+            ry += rh
+        for label, state, ok, action in acts:
+            self.text(x + 14, ry + 12, label, fill=TEXT, font=self.f_row,
+                      anchor="w")
+            if state:
+                self.text(x + w - 14, ry + 12, state,
+                          fill=(GREEN if ok else DIM), font=self.f_row_b,
+                          anchor="e")
+            self._menu_hits.append(((x + 2, ry, w - 4, rh), action))
+            ry += rh
 
     def _draw_volume_row(self, x, ry, w, rh):
         """Master VOICE VOLUME slider in the settings menu.
@@ -1241,7 +1451,7 @@ class DrawMixin:
         ty = ry + 12
         if tx1 - tx0 > 40:
             self.canvas.create_rectangle(tx0, ty - 3, tx1, ty + 3,
-                                         fill="#1c2530", outline="")
+                                         fill=CONTROL_BG, outline="")
             span = tx1 - tx0
             fw = span * max(0.0, min(1.0, vol / vmax))
             if fw > 0:
@@ -1320,7 +1530,7 @@ class DrawMixin:
         pundit = cap.get("persona") == "PUNDIT"
         who = PUNDIT_NAME.upper() if pundit else COMMENTATOR_NAME.upper()
         label = f"{who} · ANALYSIS" if pundit else f"{who} · COMMENTARY"
-        lcol = "#7fd1ff" if pundit else COMMENTATOR_COLOR
+        lcol = PUNDIT_COLOR if pundit else COMMENTATOR_COLOR
         w = 780
         x = (self.sw - w) // 2
         h = 32 + 20 * len(lines)

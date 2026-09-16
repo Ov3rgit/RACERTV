@@ -52,6 +52,17 @@ def make_overlay():
     o.f_row_b = tkfont.Font(family="Segoe UI", size=10, weight="bold")
     o.f_small_b = tkfont.Font(family="Segoe UI", size=8, weight="bold")
     o.f_sub = o.f_row
+    # THE REST OF THE FACES. The header, tower and speedo stages were never
+    # driven from here, so the fonts they need were never defined -- which is
+    # part of why a speedo that raised every frame went unnoticed. Names, not
+    # metrics, are what matter to these checks.
+    o.f_hdr = tkfont.Font(family="Segoe UI", size=12, weight="bold")
+    o.f_small = tkfont.Font(family="Segoe UI", size=9)
+    o.f_tow = tkfont.Font(family="Segoe UI", size=11)
+    o.f_tow_b = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+    o.f_tiny = tkfont.Font(family="Segoe UI", size=8)
+    o.f_spd = tkfont.Font(family="Segoe UI", size=20, weight="bold")
+    o.f_gear = tkfont.Font(family="Segoe UI", size=14, weight="bold")
     o._obj = None
     o._obj_result = None
     o._rel_box = None
@@ -159,6 +170,101 @@ o.draw_objective(None)
 assert _ys[-1] > 110, f"fallback docked the card on the tower rows (y={_ys[-1]})"
 o._card = _real_card
 print("  objective card never overlaps the relative tower: OK")
+
+
+# ---- THE HELMET DESIGNER PAGE -------------------------------------------
+# This file exists for bugs that are only wrong at RUNTIME, and the designer
+# produced a textbook one: it called `self.canvas.create_image`, and `canvas`
+# is the translating `_TC` wrapper, which has no such method. py_compile was
+# perfectly happy about it. It was found by RENDERING the page (see
+# tests/designershot.py), and this is what stops it coming back.
+#
+# IT SITS ABOVE THE `assert not fails` BELOW, and that is not incidental.
+# `check()` COLLECTS failures rather than raising them, so a block appended
+# after that assertion throws silently and the suite still passes -- which is
+# exactly what happened when these checks were first added: four of them
+# raised and nothing said a word.
+#
+# Every optional row is forced on, because a row that only appears for
+# certain patterns is a row that only breaks for certain patterns.
+print("\n===== HELMET DESIGNER =====")
+o._my_name = "Dante_K"
+o._menu_page = "helmet"
+for _label, _spec in (
+        ("default", {}),
+        ("every optional row", {"base": "#161616", "accent": "#d4ff00",
+                                "pattern": "blade", "weight": "bold",
+                                "pattern2": "visorband", "accent2": "#ff3d7a",
+                                "weight2": "normal", "number": 4,
+                                "ink": "#f2f2f2"}),
+        ("no number, no layer", {"base": "#2340d8", "accent": "#f2f2f2",
+                                 "pattern": "solid", "pattern2": "none",
+                                 "number": None}),
+        ("mirrored", {"base": "#ff7a1a", "accent": "#161616",
+                      "pattern": "sweep", "flip": True, "number": 81})):
+    o._my_helmet = dict(_spec)
+    check("_draw_helmet_page (%s)" % _label,
+          lambda: o._draw_helmet_page(x=10, y=10))
+
+# ...AND THE ROWS IT DREW ARE CLICKABLE. A page whose arrows register no hit
+# boxes looks perfect and does nothing at all.
+o._menu_hits = []
+o._my_helmet = {}
+o._draw_helmet_page(x=10, y=10)
+assert len(o._menu_hits) >= 12, (
+    "the designer registered %d hit boxes -- its arrows are not clickable"
+    % len(o._menu_hits))
+print("  %d clickable regions: OK" % len(o._menu_hits))
+
+
+# ---- THE STAGES THAT HAD NO COVERAGE AT ALL ------------------------------
+#
+# `draw_speedo` called `self.canvas.create_image`, and `canvas` is the `_TC`
+# wrapper, which proxies rectangle/oval/text/line/polygon and NOT images. It
+# raised on every frame, the stage loop swallowed it into `_stage_err`, and
+# the dial, the speed and the gear never drew -- for a whole release, in the
+# very commit that added the speedometer.
+#
+# `speedoshot.py` passed the whole time because it calls `speedo.render()`
+# directly and never touches the line that was wrong. The art was fine; the
+# one line that puts it on screen was not.
+#
+# Nothing here asserts what the panels LOOK like. It asserts that they run,
+# which is the bar the speedo failed to clear.
+print("\n===== FULL DRAW STAGES =====")
+_s = make_shared(2, ncars=8)
+_s.session_phase = 5
+_s.number_of_laps = 14
+_s.car_speed = 61.0
+_s.engine_rps = 780.0
+_s.max_engine_rps = 900.0
+_s.gear = 5
+for _i, _d in enumerate(_s.all_drivers_data_1[:8]):
+    _d.place = _i + 1
+    _d.completed_laps = 6
+    _d.car_speed = 61.0
+    _d.lap_distance_fraction = 0.4 - _i * 0.01
+    _d.time_delta_front = 0.4 + _i * 0.3
+o.speedo = "kmh"
+o.compact = False
+o.game_x = o.game_y = 0
+for _ in range(2):
+    o.update_stats(_s)
+for _nm, _fn in (("draw_header", lambda: o.draw_header(_s)),
+                 ("draw_flags", lambda: o.draw_flags(_s)),
+                 ("draw_penalty", lambda: o.draw_penalty(_s)),
+                 ("draw_tower", lambda: o.draw_tower(_s)),
+                 ("draw_relative", lambda: o.draw_relative(_s)),
+                 ("draw_speedo", lambda: o.draw_speedo(_s))):
+    check(_nm, _fn)
+
+# THE SPEEDO SPECIFICALLY: it must put an IMAGE on the canvas, not merely
+# fail to raise. A future edit that quietly drops the dial would still pass
+# the check above, because the exception was never the point -- the missing
+# picture was.
+assert getattr(o, "_speedo_img", None) is not None, (
+    "draw_speedo ran but put no dial image on the canvas -- the image call is silently doing nothing again")
+print("  the speedo actually placed its dial: OK")
 
 assert not fails, "draw stages raised:\n  " + "\n  ".join(fails)
 print("\nALL DRAW CHECKS PASSED")

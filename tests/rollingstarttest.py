@@ -216,4 +216,54 @@ assert o._sess_key != k1, (
 print("  [replay] re-cueing to the start re-opens the broadcast: OK")
 
 
+# ---- 4. THE SPECTATED START — the bug that made starts land on lap 2 ----
+#
+# Reported as *"race starts are very underwhelming and not accurate, and it
+# always only starts around lap 2"*, and lap 2 was not a figure of speech.
+#
+# The green latch read `s.car_speed` — the PLAYER'S car. Watching a replay or
+# spectating there is no car of yours, so it sits at zero through the entire
+# start and the latch had one route left: `completed_laps >= 1`. The race went
+# green when the leader crossed the line, one whole lap after the lights.
+#
+# The field is moving and the player is not. That is the whole test.
+o, s = session(phase=5, speed=60.0, laps=0)
+s.game_in_replay = 1
+s.all_drivers_data_1[0].car_speed = 0.0     # no car of ours to read
+s.car_speed = 0.0
+drive(o, s, 2)
+assert o._racing, (
+    "a spectated standing start never went green — the latch is reading the "
+    "player's own car, which does not exist here, so the start call waits for "
+    "a completed lap and lands on lap 2")
+print("  [spectator] a start watched, not driven, goes green on time: OK")
+
+
+# ...AND THE GRID ITSELF IS STILL NOT THE RACE. The check above is only worth
+# having if the opposite case still holds: a stationary grid, watched rather
+# than driven, must NOT be called green. Widening the latch is exactly the
+# change that could break this, so the two are asserted together.
+o, s = session(phase=5, speed=0.0, laps=0)
+s.game_in_replay = 1
+s.car_speed = 0.0
+drive(o, s, 2)
+assert not o._racing, (
+    "a stationary grid was called green — the field-movement latch is "
+    "triggering on cars that have not launched")
+print("  [spectator] ...and a stationary grid is not: OK")
+
+
+# ONE CAR CREEPING IS NOT A START. Somebody rolling on the grid, or jumping it,
+# moves while the race has not begun. The latch wants a MAJORITY for this
+# reason, and a single mover is the case that would have broken it.
+o, s = session(phase=5, speed=0.0, laps=0)
+s.game_in_replay = 1
+s.car_speed = 0.0
+s.all_drivers_data_1[3].car_speed = 30.0    # one jumped start
+drive(o, s, 2)
+assert not o._racing, (
+    "one car creeping on the grid triggered the green flag")
+print("  [spectator] one car creeping on the grid is not the start: OK")
+
+
 print("\nROLLING START / RESTART / REPLAY GATING: ALL OK")

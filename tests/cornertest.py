@@ -123,6 +123,11 @@ for od in orders:
     for _ in range(8):
         o2._eng_cd -= 40.0
         drive(o2, s2, 1)
+        # EACH P4/P5 STATE IS HELD FOR 8 TICKS, which in a real race is a pass
+        # that stuck. Without aging the hold, 8 milliseconds reads as a pass
+        # taken straight back -- the correct answer for that input, and not
+        # what this test is about: it checks the corner gets NAMED.
+        age_place_hold(o2)
 eng = [t for p, t in o2.tts.spoken[before:] if p == "ENGINEER"]
 located = [t for t in eng if "turn 2" in t.lower()]
 assert any("p4" in t.lower() for t in eng), \

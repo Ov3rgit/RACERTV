@@ -319,7 +319,39 @@ class BoothMixin:
             self._comm_flags["start"] = True
             self._intro_emit_t = now            # latest opener -> hold engineer
             self._green_at = now                # start of the grid-sort window
-            if self.tts:
+            # DID WE ACTUALLY WATCH THE START? "pregrid" is set on the grid,
+            # before the green, so its ABSENCE means the booth arrived to find
+            # the race already running — a replay scrubbed into the middle, a
+            # session spectated from lap four, a mid-race join.
+            #
+            # Shouting "LIGHTS OUT AND AWAY WE GO" over lap nine is the "not
+            # accurate" half of the report, and it became MORE likely, not less,
+            # when the green latch was widened to read the field's speed: before
+            # that, a mid-race join sat silent until a lap completed, which hid
+            # this. The two changes belong together.
+            #
+            # BOTH CONDITIONS, not either. `pregrid` alone would call a standing
+            # start "joined" if the welcome had been beaten to the tick by a
+            # louder line; a completed lap alone would mis-fire on a restart,
+            # where the field HAS laps but the booth did see the grid.
+            joined = (not self._comm_flags.get("pregrid")
+                      and (leader.completed_laps or 0) >= 1)
+            if self.tts and joined:
+                # NO STING. The lights-out clip is the one thing that must never
+                # play here: it is a pre-rendered shout about a moment that
+                # happened minutes ago. A broadcast joining late says so, and
+                # that is what makes it read as a broadcast rather than a bug.
+                jtxt = _safe_format(self._pick(COMMENTARY_LINES["joined"],
+                                               ("COMM", "joined")),
+                                    {"drv": self._dname(leader), "trk": trk})
+                self.tts.speak(self._spoken(jtxt), "COMMENTATOR", seed="COMM",
+                               intensity=1, on_play=self._show_caption,
+                               force=True)
+            elif joined:
+                self._show_caption(_safe_format(
+                    self._pick(COMMENTARY_LINES["joined"], ("COMM", "joined")),
+                    {"drv": self._dname(leader), "trk": trk}), "COMMENTATOR")
+            elif self.tts:
                 # INSTANT pre-rendered lights-out sting fires on the green edge
                 # with zero render latency; the named "…and {leader} leads them
                 # away!" line is queued straight after WITHOUT its own interrupt
@@ -447,7 +479,15 @@ class BoothMixin:
                 arc, akw = self._narrative_arc(lslot, place=1)
                 lcat = {"comeback": "leadchange_comeback",
                         "charge": "leadchange_charge"}.get(arc, "leadchange")
-                L(lcat, 0, drv=self._dname(leader), **akw)
+                # HELD, NOT CALLED. See `_resolve_top_passes`: a change at the
+                # front must STICK before it is a lead change, or the booth
+                # calls a flicker and then has nothing to say when it swaps
+                # straight back.
+                prev_lead = self._comm_lead
+                self._pass_hold(lslot, prev_lead, 1, lcat,
+                                self._dname(leader),
+                                self._dname(placemap[2]) if 2 in placemap
+                                else "", now, akw, lead=True)
                 self._story.setdefault(lslot, [])
                 if "led" not in self._story[lslot]:
                     self._story[lslot].append("led")
@@ -835,10 +875,21 @@ class BoothMixin:
                         # podium is the story; a P9 swap is texture. Without
                         # this they were all prio 2 and the sort picked
                         # whichever happened to land first in the tick.
-                        L(cat, 1 if (cat == "retake" or cpd <= 3) else 2,
-                          drv=self._dname(d), oth=self._dname(victim), pos=cpd,
-                          **akw)
-                        self._last_pass = (sl, vsl, cpd, now)
+                        if cat != "retake" and cpd == 1:
+                            # THE LEAD PATH OWNS P1. It already holds this very
+                            # move as a lead change; calling it here as well
+                            # would say the same pass twice.
+                            pass
+                        elif cat != "retake" and cpd <= self.TOP_PASS:
+                            # A TOP-FIVE PASS IS HELD, not called. It has to
+                            # stick before it counts {D} see _resolve_top_passes.
+                            self._pass_hold(sl, vsl, cpd, cat, self._dname(d),
+                                            self._dname(victim), now, akw)
+                        else:
+                            L(cat, 1 if (cat == "retake" or cpd <= 3) else 2,
+                              drv=self._dname(d), oth=self._dname(victim),
+                              pos=cpd, **akw)
+                            self._last_pass = (sl, vsl, cpd, now)
                     self._battle.pop(sl, None)
 
         if is_race and self._racing:
@@ -1159,7 +1210,158 @@ class BoothMixin:
         self._colour_race(ctx)        # MID-RACE colour rotation
         self._quali_events(ctx)       # quali/practice event-driven booth
         self._colour_quali(ctx)       # quali/practice filler
+        # TOP-FIVE PASSES FIRST, OUTSIDE ARBITRATION. They are resolved here
+        # rather than competing as candidates because a candidate can lose:
+        # under a busy booth a P3 pass was built, deferred, and silently
+        # expired {D} measured at ZERO lines aired for P2, P3 and P5 passes.
+        if is_race:
+            self._trk_name = trk        # for {trk} in a held pass's line
+            self._resolve_top_passes(now)
         self._emit_commentary(ctx)    # arbitrate cands -> speak
+
+    # ---- TOP-FIVE PASSES: held until they stick, then called at once ------
+    #
+    # Reported from a video a user shared: *"the person overtook the position
+    # for P1 and the booth didnt call it, also some overtakes are extremely
+    # delayed, the highest ranking overtake should get called, AND especially
+    # if its in the top 5"*.
+    #
+    # Measured before anything changed. Detection was never the problem —
+    # every pass built a candidate. What happened next was: with the booth
+    # busy, a P2, P3 or P5 pass was deferred into a single one-call hold with
+    # a four-second expiry and quietly died, for ZERO lines aired. P4 and P5
+    # carried priority 2, the same as a pass for P15, so "top five" did not
+    # exist as an idea anywhere in the code.
+    #
+    # And a pass is not a pass until it has held. The user, directly: *"the
+    # overtake must be held to count, so an additional line of dialogue if the
+    # position is pass and repass would be 'And Overboy is still holding onto
+    # P1 somehow!!'"*. Calling the instant a place flickers means calling
+    # moves that never happened; waiting for it to stick, and naming the
+    # DEFENCE when it doesn't, is both more accurate and more dramatic.
+
+    TOP_PASS = 5        # passes for P1..P5 are held and guaranteed a call
+    # How long a place must hold before the pass counts. Long enough that a
+    # genuine switchback through the next corner reverses it; short enough
+    # that the call still lands on the moment. A class attribute rather than
+    # set in __init__, so every construction path — including the test
+    # harness, which builds the overlay by hand — has it.
+    PASS_HOLD = 1.5
+
+    def _pass_hold(self, passer, victim, pos, cat, drv, oth, now, akw,
+                   lead=False):
+        """Register a top-five pass to be resolved once we know it stuck."""
+        # THE DEFENCE IS NOT A PASS. When a car takes its place straight back,
+        # the detector sees a car moving up a position and reports it as a new
+        # pass {D} and the first version of this called both: "still holding
+        # onto P1 somehow!" and then "the lead changes hands", congratulating a
+        # driver who never lost the lead for taking it. A place just defended
+        # cannot be "taken" by the car that defended it.
+        dfd = getattr(self, "_defended", {}) or {}
+        t = dfd.get((passer, pos))
+        if t is not None and now - t < self.PASS_HOLD * 4:
+            return
+        pend = getattr(self, "_pass_pending", None)
+        if pend is None:
+            pend = self._pass_pending = {}
+        pend[(passer, pos)] = {
+            "passer": passer, "victim": victim, "pos": pos, "cat": cat,
+            "drv": drv, "oth": oth, "akw": dict(akw or {}), "at": now,
+            "lead": lead, "gen": getattr(self, "_sess_gen", 0)}
+
+    def _resolve_top_passes(self, now):
+        """Each tick: did a held pass STICK, get TAKEN BACK, or go stale?
+
+        HIGHEST PLACE FIRST. Two top-five moves resolving on the same tick are
+        called in order of what they were for, so a pass for the lead is never
+        queued behind a pass for fifth. That ordering is the whole of "call the
+        highest-ranked overtake".
+        """
+        pend = getattr(self, "_pass_pending", None)
+        if not pend:
+            return
+        gen = getattr(self, "_sess_gen", 0)
+        cplace = getattr(self, "cplace", {}) or {}
+        for key in sorted(list(pend), key=lambda k: pend[k]["pos"]):
+            # A DEFENCE BELOW CAN REMOVE A LATER KEY from under this loop -- the
+            # retake it cancels may sort after it -- so a key that has gone is
+            # skipped rather than looked up. Without this, a pass-and-repass
+            # raised KeyError inside the commentary stage and the booth went
+            # silent for the rest of the tick.
+            if key not in pend:
+                continue
+            h = pend[key]
+            age = now - h["at"]
+            if h["gen"] != gen:
+                # A NEW SESSION IS A NEW RACE. A pass held from the last one
+                # must not surface on the grid of this one.
+                del pend[key]
+                continue
+            passer_cp = cplace.get(h["passer"])
+            victim_cp = cplace.get(h["victim"])
+            if victim_cp is not None and victim_cp <= h["pos"]:
+                # TAKEN STRAIGHT BACK. The move never stuck, so there is no
+                # pass to call — the story is the car that kept its place.
+                del pend[key]
+                # ...AND THE RETAKE IS NOT A SECOND PASS. Detection runs before
+                # this resolver on the same tick, so the defender's move back
+                # has ALREADY been registered as a held pass by now. Remove it,
+                # and remember the defence so it cannot be re-registered.
+                if not hasattr(self, "_defended"):
+                    self._defended = {}
+                self._defended[(h["victim"], h["pos"])] = now
+                pend.pop((h["victim"], h["pos"]), None)
+                if h["oth"]:
+                    self._air_holding(h["oth"], h["pos"], now)
+            elif passer_cp == h["pos"] and age >= self.PASS_HOLD:
+                # IT HELD. Now it counts, and now it is called.
+                del pend[key]
+                self._air_top_pass(h, now)
+                self._last_pass = (h["passer"], h["victim"], h["pos"], now)
+            elif age > self.PASS_HOLD * 4:
+                # NEITHER. Places shuffled further, a car pitted, the order
+                # changed underneath us. A call about a position that no
+                # longer describes the race is worse than no call.
+                del pend[key]
+
+    def _air_top_pass(self, h, now):
+        """Sting on the moment, the named call straight behind it."""
+        if not self.tts:
+            return
+        pool = COMMENTARY_LINES.get(h["cat"]) or COMMENTARY_LINES.get("overtake")
+        if not pool:
+            return
+        kw = dict(h["akw"])
+        kw.update(drv=h["drv"], oth=h["oth"], pos=h["pos"],
+                  comm=COMMENTATOR_NAME, pundit=PUNDIT_NAME,
+                  comm_full=COMMENTATOR_FULL, pundit_full=PUNDIT_FULL)
+        kw.setdefault("trk", getattr(self, "_trk_name", ""))
+        # THE STING CUTS IN; THE INCIDENT WINDOW IS RESPECTED. A top-five pass
+        # outranks the midfield chatter it interrupts, but not a named incident
+        # report still in progress — cutting "that's Over Boy off at turn one"
+        # mid-name is exactly the failure the incident window exists to stop.
+        stung = False
+        if now >= getattr(self, "_incident_until", 0.0):
+            stung = bool(self.tts.sting("overtake", "COMMENTATOR",
+                                        on_play=self._show_caption))
+        text = _safe_format(self._pick(pool, ("COMM", h["cat"])), kw)
+        self.tts.speak(self._spoken(text), "COMMENTATOR", seed="COMM",
+                       intensity=2, on_play=self._show_caption, force=True)
+        self._comm_cd = now
+        self._comm_hold = None   # a stale deferred call must not follow this
+
+    def _air_holding(self, name, pos, now):
+        """The pass that didn't stick: name the car that kept its place."""
+        if not self.tts:
+            return
+        pool = COMMENTARY_LINES.get("still_holding")
+        if not pool:
+            return
+        text = _safe_format(self._pick(pool, ("COMM", "still_holding")),
+                            {"drv": name, "pos": pos})
+        self.tts.speak(self._spoken(text), "COMMENTATOR", seed="COMM",
+                       intensity=2, on_play=self._show_caption, force=True)
+        self._comm_cd = now
 
     def _emit_commentary(self, c):
         """Arbitrate the candidate lines and speak the winner (from update_commentary)."""

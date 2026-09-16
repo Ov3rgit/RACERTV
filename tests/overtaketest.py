@@ -29,6 +29,8 @@ def confirm(o, s, ticks=8):
     for _ in range(ticks):
         o._eng_cd -= 40.0
         drive(o, s, 1)
+        # these are passes that STICK -- see age_place_hold in smoke.py
+        age_place_hold(o)
 
 
 def eng_since(o, before):

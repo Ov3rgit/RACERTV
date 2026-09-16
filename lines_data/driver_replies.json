@@ -1,0 +1,123 @@
+{
+ "_comment": [
+  "THE DRIVER'S HALF OF THE RADIO. Text only, never voiced: there are three",
+  "rendered voices and they work, and a fourth would fight them for the audio",
+  "channel. Each pool answers one KIND of engineer call; see",
+  "overlay_radio.DRIVER_REPLY_POOL for which call maps to which pool.",
+  "",
+  "NO PLACEHOLDERS, deliberately. The engineer's lines carry positions and",
+  "gaps that are only filled for some calls; a reply that names {pos} would",
+  "render as literal braces the first time it answered a call without one.",
+  "The engineer says the number. The driver says how he feels about it.",
+  "",
+  "Nothing here mentions a championship, a season or points: RaceRoom is",
+  "online racing with no modelled season, so those would be claims nobody",
+  "can check. That half of FACTORtv's driver stayed behind on purpose."
+ ],
+ "drv_obj_set": [
+  "Copy. Leave it with me.",
+  "Understood. Let's go get it.",
+  "Got it. On it now.",
+  "Yep, I can do that.",
+  "Roger. Watch this.",
+  "Okay. Give me a few laps.",
+  "Copy that. Head down.",
+  "Right. That's the job, then."
+ ],
+ "drv_obj_met": [
+  "Yes! Told you!",
+  "Done. What's next?",
+  "Get in! That's the one!",
+  "Easy. Well, not easy. But done.",
+  "YES. That felt good.",
+  "Job done. Keep them coming.",
+  "Sorted! Good call on that one.",
+  "There we go. Nailed it."
+ ],
+ "drv_obj_miss": [
+  "Yeah, I know. Not good enough.",
+  "Damn it. I had it and lost it.",
+  "Sorry. He was just too quick there.",
+  "I know, I know. I'll get the next one.",
+  "Couldn't make it stick. My fault.",
+  "Frustrating. I'll reset.",
+  "Not today. Give me another go.",
+  "That's on me. Moving on."
+ ],
+ "drv_obj_nudge": [
+  "Copy.",
+  "Working on it.",
+  "Yep, I can see him.",
+  "Understood.",
+  "Nearly there."
+ ],
+ "drv_gained": [
+  "Yes! That's better.",
+  "Got him. Next one.",
+  "He didn't see that coming.",
+  "Clean. Nice.",
+  "One down.",
+  "That was a good one, eh?",
+  "Right, who's next?"
+ ],
+ "drv_lost": [
+  "Yeah, I know. He was quicker.",
+  "Damn. Out-braked me.",
+  "Sorry, locked up.",
+  "I'll get him back.",
+  "He had the run, nothing I could do.",
+  "Annoying. I'm on it.",
+  "Copy. I'll sit on his gearbox."
+ ],
+ "drv_held_on": [
+  "Not today, mate!",
+  "He's not getting that.",
+  "Nice try.",
+  "Mine. Staying mine.",
+  "Had to be done.",
+  "Door's shut."
+ ],
+ "drv_retaken": [
+  "Ugh. Had him.",
+  "He got a better exit.",
+  "Yeah, I'll set it up properly.",
+  "Next lap. I've got him.",
+  "Too keen. I'll be smarter.",
+  "Close. Not close enough."
+ ],
+ "drv_fuel": [
+  "Copy, saving.",
+  "Lifting and coasting.",
+  "Okay, short-shifting.",
+  "Understood, I'll manage it.",
+  "Right. Easy on the throttle."
+ ],
+ "drv_tyres": [
+  "Yeah, I can feel them going.",
+  "Rears are sliding a bit, yeah.",
+  "Copy, I'll look after them.",
+  "They're not great, to be honest.",
+  "Understood. Smoother."
+ ],
+ "drv_pit": [
+  "Copy, boxing.",
+  "In this lap.",
+  "Understood. Pit this lap.",
+  "Okay, coming in."
+ ],
+ "drv_good": [
+  "Good to know.",
+  "Great, then I'll push.",
+  "Nice one.",
+  "Perfect.",
+  "Lovely, cheers."
+ ],
+ "drv_ack": [
+  "Copy.",
+  "Understood.",
+  "Yep.",
+  "Roger.",
+  "Got it.",
+  "Okay."
+ ]
+}

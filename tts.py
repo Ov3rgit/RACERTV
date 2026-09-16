@@ -113,6 +113,26 @@ STING_LINES = {
     # race goes green (the _racing edge) so there's NO edge-tts render latency on
     # the signature moment. The named follow-up ("…and {leader} leads them away!")
     # is queued straight after, WITHOUT its own interrupt, while it renders.
+    # A TOP-FIVE PASS THAT HAS STUCK. Name-free for the same reason the
+    # incident alert is: at the instant the move is confirmed, rendering a
+    # line with the driver's name in it takes a second or more, and a pass
+    # called a second late has already been followed by the next corner. The
+    # clip lands on the moment; the named call follows it.
+    #
+    # These are deliberately NOT lap-one start calls or incident shouts. They
+    # must all read correctly for a pass for P5 as much as for the lead, so
+    # none of them says "the lead" -- the named line behind it does that.
+    "overtake": [
+        "And that's the move!",
+        "He's done it!",
+        "Through he goes!",
+        "And that one sticks!",
+        "Got him!",
+        "There it is!",
+        "What a move!",
+        "And he makes it stick!",
+    ],
+
     "lightsout": [
         "And it's lights out, and away we go!",
         "Lights out — and they're racing!",
@@ -137,7 +157,7 @@ STING_LINES = {
     ],
 }
 # which persona voice each sting group is pre-rendered in
-STING_PERSONA = {"alert": "PUNDIT", "lightsout": "COMMENTATOR",
+STING_PERSONA = {"alert": "PUNDIT", "lightsout": "COMMENTATOR", "overtake": "COMMENTATOR",
                  "victory": "COMMENTATOR"}
 
 # ---- neural voice cast (edge-tts) -------------------------------------------
@@ -747,7 +767,11 @@ class Tts:
     # one race — by far the most repeated thing in the broadcast. The NAMED
     # line still airs; only the redundant generic bridge in front of it is
     # dropped. lightsout / victory are one-shot signature moments: never gated.
-    _STING_MIN_GAP = {"alert": 12.0}
+    # "overtake" gets a SHORT gap, not the incident's twelve seconds. Two
+    # top-five passes in one corner deserve two named calls, but two
+    # identical shouts one second apart sound like a stuck record -- the
+    # second pass gets its named line without a second sting.
+    _STING_MIN_GAP = {"alert": 12.0, "overtake": 4.0}
 
     def sting(self, group="alert", persona="PUNDIT", on_play=None):
         """Play a pre-rendered incident sting RIGHT NOW (no synth wait). Cuts the

@@ -105,4 +105,55 @@ _booth = [t for p, t in o.tts.spoken if p in ("COMMENTATOR", "PUNDIT")]
 print("              ", _booth[0][:74])
 
 
+# ---- 5. A REPLAY IS SPECTATING WITHOUT BEING TOLD -----------------------
+#
+# Everything above tests the TOGGLE. But watching a replay was the common case
+# and it required remembering to tick a box first — forget, and the engineer
+# calls tyre temperatures at a recording, which is the single most
+# immersion-breaking thing the overlay can do.
+#
+# RaceRoom publishes `game_in_replay`, so this never needed to be a decision
+# the user made. The three checks below are one idea: the mode turns itself on,
+# the SAVED PREFERENCE is not touched, and it lifts again on its own.
+o, s = session()
+o.spectator = False                      # he has never ticked the box
+o._auto_spec = False
+assert not o.spectating, "spectating was true with no replay and no toggle"
+
+s.game_in_replay = 1
+o._auto_spec = bool(s.game_in_replay == 1)
+assert o.spectating, (
+    "a replay did not put the overlay into spectator mode on its own — the "
+    "engineer is talking to a recording")
+assert o.spectator is False, (
+    "auto-detection wrote itself into the user's saved preference; when the "
+    "replay ends he is left in a mode he never chose")
+print("  [spectator] a replay turns the mode on by itself: OK")
+
+s.game_in_replay = 0
+o._auto_spec = bool(s.game_in_replay == 1)
+assert not o.spectating, "the mode did not lift when the replay ended"
+print("  [spectator] ...and lifts again when it ends: OK")
+
+# AND THE MANUAL TOGGLE STILL WINS ON ITS OWN. Someone spectating a LIVE
+# session (not a replay) has no game_in_replay flag to help them, so the
+# preference must keep working exactly as before.
+o.spectator = True
+o._auto_spec = False
+assert o.spectating, "the manual toggle stopped working once auto existed"
+print("  [spectator] the manual toggle still stands alone: OK")
+
+# ...AND THE TICK ACTUALLY WIRES IT. Everything above exercises the property;
+# none of it proves the frame ever SETS `_auto_spec` from the game, or that the
+# stage gate reads the combined answer rather than the raw preference. Checked
+# against the source, the same way the persistence assertion above is.
+assert 'self._auto_spec = bool(getattr(s, "game_in_replay", 0) == 1)' in src_init, (
+    "the frame never derives _auto_spec from game_in_replay, so the property "
+    "is always False in a real replay no matter what this file asserts")
+assert "spec = self.spectating" in src_init, (
+    "the stage gate still reads the raw preference, so auto-detection never "
+    "reaches the radio it is supposed to silence")
+print("  [spectator] the frame derives it and the gate reads it: OK")
+
+
 print("\nSPECTATOR MODE: ALL OK")
