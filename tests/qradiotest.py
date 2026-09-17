@@ -1,13 +1,22 @@
-"""Rival driver radio must be session-aware: in practice/quali, foreign-voice
-rivals use lap/pace chatter (not race-battle lines), and practice has no 'pole'.
-Race-battle rival lines must never fire in non-race sessions."""
+"""Rival driver radio must be session-aware, and it is ON SCREEN ONLY.
+
+In practice and qualifying rival cards carry lap/pace chatter rather than
+race-battle lines, and practice has no 'pole'.
+
+REWRITTEN WHEN RIVAL RADIO WENT SILENT. Asked for: "completely disregard the
+driver and rival audios ... to free up audio space and commentary space for
+the race engineer and commentators". This file used to assert that rivals
+were SPOKEN in a native language; that is exactly what was removed. Every
+check now reads the CARDS, because a check on spoken rival lines would pass
+vacuously forever now that nothing is spoken.
+"""
 import os as _os; _os.environ["RACERTV_EPHEMERAL"] = "1"  # tests: no disk deck state
 
 import sys, random
 sys.path.insert(0, r"D:\R3EOverlay")
 import r3e_data as R
 from r3e_overlay import Overlay
-from lines import NATIVE_RADIO, NATIVE_RADIO_QUALI, RIVAL_QUALI
+from lines import RIVAL_QUALI
 src = open(r"D:\R3EOverlay\tests\smoke.py").read()
 exec(src.split('run_session("RACE"')[0])
 
@@ -16,9 +25,18 @@ def newo():
     o = headless_overlay(fake_tts=True)
     o._show_caption = lambda *a, **k: None
     o.radio_msgs = []
-    # force EVERY rival to be a French native-voice driver
+    # Every rival is a native-voice driver, the case that used to be voiced
+    # in its own language. It must now be a silent card like everyone else.
     o.tts.native_lang = lambda persona, seed: "fr"
+    o.cards = []
+    _real = o._air_bubble
+    o._air_bubble = lambda m, _o=o: (_o.cards.append(m), _real(m))[1]
     return o
+
+
+def rival_cards(o):
+    return [m["text"] for m in o.cards
+            if not m.get("engineer") and not m.get("driver")]
 
 
 def rival_laps(o, s, fast=True):
@@ -41,24 +59,18 @@ def rival_laps(o, s, fast=True):
         drive(o, s, 1)
 
 
-race_fr = set(t for t, _ in NATIVE_RADIO["fr"])
-quali_fr = set(t for t, _ in NATIVE_RADIO_QUALI["fr"])
-
-# ---- QUALI: native rival uses QUALI chatter, not race battle lines ----------
-print("===== QUALI NATIVE RIVAL CHATTER =====")
+# ---- QUALI: rival radio is a card, never a voice --------------------------
+print("===== QUALI RIVAL RADIO =====")
 o = newo()
 s = make_shared(1, ncars=4)           # qualifying
 rival_laps(o, s)
-spoken = [t for p, t in o.tts.spoken if p not in ("ENGINEER",)]
-native_spoken = [t for t in spoken if t in race_fr or t in quali_fr]
-print(f"  native rival lines: {len(native_spoken)}")
-for t in native_spoken[:4]:
-    print(f"    {t}")
-assert native_spoken, "no native rival chatter fired"
-race_leak = [t for t in native_spoken if t in race_fr]
-assert not race_leak, f"RACE-battle native chatter leaked into quali: {race_leak}"
-assert all(t in quali_fr for t in native_spoken), "non-quali native line used"
-print("  quali native rival chatter is session-appropriate (no battle lines): OK")
+voiced = [p for p, t in o.tts.spoken if p not in ("ENGINEER", "COMMENTATOR", "PUNDIT")]
+assert not voiced, "a rival was VOICED in qualifying: %s" % sorted(set(voiced))
+print("  no rival voice in qualifying, native-language drivers included: OK")
+_c = rival_cards(o)
+print("  rival cards: %d" % len(_c))
+assert _c, "no rival radio card appeared in qualifying at all"
+print("  rival radio still appears, as cards: OK")
 
 # ---- PRACTICE: no 'pole' shouts -------------------------------------------
 print("\n===== PRACTICE: NO 'POLE' =====")
@@ -66,7 +78,7 @@ o = newo()
 o.tts.native_lang = lambda persona, seed: None   # English so we can read it
 s = make_shared(0, ncars=4)           # practice
 rival_laps(o, s)
-spoken = [t for p, t in o.tts.spoken if p not in ("ENGINEER",)]
+spoken = rival_cards(o)          # the CARDS -- nothing is spoken any more
 pole_lines = set(RIVAL_QUALI["pole"])
 pole_shouts = [t for t in spoken if t in pole_lines or "pole" in t.lower()]
 print(f"  rival 'pole' shouts in practice: {len(pole_shouts)}")
@@ -88,9 +100,9 @@ o.tts.native_lang = lambda persona, seed: None
 s = make_shared(1, ncars=4)
 rival_laps(o, s)
 # crude: ensure none of the spoken lines are race-overtake phrased
-leak = [t for p, t in o.tts.spoken if p not in ("ENGINEER", "COMMENTATOR", "PUNDIT")
-        and ("overtak" in t.lower() or "past me" in t.lower()
-             or "stay behind" in t.lower() or "in my mirrors" in t.lower())]
+leak = [t for t in rival_cards(o)
+        if ("overtak" in t.lower() or "past me" in t.lower()
+            or "stay behind" in t.lower() or "in my mirrors" in t.lower())]
 assert not leak, f"race-battle rival line in quali: {leak}"
 print("  no race-overtake rival lines in non-race: OK")
 

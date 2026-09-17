@@ -532,6 +532,7 @@ class RadioMixin:
         # sounded like drivers with an occasional engineer.
         events.sort(key=lambda e: (e[0], 0 if e[5] == "ENGINEER" else 1))
         emitted = 0
+        eng_emitted = False
         for _evt in events:
             # optional 8th element = an explicit TTL (seconds) for lines that
             # skip the spacing (bypass) but MUST still go stale — a position
@@ -553,9 +554,9 @@ class RadioMixin:
             # appearing altogether. Only a genuinely deep queue blocks now, and
             # the ENGINEER is never gated — he is talking to YOU, and rival
             # chatter is the thing worth thinning out.
-            if (not bypass and persona != "ENGINEER" and self.tts is not None
-                    and self.tts._pending() >= 4):
-                continue
+            # (A queue-depth gate for rivals lived here. Rival radio no longer
+            # uses the audio queue at all — see RIVALS ARE CARDS below — so
+            # a busy booth is no reason to hold back a card.)
             if persona == "ENGINEER":
                 # bypass lines (overtake acks, severe damage, incident points,
                 # session intro) skip the 14s spacing — they're one-shot, must
@@ -588,12 +589,10 @@ class RadioMixin:
             # race set is full of battle lines ("he's right behind me!"), which is
             # nonsense in practice/qualifying, so non-race sessions use the
             # lap/pace-flavoured set instead.
+            # A rival used to key the mic in their native language, with the
+            # card showing a translation. Rival radio is silent now, so the card
+            # simply shows the line itself.
             spoken_text, disp_text = None, txt
-            if persona != "ENGINEER" and self.tts:
-                lang = self.tts.native_lang(persona, nm)
-                pool = NATIVE_RADIO if is_race else NATIVE_RADIO_QUALI
-                if lang and pool.get(lang):
-                    spoken_text, disp_text = random.choice(pool[lang])
             color = (ENGINEER_COLOR if persona == "ENGINEER"
                      else self._color_for_name(nm))
             msg = {"name": nm, "text": disp_text, "color": color,
@@ -613,7 +612,22 @@ class RadioMixin:
             # only code allowed.
             spoke = "card"
             muted = not getattr(self, "radio_on", True)
-            if self.tts and self.tts.enabled and not muted:
+            # RIVALS ARE CARDS. ONLY THE ENGINEER IS VOICED.
+            #
+            # Asked for and then reported still broken: "i said i wanted to
+            # completely disregard the driver and rival audios, but yet when
+            # the rival cards pop up then i hear audio, the reason i wanted to
+            # take out the audio was to free up audio space and commentary
+            # space for the race engineer and commentators".
+            #
+            # Every persona used to reach tts.speak here, so a rival's line sat
+            # in the SAME queue as Miles, Brett and the engineer and made each
+            # of them wait. This is FACTORtv's design, which the user singled
+            # out as getting the blend right: three voices on the audio
+            # channel, and everyone else on screen. A rival card goes up the
+            # moment it is chosen, because there is no audio to sync it to.
+            if (persona == "ENGINEER" and self.tts and self.tts.enabled
+                    and not muted):
                 say_text = (spoken_text if spoken_text is not None
                             else self._spoken(txt))
                 # TTL matched to how long the card stays up, so the voice plays
@@ -729,7 +743,12 @@ class RadioMixin:
                                       f"/{emotion[:4]} [{spoke}] {txt[:40]}")
             self._radio_recent = self._radio_recent[-7:]
             emitted += 1
-        if emitted:
+            if persona == "ENGINEER":
+                eng_emitted = True
+        # THE SHARED RADIO COOLDOWN IS THE ENGINEER'S. A silent rival card
+        # used to stamp it too, holding the engineer's next non-urgent line
+        # back behind a message nobody could hear.
+        if eng_emitted:
             self.last_radio_t = now
 
     def _engineer_events(self, s, focused, placemap, events, now):
