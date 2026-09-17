@@ -1,6 +1,6 @@
 RacerTV  —  a broadcast for your RaceRoom races
 ===============================================
-v1.2.0
+v1.3.0
 
 RacerTV turns a RaceRoom session into a televised race. A commentary booth
 (Miles Crawford on play-by-play, Brett Calloway on colour) calls the action,

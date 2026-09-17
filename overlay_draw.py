@@ -582,12 +582,22 @@ class DrawMixin:
         # RaceRoom publishes metres per second
         v = abs(float(getattr(s, "car_speed", 0.0) or 0.0))
         v = v * (2.236936 if mph else 3.6)
-        self.text(cx, cy - 40, "RACERTV", fill="#3f4b5c", font=self.f_small_b,
+        # THE READOUT SCALES WITH THE DIAL. These offsets and font sizes were
+        # set for the original 168px dial and never moved when the dial became
+        # screen-sized: at MEDIUM on 1080p the speed sat small in a large
+        # empty face and KM/H was pressed against the digits. Everything is
+        # now multiplied by the dial's size relative to that 168px original.
+        k = dial / 168.0
+        # warm grey rather than the old slate blue #3f4b5c: readable on the
+        # resting face (6.3:1) and on the purple shift tint (4.0:1)
+        self.text(cx, cy - int(44 * k), "RACERTV", fill="#a89092",
+                  font=self._speedo_font(self.f_small_b, 9 * k),
                   anchor="center")
-        self.text(cx, cy - 6, "%d" % int(round(v)), fill=TEXT,
-                  font=self.f_spd, anchor="center")
-        self.text(cx, cy + 16, "MPH" if mph else "KM/H", fill=DIM,
-                  font=self.f_small_b, anchor="center")
+        self.text(cx, cy - int(8 * k), "%d" % int(round(v)), fill=TEXT,
+                  font=self._speedo_font(self.f_spd, 20 * k), anchor="center")
+        self.text(cx, cy + int(20 * k), "MPH" if mph else "KM/H", fill=DIM,
+                  font=self._speedo_font(self.f_small_b, 9 * k),
+                  anchor="center")
 
         # GEAR reads as a gear, not as the integer behind it: RaceRoom uses
         # -1 for reverse and 0 for neutral, and a dial showing "0" down a
@@ -596,9 +606,23 @@ class DrawMixin:
         gtxt = "R" if g < 0 else ("N" if g == 0 else str(g))
         # the gear follows the ring: purple from the shift point on
         gcol = SHIFT_PURPLE if rev >= shift_at else HEADER_ACCENT
-        self.text(cx, cy + 44, gtxt, fill=gcol, font=self.f_gear,
-                  anchor="center")
+        self.text(cx, cy + int(48 * k), gtxt, fill=gcol,
+                  font=self._speedo_font(self.f_gear, 14 * k), anchor="center")
         self.draw_telemetry(s, x, y, w)
+
+    def _speedo_font(self, base, size):
+        """`base`'s family at `size` points, cached. The dial's readout is
+        drawn every frame, and creating a Tk font per frame would leak them."""
+        size = max(6, int(round(size)))
+        cache = getattr(self, "_spd_font_cache", None)
+        if cache is None:
+            cache = self._spd_font_cache = {}
+        key = (base.cget("family"), base.cget("weight"), size)
+        f = cache.get(key)
+        if f is None:
+            import tkinter.font as _tkf
+            f = cache[key] = _tkf.Font(family=key[0], weight=key[1], size=size)
+        return f
 
     # ---- telemetry: fuel and tyres, on top of the speedo -----------------
     #
