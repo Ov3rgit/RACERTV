@@ -882,7 +882,7 @@ class BoothMixin:
                             pass
                         elif cat != "retake" and cpd <= self.TOP_PASS:
                             # A TOP-FIVE PASS IS HELD, not called. It has to
-                            # stick before it counts {D} see _resolve_top_passes.
+                            # stick before it counts — see _resolve_top_passes.
                             self._pass_hold(sl, vsl, cpd, cat, self._dname(d),
                                             self._dname(victim), now, akw)
                         else:
@@ -1213,7 +1213,7 @@ class BoothMixin:
         # TOP-FIVE PASSES FIRST, OUTSIDE ARBITRATION. They are resolved here
         # rather than competing as candidates because a candidate can lose:
         # under a busy booth a P3 pass was built, deferred, and silently
-        # expired {D} measured at ZERO lines aired for P2, P3 and P5 passes.
+        # expired — measured at ZERO lines aired for P2, P3 and P5 passes.
         if is_race:
             self._trk_name = trk        # for {trk} in a held pass's line
             self._resolve_top_passes(now)
@@ -1253,7 +1253,7 @@ class BoothMixin:
         """Register a top-five pass to be resolved once we know it stuck."""
         # THE DEFENCE IS NOT A PASS. When a car takes its place straight back,
         # the detector sees a car moving up a position and reports it as a new
-        # pass {D} and the first version of this called both: "still holding
+        # pass — and the first version of this called both: "still holding
         # onto P1 somehow!" and then "the lead changes hands", congratulating a
         # driver who never lost the lead for taking it. A place just defended
         # cannot be "taken" by the car that defended it.
@@ -1343,7 +1343,8 @@ class BoothMixin:
         stung = False
         if now >= getattr(self, "_incident_until", 0.0):
             stung = bool(self.tts.sting("overtake", "COMMENTATOR",
-                                        on_play=self._show_caption))
+                                        on_play=self._show_caption,
+                                        cut=False))
         text = _safe_format(self._pick(pool, ("COMM", h["cat"])), kw)
         self.tts.speak(self._spoken(text), "COMMENTATOR", seed="COMM",
                        intensity=2, on_play=self._show_caption, force=True)

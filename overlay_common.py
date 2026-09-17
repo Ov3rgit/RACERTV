@@ -96,10 +96,18 @@ PANEL_OUTLINE = "#3a2b2d"
 CARD_BG = "#16100f"
 CARD_BG2 = "#0e0a0a"
 CARD_BORDER = "#3d2a2c"
-HEADER_ACCENT = "#ff3b47"
+# PASTEL, ASKED FOR: "the red on the overlay is too much". Softer AND more
+# legible — a pastel red measures 7.0:1 on the card against 5.35:1 for the
+# saturated one, because lighter reds carry more luminance.
+HEADER_ACCENT = "#e8807f"
 CONTROL_BG = "#2a1e20"   # the slab behind sliders, arrows and pills
 TEXT = "#f2f4f7"
 DIM = "#9aa3ad"
+# THE SHIFT LIGHT. Purple, and only for the shift cue — see speedo.py.
+SHIFT_PURPLE = "#b36bff"
+# A softened on-air/warning red for the LIVE tally, the final-lap and penalty
+# chips. Still unmistakably red: these are warnings, not furniture.
+TALLY_RED = "#f2575a"
 ACCENT = "#ffd23f"      # viewed/focused car — MEANING, left alone
 # THE LEADER WAS THE LAST BLUE. It is not a timing convention the way purple
 # and green are — nothing is lost by moving it, and a cool blue was the one
@@ -112,10 +120,15 @@ GREEN = "#69db7c"       # personal best — MEANING, left alone
 # panel edge, and painting him the same red as the furniture would lose him
 # against it. Coral keeps him in the warm family and clear of the booth's
 # yellow.
-ENGINEER_COLOR = "#ff8e72"   # your engineer's radio colour (not a driver)
+# RE-SEPARATED FOR THE PASTEL CHROME. Coral was distinct from a SATURATED
+# red; next to a pastel one it measured 1.19:1 — the same colour. The
+# warm end of the wheel is crowded (red, orange, yellow sit ~22 degrees
+# apart), so the engineer separates by LIGHTNESS instead: a pale apricot,
+# unmistakable against both the chrome and the commentator's yellow.
+ENGINEER_COLOR = "#ffc9a3"   # your engineer's radio colour (not a driver)
 COMMENTATOR_COLOR = "#ffcf33"  # broadcast booth caption colour
 # THE ANALYST GETS HIS OWN, AND IT IS WARM. This was a hard-coded
-# "#7fd1ff" sitting inside the caption renderer {D} a light blue chosen
+# "#7fd1ff" sitting inside the caption renderer — a light blue chosen
 # to pair with the old cyan chrome, and the last obviously-blue thing
 # left on screen after the retheme. Named here so the next palette
 # change finds it instead of missing it the way this one did.
@@ -123,7 +136,8 @@ COMMENTATOR_COLOR = "#ffcf33"  # broadcast booth caption colour
 # Three booth-adjacent voices, three separations: the commentator is
 # yellow, the analyst rose, the engineer coral. None of them is the
 # chrome red, or they would vanish into the furniture.
-PUNDIT_COLOR = "#ff6b83"       # the analyst's caption colour
+# Rose sat 1.02:1 from the pastel chrome. Orchid is 50 degrees away.
+PUNDIT_COLOR = "#e58fd6"       # the analyst's caption colour
 _LEET = {"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g"}
 CAT_INTENSITY = {
     "start": 1, "overtake": 2, "overtake_long": 2, "leadchange": 2, "fastlap": 1,

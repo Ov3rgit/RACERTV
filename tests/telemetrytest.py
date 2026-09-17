@@ -103,5 +103,51 @@ check(abs(_need - 2.0) < 1e-6, "20 litres over 10 laps needs 2.00 a lap",
       "%.2f" % _need)
 check(_need < _med, "...and 2.50 a lap does not make the finish, so it warns")
 
+print("\n4. THE SHIFT LIGHT IS THE WHOLE RING")
+# Asked for: 'i want the whole circle in the speedo to light up purple when
+# it is time to shift'.
+#
+# PROBED PAST THE NEEDLE, NOT AT THE TOP. The first version of this check
+# read the pixel at the top of the ring, and it passed against the OLD dial
+# too: the top is half-way round the sweep, so a needle past half lights it
+# either way. A check that cannot tell the new behaviour from the old one is
+# not a check. So the probe sits at 93% of the way round with the needle at
+# 60% -- a stretch that ONLY a whole-ring shift light can colour.
+import math as _m
+import speedo as _sp
+_D = 300
+
+
+def _ring_pixel(rev, shift_at, f):
+    im = _sp.render(_D, rev, shift_at, 0.99)
+    cx = cy = _D / 2.0
+    rr = (_D / 2.0 - 4) - 9 / 2.0              # the sweep's centre line
+    th = _m.radians(_sp.START_DEG + _sp.SWEEP_DEG * f)
+    x, y = int(round(cx + rr * _m.cos(th))), int(round(cy - rr * _m.sin(th)))
+    r, g, b, a = im.load()[x, y]
+    return (r, g, b)
+
+
+_purple = lambda c: c[2] > c[1] + 60 and c[0] > c[1]
+_shifting = _ring_pixel(0.60, 0.50, 0.93)      # needle at 60%, shift at 50%
+_cruising = _ring_pixel(0.40, 0.50, 0.93)      # needle below the shift point
+check(_purple(_shifting),
+      "past the shift point, the ring is purple even far beyond the needle",
+      _shifting)
+check(not _purple(_cruising),
+      "below the shift point, that part of the ring is unlit", _cruising)
+
+# ...AND THE FACE. Asked for with a screenshot: the big inner circle should
+# take a tint of purple at the shift point, not just the ring.
+_fc = _sp.render(_D, 0.40, 0.50, 0.99).load()[_D // 2, _D // 2][:3]
+_fs = _sp.render(_D, 0.60, 0.50, 0.99).load()[_D // 2, _D // 2][:3]
+# A TINT, so it is judged as one: blue and red both clearly above green, and
+# brighter than the resting face. The ring's rule (blue 60+ over green) is
+# for a neon stroke and failed a correct 26% wash.
+_tint = lambda c, base: (c[2] > c[1] + 30 and c[0] > c[1] + 15
+                         and sum(c) > sum(base) + 60)
+check(_tint(_fs, _fc), 'the face itself is tinted purple at the shift point', _fs)
+check(not _tint(_fc, _fc), 'and is not before it', _fc)
+
 print("\n" + ("FAILED: %d" % len(fails) if fails else "ALL PASSED"))
 sys.exit(1 if fails else 0)

@@ -12,7 +12,7 @@ import r3e_data as R
 import time
 from overlay_panel import _Panel
 from overlay_common import (BG_STIPPLE, _BUBBLE_H, ACCENT, CARD_BG, CARD_BG2, CARD_BORDER,
-                            PUNDIT_COLOR,
+                            PUNDIT_COLOR, SHIFT_PURPLE, TALLY_RED,
                             CONTROL_BG,
     COMMENTATOR_COLOR, CYAN, DIM, GREEN, HEADER_ACCENT, LEADER, MAX_ROWS,
     PANEL_BG, PANEL_OUTLINE, PANEL_STIPPLE, PURPLE, TEXT, _RADIO_LOCK)
@@ -297,7 +297,7 @@ class DrawMixin:
         self._begin_panel("penalty", x, y, w, h)
         cy = y
         for big, sub in lines:
-            self._card(x, cy, w, rh, fill="#2a0d0d", accent="#ff3b3b", side="left")
+            self._card(x, cy, w, rh, fill="#2a0d0d", accent=TALLY_RED, side="left")
             self.text(x + 16, cy + 14, big, fill="#ff5a5a",
                       font=self.f_row_b, anchor="w")
             self.text(x + 16, cy + 31, sub, fill="#ffb3b3",
@@ -412,7 +412,7 @@ class DrawMixin:
             # the last minute is the story of a timed race, so it changes
             # colour rather than relying on the viewer watching the digits
             if rem <= 10.0:
-                prog_col = "#ff3b3b"
+                prog_col = TALLY_RED
             elif rem <= 60.0:
                 prog_col = "#ffb000"
         elif self._timed_over(s):
@@ -421,7 +421,7 @@ class DrawMixin:
             # showing "0:00" for a lap and a half would be a lie, and hiding
             # the panel would be worse.
             prog = "FINAL LAP"
-            prog_col = "#ff3b3b"
+            prog_col = TALLY_RED
             sub_prog = f"LAP {lead_laps + 1}"
         else:
             prog = f"LAP {lead_laps + 1}"
@@ -437,7 +437,7 @@ class DrawMixin:
         # the two states were the same colour and the dot stopped meaning
         # anything. A red on-air tally is the one colour convention a
         # broadcast overlay cannot borrow for furniture.
-        tcol = "#ffb000" if is_rep else "#ff3b3b"
+        tcol = "#ffb000" if is_rep else TALLY_RED
         bottom = tag + (("   " + stype) if stype else "")
 
         # size the panel to fit BOTH rows: top (title + gap + lap) and the
@@ -471,10 +471,13 @@ class DrawMixin:
 
     # ---- speedometer --------------------------------------------------------
     SPEEDO_DIAL = 168        # floor: the smallest the dial may be
+    # How far ahead of the game's optimal shift point the ring lights, as
+    # a fraction of the rev range. About a reaction's worth of revs.
+    SPEEDO_SHIFT_LEAD = 0.035
     # ...AND ITS SHARE OF SCREEN HEIGHT ABOVE THAT, which is now HIS choice.
     #
     # 168px was chosen once and never revisited. Made proportional it was
-    # still reported as too small {D} twice {D} and the second report is the
+    # still reported as too small — twice — and the second report is the
     # one that matters: guessing a better single number would just be a
     # slower way of being wrong a third time. A dial is read in peripheral
     # vision at 200km/h, and how big that needs to be depends on the screen,
@@ -536,10 +539,24 @@ class DrawMixin:
         # sliver of the scale; the ticks carry the zone, the sweep carries
         # the cue
         redline_at = max(shift_at + 0.01, 0.98)
+        # LIT A LITTLE EARLY, ON PURPOSE. Reported: "its turning purple to
+        # shift to late". `upshift_rps` is the game's OPTIMAL shift point, and
+        # a light that comes on exactly there is already late by the time a
+        # human has seen it and pulled the paddle — the revs keep climbing
+        # through the reaction. Real shift lights lead the optimum for this
+        # reason. The limiter band is still measured from the true point.
+        shift_at = max(0.30, shift_at - self.SPEEDO_SHIFT_LEAD)
+        # THE LIMITER FLASHES THE RING rather than turning a second colour: one
+        # colour means "shift", and that colour blinking means "you are late".
+        # Eight times a second, drawn by alternating a full ring with an empty
+        # one, both of which the dial cache already holds.
+        on_limiter = rev >= redline_at
+        shown_rev = (0.0 if (on_limiter and int(time.time() * 8) % 2)
+                     else rev)
 
         self._begin_panel("speedo", x, y, w, h)
         self._card(x, y, w, h, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
-        img = _speedo.photo(dial, rev, shift_at, redline_at, CARD_BG2)
+        img = _speedo.photo(dial, shown_rev, shift_at, redline_at, CARD_BG2)
         if img is not None:
             # `_cv_real` WITH THE OFFSET APPLIED, not `self.canvas`.
             #
@@ -577,10 +594,98 @@ class DrawMixin:
         # straight or "-1" in the pits is just wrong.
         g = int(getattr(s, "gear", 0) or 0)
         gtxt = "R" if g < 0 else ("N" if g == 0 else str(g))
-        gcol = ("#ff3b3b" if rev >= redline_at
-                else ("#ffb000" if rev >= shift_at else HEADER_ACCENT))
+        # the gear follows the ring: purple from the shift point on
+        gcol = SHIFT_PURPLE if rev >= shift_at else HEADER_ACCENT
         self.text(cx, cy + 44, gtxt, fill=gcol, font=self.f_gear,
                   anchor="center")
+        self.draw_telemetry(s, x, y, w)
+
+    # ---- telemetry: fuel and tyres, on top of the speedo -----------------
+    #
+    # Asked for twice: "there is still NO telemetry". The engineer had been
+    # given fuel burn and tyre calls, but that is the VOICE; nothing was on
+    # screen. This sits directly on the speedo because that is where the eye
+    # already goes for car state, and it widens the speedo's published box so
+    # the radio cards and the caption keep clear of both.
+    TELEM_H = 96
+
+    def _tyre_state(self, s, i):
+        """(wear 0..1 or None, temperature state) for tyre `i` (FL FR RL RR).
+
+        Temperatures come from RaceRoom's OWN cold/optimal/hot figures for
+        this compound, not from a guessed range: the same number is cold on
+        one tyre and fine on another.
+        """
+        wear = None
+        if getattr(s, "tire_wear_active", 0):
+            try:
+                w_ = float(s.tire_wear[i])
+                wear = w_ if w_ >= 0 else None
+            except Exception:
+                wear = None
+        state = None
+        try:
+            t = s.tire_temp[i]
+            cur = float(t.current_temp[1])          # the tread's centre
+            cold, hot = float(t.cold_temp), float(t.hot_temp)
+            if cur > 0 and hot > cold > 0:
+                state = ("cold" if cur < cold else "hot" if cur > hot
+                         else "ok")
+        except Exception:
+            state = None
+        return wear, state
+
+    def draw_telemetry(self, s, sx, sy, sw_):
+        h = self.TELEM_H
+        x, y, w = sx, sy - h - 8, sw_
+        self._begin_panel("telemetry", x, y, w, h)
+        self._card(x, y, w, h, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
+        pad = 12
+
+        # FUEL — litres, and laps of fuel from the MEASURED burn when there is
+        # one (the engineer's median of the last three laps), else the game's
+        # own estimate. "--" rather than a made-up number when neither exists.
+        self.text(x + pad, y + 18, "FUEL", fill=DIM, font=self.f_small_b,
+                  anchor="w")
+        fuel_txt = "--"
+        if getattr(s, "fuel_use_active", 0) and s.fuel_left >= 0:
+            burns = sorted(getattr(self, "_eng_burns", []) or [])
+            burn = (burns[len(burns) // 2] if burns
+                    else float(getattr(s, "fuel_per_lap", 0.0) or 0.0))
+            laps = ("  ·  %.1f laps" % (s.fuel_left / burn)) if burn > 0 else ""
+            fuel_txt = "%.1f L%s" % (s.fuel_left, laps)
+        self.text(x + w - pad, y + 18, fuel_txt, fill=TEXT,
+                  font=self.f_row_b, anchor="e")
+
+        # TYRES — a 2x2 of the car seen from above. The number is wear LEFT;
+        # the bar under it is temperature: cool below the compound's working
+        # range, green inside it, red above. Cold being cool-toned is a
+        # meaning, like purple and green on the tower, not chrome.
+        col_for = {"cold": "#8fb3cf", "ok": GREEN, "hot": TALLY_RED}
+        names = ("FL", "FR", "RL", "RR")
+        cw = (w - pad * 3) // 2
+        for i, nm in enumerate(names):
+            cx0 = x + pad + (i % 2) * (cw + pad)
+            cy0 = y + 34 + (i // 2) * 30
+            wear, state = self._tyre_state(s, i)
+            self.text(cx0, cy0 + 8, nm, fill=DIM, font=self.f_small_b,
+                      anchor="w")
+            if wear is None:
+                wtxt, wcol = "--", DIM
+            else:
+                pct = int(round(wear * 100))
+                wtxt = "%d%%" % pct
+                wcol = TEXT if pct >= 50 else ("#ffb000" if pct >= 25
+                                               else TALLY_RED)
+            self.text(cx0 + cw, cy0 + 8, wtxt, fill=wcol, font=self.f_row_b,
+                      anchor="e")
+            self.canvas.create_rectangle(
+                cx0, cy0 + 18, cx0 + cw, cy0 + 21,
+                fill=col_for.get(state, CONTROL_BG), outline="")
+
+        # THE SPEEDO'S BOX NOW INCLUDES THIS PANEL, so everything that keeps
+        # clear of the speedo keeps clear of the telemetry too.
+        self._speedo_box = (sx, y, sw_, (sy - y) + self._speedo_box[3])
 
     def draw_tower(self, s):
         drivers = self._drivers(s)
@@ -1526,13 +1631,28 @@ class DrawMixin:
         now = time.time()
         if not cap or now >= cap["until"]:
             return
-        lines = self._wrap(cap["text"], width=58, maxlines=2)
         pundit = cap.get("persona") == "PUNDIT"
         who = PUNDIT_NAME.upper() if pundit else COMMENTATOR_NAME.upper()
         label = f"{who} · ANALYSIS" if pundit else f"{who} · COMMENTARY"
         lcol = PUNDIT_COLOR if pundit else COMMENTATOR_COLOR
         w = 780
         x = (self.sw - w) // 2
+        # THE CAPTION STEPS ASIDE FOR THE SPEEDO. It was a fixed 780px, always
+        # centred, and never looked at the speedometer — the only bottom
+        # panel that didn't. Now that the speedo is sized to the screen and
+        # carries telemetry above it, a smaller game window put the two on top
+        # of each other (measured: 1366x768 and 1280x720 on LARGE). The
+        # caption keeps its centre when there is room and slides left, then
+        # narrows, only when there is not. The speedo draws first, so its box
+        # is this frame's.
+        sp = getattr(self, "_speedo_box", None)
+        if sp and getattr(self, "speedo", "kmh") != "off":
+            right_limit = sp[0] - 16
+            if x + w > right_limit:
+                x = max(16, right_limit - w)
+                w = max(320, right_limit - x)
+        lines = self._wrap(cap["text"], width=max(28, int(58 * w / 780.0)),
+                           maxlines=2)
         h = 32 + 20 * len(lines)
         # entrance: rise 10px over the first quarter second (with the fade)
         age = now - cap.get("at", now)

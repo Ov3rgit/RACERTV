@@ -266,6 +266,29 @@ assert getattr(o, "_speedo_img", None) is not None, (
     "draw_speedo ran but put no dial image on the canvas -- the image call is silently doing nothing again")
 print("  the speedo actually placed its dial: OK")
 
+# THE TELEMETRY PANEL. Asked for twice ("there is still NO telemetry"): the
+# engineer had fuel and tyre calls, but nothing was on SCREEN. It must run
+# with real data, and it must extend the speedo's published box so the radio
+# cards and the caption keep clear of it too.
+_s.fuel_use_active = 1
+_s.fuel_left = 23.4
+_s.fuel_per_lap = 2.7
+_s.tire_wear_active = 1
+for _i, (_w, _c) in enumerate(((0.8, 92.0), (0.7, 60.0), (0.4, 118.0), (0.2, 90.0))):
+    _s.tire_wear[_i] = _w
+    _t = _s.tire_temp[_i]
+    _t.current_temp[1] = _c
+    _t.cold_temp, _t.optimal_temp, _t.hot_temp = 75.0, 90.0, 105.0
+check("draw_telemetry (via draw_speedo)", lambda: o.draw_speedo(_s))
+_box = getattr(o, "_speedo_box", None)
+assert _box is not None and _box[3] > o.TELEM_H, (
+    "the speedo box does not include the telemetry panel, so the radio cards "
+    "will draw straight over it: %r" % (_box,))
+print("  the speedo's box includes the telemetry panel: OK")
+assert [o._tyre_state(_s, _k)[1] for _k in range(4)] == ["ok", "cold", "hot", "ok"], (
+    "tyre temperatures are not judged against the game's own cold/hot figures")
+print("  tyre temperatures judged against the compound's own range: OK")
+
 assert not fails, "draw stages raised:\n  " + "\n  ".join(fails)
 print("\nALL DRAW CHECKS PASSED")
 _root.destroy()

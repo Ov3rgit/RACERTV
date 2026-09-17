@@ -34,7 +34,7 @@ import r3e_data as R                               # noqa: E402
 import helmet as H                                 # noqa: E402
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else r"D:\R3EOverlay\_previews\_ui_preview.png"
-W, HGT = 1600, 900          # a 16:9 game window, scaled from 1920x1080
+W, HGT = 1920, 1080         # the tester's own screen
 
 
 # ---- the fonts, loaded the way the app loads them -----------------------
@@ -139,6 +139,23 @@ for i, d in enumerate(s.all_drivers_data_1[:len(NAMES)]):
     d.sector_time_previous_self[2] = 102.881
 s.vehicle_info.slot_id = 2               # we are watching Dante_K, P3
 
+# TELEMETRY THAT LOOKS LIKE A RACE: a quarter-tank, one tyre cold, one hot,
+# wear falling off at different rates, and the revs right on the shift light.
+s.fuel_use_active = 1
+s.fuel_left = 23.4
+s.fuel_per_lap = 2.7
+s.tire_wear_active = 1
+s.engine_rps = 830.0
+s.max_engine_rps = 900.0
+s.upshift_rps = 880.0
+for _i, (_w, _cur) in enumerate(((0.81, 92.0), (0.77, 96.0),
+                                  (0.44, 64.0), (0.22, 118.0))):
+    s.tire_wear[_i] = _w
+    _t = s.tire_temp[_i]
+    _t.current_temp[0] = _t.current_temp[1] = _t.current_temp[2] = _cur
+    _t.cold_temp, _t.optimal_temp, _t.hot_temp = 75.0, 90.0, 105.0
+o._eng_burns = [2.62, 2.70, 2.66]
+
 # Let the real pipeline populate its own state, then draw.
 for _ in range(3):
     o.update_stats(s)
@@ -166,15 +183,22 @@ except Exception as ex:
 try:
     o.radio_msgs = []
     for i, (who, txt, eng) in enumerate(
-            [("ENGINEER", "Box this lap, box this lap.", True),
-             ("vTec_Ryan", "That was never a racing line.", False)]):
+            [("ENGINEER", "Fuel's going at 2.66 a lap, target is 2.40.", True),
+             ("Ov3rboy_RR", "Lifting and coasting.", False)]):
         col = ("#ff8e72" if eng else
                H.readable(H.card_colour(H.generated(who)), "#16100f"))
-        o._draw_bubble(W - 330, 250 + i * 62, 300,
+        o._draw_bubble(W - 360, 300 + i * 62, 330,
                        {"name": who, "text": txt, "color": col,
                         "engineer": eng, "until": 9e9, "at": 0.0})
 except Exception as ex:
     print("  radio %s: %s" % (type(ex).__name__, ex))
+
+o._comm_caption = {"text": "Marco Wittmann past Tom Kalender into P2 with a brilliant late move down the inside",
+                   "persona": "COMMENTATOR", "until": time.time() + 60, "at": time.time() - 5}
+try:
+    o.draw_commentary(s)
+except Exception as ex:
+    print("  caption %s: %s" % (type(ex).__name__, ex))
 
 # the settings menu, open on the designer page
 try:

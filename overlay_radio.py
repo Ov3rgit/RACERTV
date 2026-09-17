@@ -12,6 +12,7 @@ they live in changed.
 import r3e_data as R
 import avatars
 import random
+import re
 import time
 
 # Seconds between the engineer's IDLE filler (gap reads, status checks, a word
@@ -61,6 +62,12 @@ from lines import (COMMENTARY_LINES, COMMENTATOR_FULL, COMMENTATOR_NAME,
 ENG_START_MIN_S = 9.0
 ENG_START_STABLE_S = 3.5
 ENG_START_MAX_S = 20.0
+
+
+# NUMBERS THAT ARE WRONG WITHIN SECONDS: a gap ("0.3 seconds", as spoken) or
+# a race position ("P4"). Counts of warnings, laps to go and fuel per lap are
+# still true a lap later and must not share their short deadline.
+_LIVE_NUMBER = re.compile(r"\d+(?:\.\d+)?\s*seconds?\b|\bP\d{1,2}\b")
 
 
 # ---- THE DRIVER ANSWERS ------------------------------------------------------
@@ -634,7 +641,15 @@ class RadioMixin:
                     _ttl = None
                     _no_deadline = True
                 elif persona == "ENGINEER":
-                    _ttl = 9.0 if any(c.isdigit() for c in say_text) else None
+                    # A SHORT DEADLINE ONLY FOR NUMBERS THAT GO STALE FAST.
+                    # This was "any digit", which gave "Careful — 4 warnings
+                    # on the board" and "Fuel's going at 2.70 a lap" the same
+                    # 9 seconds as "Tom Kalender is right with you, 0.3
+                    # seconds". A gap and a position are wrong within
+                    # seconds; a warning count and a fuel figure are still
+                    # true a lap later. The debug log showed both warning
+                    # calls of one race expiring unheard in the queue.
+                    _ttl = 9.0 if _LIVE_NUMBER.search(say_text) else None
                 else:
                     _ttl = self.RADIO_HOLD + 2.0
                 st = {"aired": False}
@@ -1383,7 +1398,7 @@ class RadioMixin:
         # MEASURE THE BURN, don't just read the estimate.
         #
         # `fuel_per_lap` is RaceRoom's own figure and it is an average over the
-        # stint {D} it lags a change of driving style by laps, which is exactly
+        # stint — it lags a change of driving style by laps, which is exactly
         # the window in which fuel saving is decided. Watching the tank across
         # a lap crossing gives what he is ACTUALLY using now.
         #
@@ -1430,7 +1445,7 @@ class RadioMixin:
             # ...AND THE GOOD NEWS, ONCE. Every other fuel line here is a
             # warning, so the engineer only ever spoke when something was
             # wrong. Said a single time, well into the race, when the sums
-            # genuinely work {D} which is what makes the warnings mean
+            # genuinely work — which is what makes the warnings mean
             # something when they do come.
             if (laps_left is not None and laps_left > 2
                     and laps_fuel > laps_left + 1.0

@@ -143,5 +143,28 @@ _braces = [t for k, v in DRIVER_REPLIES.items() if not k.startswith("_")
 check(not _braces, "no driver line has a placeholder that could go unfilled",
       _braces[:1])
 
+print("\n7. THE CARD CARRIES HIS REAL ACCOUNT NAME")
+# REPORTED: the player's card said 'YOU'. The name was read from
+# s.player.player_name, but player_name lives on the shared block itself
+# (r3e_data.R3EShared), not on PlayerData. That raised, a bare except
+# swallowed it, and the name was never learned -- which ALSO meant the
+# helmet he designed, matched by that name, never showed on his own card.
+o = headless_overlay(fake_tts=True)
+o._show_caption = lambda *a, **k: None
+o.radio_msgs = []
+o._my_name = ''
+s = make_shared(2, ncars=6)
+_nm = b'Ov3rboy_RR'
+for _k in range(64):
+    s.player_name[_k] = _nm[_k] if _k < len(_nm) else 0
+drive(o, s, 2)
+check(o._my_name == 'Ov3rboy_RR', 'the account name is read from the game',
+      repr(o._my_name))
+o._my_helmet = {'base': '#d4ff00', 'accent': '#161616', 'pattern': 'blade'}
+o._dcolor.pop('Ov3rboy_RR', None); o._dhelmet.pop('Ov3rboy_RR', None)
+o._color_for_name('Ov3rboy_RR')
+check((o._dhelmet.get('Ov3rboy_RR') or {}).get('base') == '#d4ff00',
+      '...so the helmet he designed is the one on his card')
+
 print("\n" + ("FAILED: %d" % len(fails) if fails else "ALL PASSED"))
 sys.exit(1 if fails else 0)

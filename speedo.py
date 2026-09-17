@@ -84,26 +84,22 @@ def _ANG(f):
 # broadcast graphic, so it uses the broadcast colours rather than the
 # near-black-and-amber of a real instrument.
 FACE = "#16100f"       # CARD_BG
-FACE_EDGE = "#1b2534"
-TRACK = "#141c28"          # the unlit part of the sweep
-ACCENT = "#ff3b47"         # RacerTV red — the lit sweep
-SHIFT = "#ffb000"          # upshift zone
+FACE_EDGE = "#2a1d1e"
+TRACK = "#231818"          # the unlit part of the sweep
+ACCENT = "#e8807f"         # RacerTV pastel red — the lit sweep
+SHIFT = "#b36bff"          # the shift light: purple, whole ring
 RED = "#ff3b3b"            # the redline MARKING on the face
-# THE SWEEP AT THE LIMITER, and it cannot be RED any more.
+# THE LIMITER. Kept for the tick marks past the redline. The SWEEP no longer
+# changes colour at the limiter at all: the whole ring is already purple from
+# the shift point, and draw_speedo FLASHES it on the limiter instead, so one
+# colour means "shift" and that colour blinking means "you are late".
 #
-# The sweep used to be cyan, so red meant one thing: you are on the limiter.
-# Re-theming the overlay red made the NORMAL sweep red too, and the two states
-# became the same picture {D} a dial that looks identical at 224km/h and on the
-# rev limiter is not telling you anything.
-#
-# Violet is not an arbitrary third colour: a real F1 shift ladder runs
-# green -> red -> violet, so the top of the range reading violet is what the
-# cue already looks like to anyone who races. The printed redline arc stays
-# red, because that is a MARKING on the face rather than a state.
+# The unlit TRACK, FACE_EDGE, TICK_DIM and SCANLINE above were slate blues
+# left from the cyan theme; the flash's off-phase showed them as a blue ring.
 LIMIT = "#b36bff"          # sweep colour past the redline
-TICK = "#ff3b47"
-TICK_DIM = "#2a3341"
-SCANLINE = "#070b10"
+TICK = "#e8807f"
+TICK_DIM = "#3a2a2c"
+SCANLINE = "#0b0707"
 
 _photo_cache = {}
 
@@ -111,6 +107,19 @@ _photo_cache = {}
 def _rgb(h):
     h = h.lstrip("#")
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+# How strongly the face takes the shift colour. Enough to be unmistakable,
+# little enough that the speed stays white-on-dark.
+FACE_SHIFT_TINT = 0.26
+
+
+def _mix(a, b, f):
+    """Colour `a` moved fraction `f` of the way towards colour `b`."""
+    ra, ga, ba = _rgb(a)
+    rb, gb, bb = _rgb(b)
+    return (int(ra + (rb - ra) * f), int(ga + (gb - ga) * f),
+            int(ba + (bb - ba) * f))
 
 
 def _dim(col, f):
@@ -163,13 +172,17 @@ def _face(d, size, rev, shift_at, redline_at):
     # shift light works because the whole thing changes at once and you see
     # it without moving your eyes. The zones are still legible: they are
     # marked on the TICKS below, which do not move.
-    if lit >= redline_at:
-        sweep_col = LIMIT
-    elif lit >= shift_at:
-        sweep_col = SHIFT
+    # THE WHOLE RING LIGHTS AT THE SHIFT POINT. Asked for directly: "i want
+    # the whole circle in the speedo to light up purple when it is time to
+    # shift". A sweep that only changed colour up to the needle was a cue you
+    # had to read; a full ring is one you see without looking, which is the
+    # entire job of a shift light. The limiter FLASHES this same ring (see
+    # draw_speedo) rather than turning another colour, so there is one colour
+    # for "shift" and its blinking means "you are late".
+    if lit >= shift_at:
+        arc(0.0, 1.0, _rgb(SHIFT), ring_w)
     else:
-        sweep_col = ACCENT
-    arc(0.0, lit, _rgb(sweep_col), ring_w)
+        arc(0.0, lit, _rgb(ACCENT), ring_w)
 
     # the redline is marked whether or not you have reached it, so its
     # position is readable before you get there
@@ -194,8 +207,20 @@ def _face(d, size, rev, shift_at, redline_at):
                 cx + t_out * ca, cy + t_out * sa), fill=col, width=w)
 
     # FACE. Drawn after the ticks so it covers their inner ends cleanly.
+    #
+    # AND IT TURNS PURPLE AT THE SHIFT POINT. Asked for with a screenshot: "you
+    # see the inside circle, the big one, i want that whole thing to turn a tint
+    # of purple when it is time to shift". The ring alone is a thin band at the
+    # edge of vision; the face is most of the dial, so washing it purple is the
+    # cue you catch without looking at it. A TINT, not a fill -- the same 26%
+    # mix FACTORtv's gauge uses -- so the white speed digits stay readable. The
+    # limiter's flash blanks the whole dial on its off beat, so the face blinks
+    # with the ring.
+    shifting = lit >= shift_at
+    face = _mix(FACE, SHIFT, FACE_SHIFT_TINT) if shifting else _rgb(FACE)
+    edge = _rgb(SHIFT) if shifting else _rgb(FACE_EDGE)
     d.ellipse((cx - ir, cy - ir, cx + ir, cy + ir),
-              fill=_rgb(FACE), outline=_rgb(FACE_EDGE), width=int(1.5 * s))
+              fill=face, outline=edge, width=int(1.5 * s))
 
     # CRT SCANLINES across the face — the same retro-camcorder tell the chyron
     # carries, and the detail that stops the dial reading as a generic gauge

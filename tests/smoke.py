@@ -107,7 +107,7 @@ class FakeTts:
         self.spoken.append((persona, text))
         if on_play:
             on_play(text, persona)
-    def sting(self, group="alert", persona="PUNDIT", on_play=None):
+    def sting(self, group="alert", persona="PUNDIT", on_play=None, cut=True):
         return False
     def chime(self, kind):
         # RECORD it, don't just no-op. The caller wraps chime() in a

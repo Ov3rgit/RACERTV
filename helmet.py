@@ -1026,7 +1026,7 @@ def _rim(Image, ImageDraw, im, mask, n):
     """
     try:
         # CACHED, BECAUSE IT IS THE SAME RING EVERY TIME. Nothing in this
-        # layer depends on the helmet {D} it is derived purely from the shell
+        # layer depends on the helmet — it is derived purely from the shell
         # mask, so twenty drivers were computing one identical image twenty
         # times.
         #

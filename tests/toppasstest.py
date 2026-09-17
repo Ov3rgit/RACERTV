@@ -49,8 +49,9 @@ def booth():
     o.aired, o.stung = [], []
     rs = o.tts.speak
     o.tts.speak = lambda t, p, **k: (o.aired.append(t), rs(t, p, **k))[1]
-    o.tts.sting = (lambda g="alert", p="PUNDIT", on_play=None:
-                   (o.stung.append(g), True)[1])
+    o.cuts = []
+    o.tts.sting = (lambda g="alert", p="PUNDIT", on_play=None, cut=True:
+                   (o.stung.append(g), o.cuts.append(cut), True)[2])
     o.tts._pending = lambda: 5            # a commentary-dense moment
     return o
 
@@ -155,6 +156,20 @@ check(not any("lead" in t.lower() for t in _st),
 _named = [k for k in ('leadchange', 'overtake', 'overtake_long', 'pass_clean')
           if any('{drv}' not in t for t in COMMENTARY_LINES.get(k) or [])]
 check(not _named, 'every pass line names the driver', _named)
+
+print("\n7. A PASS STING NEVER CUTS ANYONE OFF")
+# THE REGRESSION THIS SECTION EXISTS FOR. The pass sting first reused the
+# incident alert, which clears the audio queue so it can go first. Passes
+# near the front happen every few seconds, and in one race that cut three
+# of Brett's six answers dead mid-render (render DROP-cut PUNDIT, logged)
+# and stranded the engineer's track-limits warnings. A pass is not an
+# emergency: it queues, it does not interrupt.
+o = booth()
+o.cplace = {10: 2, 20: 3}
+o._pass_hold(10, 20, 2, 'overtake', 'Attacker', 'Defender', 100.0, {})
+o._resolve_top_passes(100.0 + H + 0.05)
+check(o.stung == ['overtake'], 'the pass sting played', o.stung)
+check(o.cuts == [False], 'and it was asked NOT to cut in', o.cuts)
 
 print("\n" + ("FAILED: %d" % len(fails) if fails else "ALL PASSED"))
 sys.exit(1 if fails else 0)

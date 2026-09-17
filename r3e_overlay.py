@@ -559,7 +559,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # up as the broadcast logo (they sort before racer-tv.png)
         # ...AND NOT THE WORKING FILES EITHER. This takes the first *.png in
         # the folder, and every scratch file this project writes is named with
-        # a leading underscore {D} `_transcript.log`, `_heard.json`,
+        # a leading underscore — `_transcript.log`, `_heard.json`,
         # `_tts_debug.log`, `_speedo_preview.png`. Underscore sorts before
         # lowercase, so `_speedo_preview.png` beat `racer-tv.png` and the
         # broadcast logo has quietly been a screenshot of the speedometer
@@ -1355,12 +1355,18 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # above is about); as a veto the worst it can do is call the green a
         # moment late, which is a far cheaper failure than calling the race
         # underway while everyone is still weaving behind the safety car.
-        # WHOSE OVERLAY IS THIS? `s.player.player_name` is the local ACCOUNT,
+        # WHOSE OVERLAY IS THIS? `s.player_name` is the local ACCOUNT,
         # not the car being viewed — which is the distinction that matters in
         # a replay or while spectating, where the viewed car is somebody else
         # and his chosen helmet should still be his.
         try:
-            nm = R.u8_to_str(s.player.player_name).strip()
+            # TOP-LEVEL, NOT `s.player`. `player_name` is a field of the shared
+            # block itself (r3e_data.R3EShared), not of PlayerData. Reading it
+            # off `s.player` raised, the except below swallowed it, and the name
+            # was never learned: the player's radio card said "YOU", and the
+            # helmet he designed -- matched by this name -- never appeared on
+            # his own card. Reported as the card not showing his account name.
+            nm = R.u8_to_str(s.player_name).strip()
             if nm:
                 self._my_name = nm
         except Exception:

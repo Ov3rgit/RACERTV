@@ -629,13 +629,27 @@ class Tts:
             # far too late to belong to its question.
             self._qput(q, per, tuple(lst), prio=lst[-1])
 
-    def _stale(self, persona, epoch):
+    def _stale(self, persona, epoch, prio=1):
         """True if a pipeline job was superseded by an interrupt. Team radio
         (engineer + driver voices) is judged against the radio epoch, which
         booth interrupts don't advance — otherwise a radio job caught
-        mid-render is silently cut."""
-        return epoch < (self._eng_epoch if persona not in CLEAN_PERSONAS
-                        else self._epoch)
+        mid-render is silently cut.
+
+        AN EXCHANGE ANSWER (prio < 0) IS JUDGED THE SAME WAY. `_purge` already
+        refuses to drop an answer whose question has aired ("AN AIRED QUESTION
+        MUST GET ITS ANSWER") — but only while it sits in a queue. An answer
+        already pulled out by the render worker carries the OLD epoch, and this
+        check then killed it the instant it finished rendering. The debug log
+        shows it exactly: "Score this field for me, Brett" plays at 08:13:06,
+        its answer starts rendering the same second, an overtake sting
+        interrupts at 08:13:08, and at 08:13:13 `render DROP-cut PUNDIT ::
+        Seven, with bonus points pending`. Three of six questions in that race
+        went unanswered this way. The queue and the renderer now agree: only a
+        FULL stop (which advances the radio epoch too) can take an answer.
+        """
+        if prio < 0 or persona not in CLEAN_PERSONAS:
+            return epoch < self._eng_epoch
+        return epoch < self._epoch
 
     def _qput(self, q, persona, payload, prio=None):
         """Queue a pipeline job by priority class: -1 = an atomic booth
@@ -773,7 +787,7 @@ class Tts:
     # second pass gets its named line without a second sting.
     _STING_MIN_GAP = {"alert": 12.0, "overtake": 4.0}
 
-    def sting(self, group="alert", persona="PUNDIT", on_play=None):
+    def sting(self, group="alert", persona="PUNDIT", on_play=None, cut=True):
         """Play a pre-rendered incident sting RIGHT NOW (no synth wait). Cuts the
         current audio (epoch bump + purge) and jumps the cached clip to the front
         of the play queue. `on_play(text, persona)` fires the instant it starts so
@@ -795,12 +809,19 @@ class Tts:
         src, text = self._sting_choose(group, clips)
         if not os.path.exists(src):
             return False
-        self._purge(keep_engineer=True)    # booth cut, engineer lines survive
-        if winsound:
-            try:
-                winsound.PlaySound(None, winsound.SND_PURGE)
-            except Exception:
-                pass
+        # cut=False: A PASS IS NOT AN INCIDENT. The incident alert cuts the
+        # booth mid-word because a car in the wall is an emergency. An overtake
+        # sting did the same, and passes near the front happen every few
+        # seconds: in one race it cut three of Brett's six answers dead and
+        # stranded the engineer's track-limits warnings. It now queues like the
+        # objective chime (see `chime`) -- next in line, nobody interrupted.
+        if cut:
+            self._purge(keep_engineer=True)    # booth cut, engineer lines survive
+            if winsound:
+                try:
+                    winsound.PlaySound(None, winsound.SND_PURGE)
+                except Exception:
+                    pass
         try:
             dst = self._next_wav()                 # copy so play_loop can delete it
             if self.volume >= 0.999:
@@ -819,9 +840,15 @@ class Tts:
         # stamp only once it is genuinely going to play — a sting that bailed
         # out above must not start the cooldown for one that would have worked
         self._sting_t[group] = time.time()
+        # A CUTTING sting jumps everything (prio -1). A non-cutting one queues
+        # at prio 0, which `expect_answer` holds back: while Brett is answering
+        # a question, a pass waits for him to finish instead of landing in the
+        # gap between question and answer. Q, A, "What a move!" -- in that
+        # order.
+        _sp = -1 if cut else 0
         self._qput(self.play_q, "ENGINEER",       # sting jumps any queue
                    (dst, _Cue(on_play), text, persona, self._epoch, None,
-                    None, -1), prio=-1)
+                    None, _sp), prio=_sp)
         return True
 
     def chime(self, kind):
@@ -1010,7 +1037,7 @@ class Tts:
             # stale (an interrupt happened after this was rendered, or the line
             # outlived its TTL waiting in the queue — e.g. "5 minutes remaining"
             # after the flag) or stopped — drop without playing
-            if (not self.enabled or self._stale(persona, epoch)
+            if (not self.enabled or self._stale(persona, epoch, _prio)
                     or (deadline and time.time() > deadline)):
                 if deadline and time.time() > deadline:
                     _log(f"play DROP-stale persona={persona} :: {text[:40]}")
@@ -1066,7 +1093,7 @@ class Tts:
                 deadline=None, topic=None, prio=1):
         # already superseded before we even started rendering — skip the (slow)
         # synthesis entirely so the queue clears fast after an interrupt
-        if not self.enabled or self._stale(persona, epoch):
+        if not self.enabled or self._stale(persona, epoch, prio):
             if self.enabled:
                 _log(f"render DROP-old persona={persona} :: {text[:40]}")
             self._topic_done(topic)
@@ -1137,7 +1164,7 @@ class Tts:
         _write_wav(wav, srate, mixed, gain=self.volume)
         # one last staleness check — an interrupt may have landed during the slow
         # render; if so, drop this rather than play it ahead of the incident
-        if self._stale(persona, epoch):
+        if self._stale(persona, epoch, prio):
             _log(f"render DROP-cut persona={persona} :: {text[:40]}")
             try:
                 os.remove(wav)
