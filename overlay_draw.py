@@ -809,7 +809,10 @@ class DrawMixin:
 
             # grid-delta arrow only matters in a race; reclaim the space otherwise
             if is_race:
-                delta = self.grid_place.get(slot, d.place) - d.place
+                # against the LIVE rank too: a gained/lost arrow computed
+                # from the lagging field disagreed with the number beside it
+                delta = (self.grid_place.get(slot, d.place)
+                         - self._tow_rank.get(slot, d.place))
                 arr, acol = (("▲", GREEN) if delta > 0
                              else ("▼", "#ff6b6b") if delta < 0 else ("–", DIM))
                 self.text(x + pos_w + 7, ry + rh / 2, arr, fill=acol,
@@ -880,7 +883,27 @@ class DrawMixin:
         if vslot < 0:
             self._rel_box = None                 # tower not drawn — see draw_objective
             return
-        order = sorted(self._drivers(s), key=lambda d: d.place)
+        # ORDERED BY LIVE TRACK POSITION, like the tower beside it.
+        #
+        # Reported by a tester: "the position order doesn't update immediately
+        # and takes a while to register". The tower stopped trusting
+        # RaceRoom's `place` field years ago — its own comment says the field
+        # "lags the move" — but the relative panel was still sorted by it and
+        # still PRINTED it, and the relative panel is the one you actually
+        # watch while racing. So an overtake reordered the tower at once and
+        # left the panel under your eyes a beat behind.
+        #
+        # It is also the more correct sort for this panel: "the cars around
+        # me" means around me ON TRACK, which is what lap + lap fraction says
+        # and what a `place` waiting to catch up does not.
+        if (s.session_type == 2 and getattr(self, "_racing", False)):
+            def _rprog(d):
+                f = d.lap_distance_fraction
+                f = 0.0 if f < 0 else (1.0 if f > 1 else f)
+                return d.completed_laps + f
+            order = sorted(self._drivers(s), key=lambda d: -_rprog(d))
+        else:
+            order = sorted(self._drivers(s), key=lambda d: d.place)
         idx = next((i for i, d in enumerate(order)
                     if d.driver_info.slot_id == vslot), None)
         if idx is None or len(order) < 2:
@@ -911,7 +934,10 @@ class DrawMixin:
             c.create_rectangle(x, ry, x + w, ry + rh,
                                fill=("#1b222b" if is_focus else "#0e1217"),
                                outline=PANEL_OUTLINE, stipple=PANEL_STIPPLE)
-            self.text(x + 10, ry + rh / 2, f"{d.place:>2}", fill=DIM,
+            # the LIVE rank the tower computed this frame, so the two panels
+            # can never disagree about who is where
+            _pos = self._tow_rank.get(di.slot_id, d.place)
+            self.text(x + 10, ry + rh / 2, f"{_pos:>2}", fill=DIM,
                       font=self.f_row, anchor="w")
             c.create_oval(x + 34, ry + rh / 2 - 5, x + 44, ry + rh / 2 + 5,
                           fill=self._tyre_color(d), outline="#000000")
