@@ -539,6 +539,12 @@ class Tts:
                                    # rendered under an older epoch is discarded so
                                    # an incident truly CUTS IN instead of waiting
                                    # for in-flight/queued audio to finish first
+        # LINES BEING RENDERED RIGHT NOW. They have left gen_q and have not
+        # reached play_q, so _pending() cannot see them — and with three
+        # renderers that is up to three lines, for two to six seconds, that
+        # the booth believed did not exist. See channel_busy().
+        self._inflight = 0
+        self._inflight_lock = threading.Lock()
         self._eng_epoch = 0        # ENGINEER's own cutoff: only advances on a
                                    # FULL purge (stop/flush). A booth interrupt
                                    # keeps this behind _epoch so an engineer job
@@ -696,6 +702,42 @@ class Tts:
     def speaking(self):
         """True if a line is actually being played right now."""
         return self._speaking
+
+    def _inflight_bump(self, d):
+        """Count a line into or out of the renderers.
+
+        NEVER RAISES, because it runs inside the render DISPATCHER: an
+        exception there kills that thread silently and nothing ever plays
+        again. It did exactly that the first time, in genpooltest, which builds
+        the engine without __init__ and so had no lock — "played []". The
+        running app always has the lock; this makes that a convenience rather
+        than a condition of the broadcast staying on air.
+        """
+        try:
+            lock = getattr(self, "_inflight_lock", None)
+            if lock is None:
+                lock = self._inflight_lock = threading.Lock()
+            with lock:
+                self._inflight = max(0, getattr(self, "_inflight", 0) + d)
+        except Exception:
+            pass
+
+    def channel_busy(self):
+        """Is anything playing, waiting, or being rendered?
+
+        THE QUESTION FACTORtv's BOOTH ASKS BEFORE EVERY ROUTINE LINE, and the
+        reason its blend works: "never talk over the previous line unless this
+        is genuinely urgent". A line chosen while the channel is busy waits,
+        and waiting is where lines go stale and the engineer gets buried. A
+        line chosen when the channel is free airs one render later, with the
+        race still as it described it.
+
+        Wider than FACTORtv's `speaking`, because this engine renders three
+        lines at once: a line mid-render is neither playing nor queued, and a
+        check that missed it let the booth stack new lines on top.
+        """
+        return bool(self._speaking or self._pending() > 0
+                    or getattr(self, "_inflight", 0) > 0)
 
     def speaking_persona(self):
         """Which persona is playing right now (or None) — so an interrupting
@@ -980,6 +1022,7 @@ class Tts:
                 for _ in range(_GEN_WORKERS):
                     self._job_q.put((next(self._ticket), None))
                 break
+            self._inflight_bump(1)
             self._job_q.put((next(self._ticket), item))
 
     def _gen_worker(self):
@@ -1001,6 +1044,9 @@ class Tts:
                 # ALWAYS commit, even on a drop or an exception. A ticket that
                 # never commits would stall every later line permanently.
                 self._commit(ticket, job)
+                # counted out only AFTER it is in play_q, so there is never a
+                # moment where a real line is visible to neither count
+                self._inflight_bump(-1)
 
     def _commit(self, ticket, job):
         """Hand a rendered line to the player, but only once every earlier
@@ -1424,6 +1470,23 @@ class Tts:
                 winsound.PlaySound(None, winsound.SND_PURGE)
             except Exception:
                 pass
+
+    def yield_floor(self):
+        """Clear the booth's WAITING chatter so the next call goes next.
+
+        `interrupt` minus the cut: the line that is playing finishes its
+        sentence. Queued and mid-render booth colour is dropped; the engineer
+        and any answer to a question already asked survive, exactly as in an
+        interrupt (see _purge and _stale).
+
+        FOR A TOP-FIVE PASS. Measured in the flow simulator: with routine
+        lines already waiting, every one of the six slowest lines heard was an
+        overtake call, twelve to sixteen seconds after the move was confirmed
+        — the "some overtakes are extremely delayed" report, still there. A
+        confirmed pass for the top five outranks colour that has not started
+        yet; it does not outrank a sentence already in the air.
+        """
+        self._purge(keep_engineer=True)
 
     def interrupt(self):
         """Cut current audio mid-sentence and drain queues — for on-track

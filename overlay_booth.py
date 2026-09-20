@@ -1316,6 +1316,17 @@ class BoothMixin:
             elif passer_cp == h["pos"] and age >= self.PASS_HOLD:
                 # IT HELD. Now it counts, and now it is called.
                 del pend[key]
+                # CLEAR THE WAITING CHATTER, ONCE, SO THE CALL GOES NEXT.
+                # Not if another top-five call went out moments ago: that call
+                # is itself waiting in the queue, and yielding the floor again
+                # would drop it — a pass for fifth deleting the call for the
+                # lead that was queued two seconds earlier.
+                if (self.tts is not None
+                        and now - getattr(self, "_top_pass_t", -1e9) > 6.0):
+                    _yf = getattr(self.tts, "yield_floor", None)
+                    if callable(_yf):
+                        _yf()
+                self._top_pass_t = now
                 self._air_top_pass(h, now)
                 self._last_pass = (h["passer"], h["victim"], h["pos"], now)
             elif age > self.PASS_HOLD * 4:
@@ -1363,6 +1374,20 @@ class BoothMixin:
         self.tts.speak(self._spoken(text), "COMMENTATOR", seed="COMM",
                        intensity=2, on_play=self._show_caption, force=True)
         self._comm_cd = now
+
+    def _channel_state(self):
+        """(free, ahead): is the audio channel free, and how many lines are
+        waiting or rendering in front of anything queued now?
+
+        `getattr`s, because the test harness's fake audio engine predates
+        channel_busy; there it falls back to the old queue-depth reading."""
+        t = self.tts
+        if t is None:
+            return True, 0
+        ahead = t._pending() + getattr(t, "_inflight", 0)
+        cb = getattr(t, "channel_busy", None)
+        free = (not cb()) if callable(cb) else (t._pending() < 2)
+        return free, ahead
 
     def _emit_commentary(self, c):
         """Arbitrate the candidate lines and speak the winner (from update_commentary)."""
@@ -1418,7 +1443,19 @@ class BoothMixin:
         # the queue had any backlog at all was silently discarded, and the
         # next attempt was 30+ seconds away, making them air far less often
         # than the cooldown alone would suggest.
-        busy = (self.tts is not None and self.tts._pending() >= 2
+        # THE FLOOR RULE, FROM FACTORtv. "Never talk over the previous line
+        # unless this is genuinely urgent." A routine line is only CHOSEN when
+        # the channel is free — nothing playing, nothing waiting, nothing
+        # mid-render — so it airs one render later, while the race is still
+        # the race it describes.
+        #
+        # This was `_pending() >= 2`: the booth kept a line or two waiting at
+        # all times, blind to three more rendering, and everything behind that
+        # pile waited. Measured in a tester's race: the engineer's median wait
+        # from being chosen to being heard was nineteen seconds, the worst
+        # fifty-three, and his track-limits warnings expired in the queue.
+        free, ahead = self._channel_state()
+        busy = (self.tts is not None and not free
                 and cat not in RECAP_CATS)
         # the booth is RELAXED in practice/qualifying — a much longer gap between
         # colour lines, so it isn't chattering away over a quiet session
@@ -1453,7 +1490,12 @@ class BoothMixin:
             # as a candidate next tick. An earlier attempt here BLOCKED urgent
             # calls behind a minimum spacing instead, which silently destroyed
             # real overtake and crosstalk lines. Defer, never discard.
-            if self.tts is not None and self.tts._pending() >= 4:
+            # AN URGENT CALL QUEUES BEHIND THE LINE THAT IS PLAYING, AND
+            # NOTHING ELSE. It used to be allowed four deep, which is a call
+            # that airs fifteen seconds after the moment. Anything already
+            # waiting or rendering means it takes the hold and tries again
+            # next tick, while it is still true.
+            if self.tts is not None and ahead >= 1:
                 cur_hold = getattr(self, "_comm_hold", None)
                 # keep the MORE important of the two (lower prio wins). On a
                 # tie the incumbent stays, so the older call — already waiting,
