@@ -269,7 +269,7 @@ def _field_launched(order, thresh=4.0):
 # debug HUD (Ctrl+Shift+D). VERSION is the release; BUILD is the commit the
 # exe was made from, and is rewritten by the release script.
 VERSION = "1.3.0"
-BUILD = "dev"
+BUILD = "8698093"
 
 class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
     def __init__(self):
