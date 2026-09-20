@@ -279,12 +279,53 @@ for _i, (_w, _c) in enumerate(((0.8, 92.0), (0.7, 60.0), (0.4, 118.0), (0.2, 90.
     _t = _s.tire_temp[_i]
     _t.current_temp[1] = _c
     _t.cold_temp, _t.optimal_temp, _t.hot_temp = 75.0, 90.0, 105.0
+# RECORD WHERE THE PANELS ACTUALLY LAND. Reported: "the cards are
+# overlapping with the hud telemetry, put the speedo and telemetry next to
+# each other instead of on top of each other". Stacked, the pair was a tall
+# column in the bottom-right corner and the radio cards -- which live in that
+# same column, stacking up from the speedo's top edge -- landed on the
+# telemetry. Side by side the pair is no taller than the dial.
+_seen = {}
+_bp = o._begin_panel
+o._begin_panel = lambda nm, lx, ly, w, h: (
+    _seen.__setitem__(nm, (lx, ly, w, h)), _bp(nm, lx, ly, w, h))[1]
 check("draw_telemetry (via draw_speedo)", lambda: o.draw_speedo(_s))
+o._begin_panel = _bp
+_sp, _tl = _seen.get("speedo"), _seen.get("telemetry")
+assert _sp and _tl, "speedo/telemetry did not both place a panel: %r" % (_seen,)
+
+
+def _overlap(a, b):
+    return (a[0] < b[0] + b[2] and b[0] < a[0] + a[2]
+            and a[1] < b[1] + b[3] and b[1] < a[1] + a[3])
+
+
+assert not _overlap(_sp, _tl), (
+    "the telemetry panel overlaps the dial: speedo=%r telemetry=%r"
+    % (_sp, _tl))
+assert _tl[0] + _tl[2] <= _sp[0], (
+    "the telemetry is not BESIDE the dial -- it is stacked again: "
+    "speedo=%r telemetry=%r" % (_sp, _tl))
+assert _tl[1] + _tl[3] == _sp[1] + _sp[3], (
+    "the telemetry's bottom edge does not line up with the dial's: "
+    "speedo=%r telemetry=%r" % (_sp, _tl))
 _box = getattr(o, "_speedo_box", None)
-assert _box is not None and _box[3] > o.TELEM_H, (
-    "the speedo box does not include the telemetry panel, so the radio cards "
-    "will draw straight over it: %r" % (_box,))
-print("  the speedo's box includes the telemetry panel: OK")
+assert _box is not None, "the speedo published no box"
+_x0, _y0 = min(_sp[0], _tl[0]), min(_sp[1], _tl[1])
+assert _box == (_x0, _y0,
+                max(_sp[0] + _sp[2], _tl[0] + _tl[2]) - _x0,
+                max(_sp[1] + _sp[3], _tl[1] + _tl[3]) - _y0), (
+    "the published box is not the union of the two panels, so the radio "
+    "cards and the caption will draw over one of them: box=%r speedo=%r "
+    "telemetry=%r" % (_box, _sp, _tl))
+print("  telemetry sits beside the dial, and the box is their union: OK")
+# AND THE PAIR IS A ROW, NOT A COLUMN. This is the property the radio cards
+# actually care about: they stack up from _speedo_box[1], so a short box
+# leaves them room and a tall one does not.
+assert _box[2] > _box[3], (
+    "the speedo and telemetry are taller than they are wide -- the cards "
+    "will be pushed off the top of the screen again: %r" % (_box,))
+print("  the corner is a row, not a tall column: OK")
 assert [o._tyre_state(_s, _k)[1] for _k in range(4)] == ["ok", "cold", "hot", "ok"], (
     "tyre temperatures are not judged against the game's own cold/hot figures")
 print("  tyre temperatures judged against the compound's own range: OK")

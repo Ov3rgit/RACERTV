@@ -46,6 +46,7 @@ ground is the card the dial sits on, the antialiased edges blend toward it
 and there is no fringe.
 """
 import math
+import threading
 
 try:
     from PIL import Image, ImageDraw, ImageTk
@@ -101,7 +102,22 @@ TICK = "#e8807f"
 TICK_DIM = "#3a2a2c"
 SCANLINE = "#0b0707"
 
+# THE COST CEILING ON A RENDER. The face is supersampled SS times and then
+# resized down, so a screen-sized dial was rendering a 1467x1467 image: 58ms
+# each, against a 50ms frame. Accelerating walks through a new rev bucket
+# almost every frame, so every cold bucket blew the frame budget and the dial
+# visibly trailed the engine ("it looks like the speedo is lagging"). Capping
+# the supersample buffer keeps the antialiasing (still 2x or better at every
+# size the overlay uses) and bounds the worst render at roughly 29ms.
+MAX_SS_PX = 1000
+
 _photo_cache = {}
+# Flattened RGB faces built OFF the UI thread by prewarm(). ImageTk.PhotoImage
+# must be made on the Tk thread, so the expensive half (PIL) is done ahead of
+# time here and photo() only does the cheap half when the bucket is first seen.
+_img_cache = {}
+_img_lock = threading.Lock()
+_warm_key = None
 
 
 def _rgb(h):
@@ -242,10 +258,57 @@ def _face(d, size, rev, shift_at, redline_at):
 
 def render(size, rev, shift_at, redline_at):
     """The dial as an RGB image, antialiased by supersampling."""
-    big = int(size) * SS
+    big = min(int(size) * SS, MAX_SS_PX)
     im = Image.new("RGBA", (big, big), (0, 0, 0, 0))
     _face(ImageDraw.Draw(im), big, rev, shift_at, redline_at)
     return im.resize((int(size), int(size)), Image.LANCZOS)
+
+
+def _flat(size, b, shift_at, redline_at, ground):
+    """One bucket, flattened onto the card colour. Safe off the Tk thread."""
+    im = render(size, b / float(BUCKETS), shift_at, redline_at)
+    flat = Image.new("RGB", im.size, _rgb(ground))
+    flat.paste(im, (0, 0), im)
+    return flat
+
+
+def prewarm(size, shift_at, redline_at, ground):
+    """Render every rev bucket for this dial in the background.
+
+    A cold bucket costs tens of milliseconds and the overlay has 50ms for the
+    WHOLE frame, so paying for it mid-corner is what made the dial lag the
+    engine. The set of faces a car needs is fully known the moment its shift
+    point is (73 buckets, nothing else varies), so it is all rendered on a
+    daemon thread while the car is still on the grid and the UI thread never
+    renders anything again. Changing car or dial size starts a new set and
+    abandons the old one, so memory stays at one car's worth.
+    """
+    global _warm_key
+    if not HAVE_PIL:
+        return
+    key = (int(size), round(shift_at, 3), round(redline_at, 3), ground)
+    if key == _warm_key:
+        return                       # already warming, or warm
+    _warm_key = key
+
+    def _work(k=key):
+        sz, sa, ra, gr = k
+        with _img_lock:
+            for ck in [c for c in _img_cache if c[0:1] + c[2:] != k]:
+                del _img_cache[ck]   # last car's faces, no longer wanted
+        for b in range(BUCKETS + 1):
+            if _warm_key != k:
+                return               # superseded mid-sweep; drop this one
+            ck = (sz, b, sa, ra, gr)
+            with _img_lock:
+                if ck in _img_cache:
+                    continue
+            im = _flat(sz, b, sa, ra, gr)
+            with _img_lock:
+                if _warm_key == k:
+                    _img_cache[ck] = im
+
+    threading.Thread(target=_work, daemon=True).start()
 
 
 def photo(size, rev, shift_at, redline_at, ground):
@@ -261,12 +324,21 @@ def photo(size, rev, shift_at, redline_at, ground):
     key = (int(size), b, round(shift_at, 3), round(redline_at, 3), ground)
     p = _photo_cache.get(key)
     if p is None:
-        im = render(size, b / float(BUCKETS), shift_at, redline_at)
-        flat = Image.new("RGB", im.size, _rgb(ground))
-        flat.paste(im, (0, 0), im)
+        with _img_lock:
+            flat = _img_cache.pop(key, None)     # prewarmed, almost always
+        if flat is None:
+            flat = _flat(*key)
         p = _photo_cache[key] = ImageTk.PhotoImage(flat)
+        if len(_photo_cache) > (BUCKETS + 1) * 2:
+            # one car's dial plus the one it replaced; older sets are dead
+            for k in list(_photo_cache)[:BUCKETS + 1]:
+                del _photo_cache[k]
     return p
 
 
 def clear_cache():
+    global _warm_key
+    _warm_key = None
     _photo_cache.clear()
+    with _img_lock:
+        _img_cache.clear()

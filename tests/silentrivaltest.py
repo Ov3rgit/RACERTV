@@ -71,6 +71,11 @@ for tick in range(400):
         da.lap_distance_fraction, db.lap_distance_fraction = (
             db.lap_distance_fraction, da.lap_distance_fraction)
     o.driver_radio_cd = {}
+    # ...and the rival cards' own global clock (RADIO_RIVAL_CD, which
+    # rivalpacetest owns). This file is about WHETHER a rival gets a card
+    # rather than a voice; spacing is somebody else's check, and leaving
+    # it in made this one depend on how fast the box ran the loop.
+    o._rival_card_t = 0.0
     drive(o, s, 1)
     age_place_hold(o)
 

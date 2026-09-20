@@ -219,14 +219,13 @@ class RadioMixin:
         _started = (getattr(self, "_comm_flags", {}).get("start")
                     or now - getattr(self, "_green_t", 1e18) > 6.0)
         radio_open = self._racing and (s.session_type != 2 or _started)
-        # RIVALS ONLY: hold until the end of lap 1. Lap 1 is a scramble of
-        # place changes that read as passes and spins but are really just the
-        # pack sorting itself out, and the booth is busy calling the start —
-        # driver radio on top of it is noise. YOUR ENGINEER is not held here
-        # (he's gated at _engineer_events below); he stays free from his
-        # opening line, which is wanted.
-        if focused is not None and focused.completed_laps < 1:
-            radio_open = False
+        # THE LAP-ONE RIVAL HOLD IS GONE. It was written when rival radio was
+        # VOICED, and the reasoning was about the AUDIO channel: driver voices
+        # over the top of the start call were noise. Rivals are silent cards
+        # now, so there is nothing to talk over — and lap one is the busiest
+        # lap of the race, which made the hold suppress exactly the material
+        # worth showing. Cards flow from the green flag, paced by
+        # RADIO_RIVAL_CD in the emit loop.
 
         # update each driver's momentum (decays; +gain / -loss) BEFORE building
         # lines, so _radio_line can flavour them frustrated/pumped
@@ -564,7 +563,25 @@ class RadioMixin:
                 # cooldowns so they can't machine-gun.
                 if not bypass and now - self._eng_cd < self.RADIO_ENG_CD:
                     continue
-            elif not bypass:
+            else:
+                # THE RIVAL CARDS' OWN CLOCK, AND IT IGNORES `bypass`.
+                #
+                # They no longer stamp the shared clock (that one is the
+                # engineer's, so a silent card can't hold his voice back), and
+                # a caption costs no time to "say" the way a voiced line did.
+                # That left rival cards with no global spacing at all:
+                # reported as cards "firing one after another, one on top of
+                # another", and a probe found consecutive cards 2.5s apart.
+                #
+                # `bypass` means "this must land while it still means
+                # something" — a promise about the AUDIO queue, made when
+                # these lines were spoken. A rival card is colour whatever
+                # flag it carries, so one that cannot be spaced is simply not
+                # shown. FACTORtv, silent from the start, does the same and
+                # runs an even longer gap.
+                if not self._rival_card_ok(now):
+                    continue
+            if persona != "ENGINEER" and not bypass:
                 if (now - self.driver_radio_cd.get(sl, 0)
                         < self.RADIO_DRIVER_CD):
                     continue
@@ -745,6 +762,8 @@ class RadioMixin:
             emitted += 1
             if persona == "ENGINEER":
                 eng_emitted = True
+            else:
+                self._rival_card_stamp(now)
         # THE SHARED RADIO COOLDOWN IS THE ENGINEER'S. A silent rival card
         # used to stamp it too, holding the engineer's next non-urgent line
         # back behind a message nobody could hear.
@@ -1952,6 +1971,22 @@ class RadioMixin:
                           "color": self._color_for_name(name),
                           "emotion": emo, "engineer": False,
                           "driver": True})
+
+    # ---- rival card spacing ---------------------------------------------
+    #
+    # A seam, so the rule can be tested without a whole race around it: the
+    # emit loop asks before showing a rival card and tells after showing one.
+
+    def _rival_card_ok(self, now):
+        """May a rival card air at `now`? Ignores `bypass` on purpose — see
+        the emit loop."""
+        return (now - getattr(self, "_rival_card_t", 0.0)
+                >= getattr(self, "RADIO_RIVAL_CD", 20.0))
+
+    def _rival_card_stamp(self, now):
+        """A rival card aired. Stamped even for a bypass line: a card that
+        jumped the queue still occupies the screen, so the next one waits."""
+        self._rival_card_t = now
 
     def _air_bubble(self, msg):
         """Put a team-radio bubble on screen the instant its audio starts, so

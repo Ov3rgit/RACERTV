@@ -554,6 +554,22 @@ class DrawMixin:
         shown_rev = (0.0 if (on_limiter and int(time.time() * 8) % 2)
                      else rev)
 
+        # QUANTISED, for two reasons. The key is what decides whether a face
+        # is already rendered, so a float that wobbles in its third decimal
+        # would miss the cache on every frame. And every distinct shift point
+        # is a fresh set of 73 faces: in a REPLAY the camera cuts between
+        # cars, and a cut to a car whose shift point differs by a thousandth
+        # would start the whole sweep again. A hundredth of the scale is
+        # ~95rpm on a 9,500rpm engine — finer than the eye reads off a dial,
+        # and coarse enough that similar cars share a set.
+        shift_at = round(shift_at * 100.0) / 100.0
+        redline_at = round(redline_at * 100.0) / 100.0
+        # EVERY face this car will need, rendered on a daemon thread. See
+        # speedo.prewarm: a cold face costs more than a whole frame, and
+        # accelerating hits a new one almost every frame, which is what made
+        # the dial trail the engine.
+        _speedo.prewarm(dial, shift_at, redline_at, CARD_BG2)
+
         self._begin_panel("speedo", x, y, w, h)
         self._card(x, y, w, h, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
         img = _speedo.photo(dial, shown_rev, shift_at, redline_at, CARD_BG2)
@@ -608,7 +624,7 @@ class DrawMixin:
         gcol = SHIFT_PURPLE if rev >= shift_at else HEADER_ACCENT
         self.text(cx, cy + int(48 * k), gtxt, fill=gcol,
                   font=self._speedo_font(self.f_gear, 14 * k), anchor="center")
-        self.draw_telemetry(s, x, y, w)
+        self.draw_telemetry(s, x, y, w, h)
 
     def _speedo_font(self, base, size):
         """`base`'s family at `size` points, cached. The dial's readout is
@@ -659,9 +675,18 @@ class DrawMixin:
             state = None
         return wear, state
 
-    def draw_telemetry(self, s, sx, sy, sw_):
+    def draw_telemetry(self, s, sx, sy, sw_, sh_):
+        # BESIDE THE DIAL, NOT ABOVE IT. Stacked, the pair was a tall column
+        # in the bottom-right corner, and the radio cards and caption — which
+        # live in that same column — sat on top of the telemetry. Side by side
+        # the pair is no taller than the dial, so the cards stack clear of
+        # both, and nothing in the corner is tall enough to reach them.
         h = self.TELEM_H
-        x, y, w = sx, sy - h - 8, sw_
+        w = sw_
+        x = sx - w - 8
+        y = sy + max(0, sh_ - h)          # bottom edges aligned with the dial
+        if x < 8:                         # no room beside it on a narrow
+            x, y = sx, sy - h - 8         # window — fall back to stacked
         self._begin_panel("telemetry", x, y, w, h)
         self._card(x, y, w, h, fill=CARD_BG2, accent=HEADER_ACCENT, side="top")
         pad = 12
@@ -708,8 +733,11 @@ class DrawMixin:
                 fill=col_for.get(state, CONTROL_BG), outline="")
 
         # THE SPEEDO'S BOX NOW INCLUDES THIS PANEL, so everything that keeps
-        # clear of the speedo keeps clear of the telemetry too.
-        self._speedo_box = (sx, y, sw_, (sy - y) + self._speedo_box[3])
+        # clear of the speedo keeps clear of the telemetry too. The union of
+        # the two, whichever way round they ended up.
+        x0, y0 = min(x, sx), min(y, sy)
+        self._speedo_box = (x0, y0, max(x + w, sx + sw_) - x0,
+                            max(y + h, sy + sh_) - y0)
 
     def draw_tower(self, s):
         drivers = self._drivers(s)

@@ -421,6 +421,7 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.prev_int_focus = None
         self.radio_msgs = []     # active bubbles [{name,text,color,until}]
         self.last_radio_t = 0.0
+        self._rival_card_t = 0.0   # rival cards keep their own clock
         self.driver_radio_cd = {}  # slot -> last time we aired their radio
         self._last_line = {}       # (persona,cat) -> last line index (no repeats)
         self._chase = {}           # target slot -> set of chase tiers already aired
@@ -457,6 +458,16 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             self.tts = None
         self._m_prev = False
         self.RADIO_GLOBAL_CD = 5.5   # min seconds between any two bubbles
+        # RIVAL CARDS PACE THEMSELVES. The shared clock (last_radio_t) is
+        # stamped only by the ENGINEER now, so that a silent rival card can no
+        # longer hold his next line back. The cost of that was rival cards
+        # having NO global spacing left at all: reported as cards "firing one
+        # after another, one on top of another". Audio used to pace them by
+        # taking time to say; a caption takes none, so it needs a clock of its
+        # own. FACTORtv, where rival radio has been silent from the start,
+        # runs 38s between cards — this is a shorter track-side version of the
+        # same rule, on top of the 30s per-driver cooldown below.
+        self.RADIO_RIVAL_CD = 20.0   # min seconds between two rival cards
         # Rival chatter is colour, not information — it was firing far too
         # often and drowning the engineer. ~20% longer spacing, and the
         # relevance filter in update_radio now favours the cars you are
