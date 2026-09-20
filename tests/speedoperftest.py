@@ -81,9 +81,16 @@ check(sizes[-1] == S.MAX_SS_PX,
 # THE CAP MUST STILL ANTIALIAS. Below 2x supersampling the tick marks show
 # stair-stepping, which is the whole reason the face is a PIL image and not
 # tk primitives.
-check(S.MAX_SS_PX / 489.0 >= 2.0,
+# The largest dial the overlay can now ask for is SPEEDO_MAX (the size is
+# fixed, and small, since "make it a bit smaller and keep it one size").
+import overlay_draw as OD                                 # noqa: E402
+_biggest = OD.DrawMixin.SPEEDO_MAX
+check(S.MAX_SS_PX / float(_biggest) >= 2.0,
       "the largest dial the overlay can ask for is still supersampled >=2x",
-      "%.2fx" % (S.MAX_SS_PX / 489.0))
+      "%dpx at %.2fx" % (_biggest, S.MAX_SS_PX / float(_biggest)))
+check(_biggest * S.SS <= S.MAX_SS_PX,
+      "in fact the cap never even bites at the size the overlay uses",
+      "%d <= %d" % (_biggest * S.SS, S.MAX_SS_PX))
 
 
 print("\n2. PREWARM RENDERS EVERY FACE THE CAR WILL NEED")

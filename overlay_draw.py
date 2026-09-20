@@ -474,16 +474,22 @@ class DrawMixin:
     # How far ahead of the game's optimal shift point the ring lights, as
     # a fraction of the rev range. About a reaction's worth of revs.
     SPEEDO_SHIFT_LEAD = 0.035
-    # ...AND ITS SHARE OF SCREEN HEIGHT ABOVE THAT, which is now HIS choice.
+    # ONE SIZE, AND A MODEST ONE. Asked for directly: "make it a bit smaller
+    # and keep it one size".
     #
-    # 168px was chosen once and never revisited. Made proportional it was
-    # still reported as too small — twice — and the second report is the
-    # one that matters: guessing a better single number would just be a
-    # slower way of being wrong a third time. A dial is read in peripheral
-    # vision at 200km/h, and how big that needs to be depends on the screen,
-    # how far away it is, and the eyes doing the reading. None of which this
-    # code can know.
-    SPEEDO_FRACS = {"s": 0.21, "m": 0.27, "l": 0.34}
+    # The size was made a setting because the dial had been reported as too
+    # small twice and a single number kept being the wrong one. Three sizes
+    # answered that, and then the largest of them was reported as slow — so
+    # the setting had turned a question of taste into a question of cost,
+    # and offered the expensive answer.
+    #
+    # A fifth of screen height is legible in peripheral vision without
+    # dominating the corner, and the ceiling stops a 4K screen asking for a
+    # 430px dial nobody wanted. The dial's cost — the face render, and the
+    # layered window the game has to composite every frame — goes with its
+    # AREA, so this is a little over half what LARGE was asking for.
+    SPEEDO_FRAC = 0.20
+    SPEEDO_MAX = 260
     SPEEDO_PAD = 9
 
     def draw_speedo(self, s):
@@ -512,8 +518,8 @@ class DrawMixin:
         # puts the digits at a size you can catch out of the corner of your
         # eye; the floor keeps the old behaviour on very small windows, where
         # a fifth of the height would swallow the corner.
-        frac = self.SPEEDO_FRACS.get(getattr(self, "speedo_size", "m"), 0.27)
-        dial = max(self.SPEEDO_DIAL, int(self.sh * frac))
+        dial = max(self.SPEEDO_DIAL,
+                   min(self.SPEEDO_MAX, int(self.sh * self.SPEEDO_FRAC)))
         pad = self.SPEEDO_PAD
         w = h = dial + pad * 2
         x = self.sw - w - 24
@@ -1435,11 +1441,6 @@ class DrawMixin:
              "ON" if getattr(self, "objectives_on", True) else "OFF",
              getattr(self, "objectives_on", True),
              self._do_toggle_objectives),
-            ("Speedo size",
-             {"s": "SMALL", "m": "MEDIUM", "l": "LARGE"}[
-                 getattr(self, "speedo_size", "m")],
-             getattr(self, "speedo", "kmh") != "off",
-             self._do_cycle_speedo_size),
             ("Compact timing tower",
              "ON" if self.compact else "OFF", self.compact,
              self._do_toggle_compact),
@@ -1802,6 +1803,10 @@ class DrawMixin:
     def draw_debug(self, s, game_running, in_action):
         """Live diagnostics HUD (Ctrl+Shift+D). Shows why radio/podium/audio
         may not be firing and how fast data is actually updating."""
+        # imported here, not at module scope: r3e_overlay imports THIS module
+        import r3e_overlay as _RO
+        _VERSION = getattr(_RO, "VERSION", "?")
+        _BUILD = getattr(_RO, "BUILD", "?")
         if self.tts is None:
             tts_s = "TTS = None  (import/init FAILED -> no audio)"
         else:
@@ -1811,8 +1816,15 @@ class DrawMixin:
         foc = next((d for d in drv
                     if d.driver_info.slot_id == s.vehicle_info.slot_id), None)
         lines = [
+            f"RacerTV v{_VERSION} build {_BUILD}",
             f"tick={self._tick_ms:5.1f}ms  ~{1000.0/max(self._tick_ms,1):.0f}fps"
             f"   cars={len(drv)}  moves_seen={self._dbg_moves}",
+            # WHERE THE FRAME GOES. A total alone says the overlay is slow;
+            # it does not say which panel to look at.
+            "slowest: " + ("  ".join(
+                "%s %.1f/%.0f" % (n, v, self._stage_peak.get(n, 0.0))
+                for n, v in sorted(getattr(self, "_stage_ms", {}).items(),
+                                   key=lambda kv: -kv[1])[:4]) or "-"),
             f"replay={s.game_in_replay}  phase={s.session_phase}  "
             f"type={s.session_type}  start_lights={s.start_lights}",
             f"laps_total={s.number_of_laps}  "

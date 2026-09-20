@@ -262,6 +262,15 @@ def _field_launched(order, thresh=4.0):
 
 
 
+
+# WHICH BUILD IS THIS. There was no way to tell, which matters the moment a
+# report arrives ("it is still lagging ALOT") and the first thing worth
+# knowing is whether the reporter is running the fix at all. Shown in the
+# debug HUD (Ctrl+Shift+D). VERSION is the release; BUILD is the commit the
+# exe was made from, and is rewritten by the release script.
+VERSION = "1.3.0"
+BUILD = "dev"
+
 class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
     def __init__(self):
         self.reader = R.R3EReader()
@@ -394,7 +403,6 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         # off. Cycling reads as one idea: "the speedo, in these units".
         _sp = _load_prefs().get("speedo", "kmh")
         self.speedo = _sp if _sp in ("off", "kmh", "mph") else "kmh"
-        self.speedo_size = _load_prefs().get("speedo_size", "m")
         # ON BY DEFAULT: turning a feature off for everyone who never
         # asked would be a regression, so it is opt-out, and remembered.
         self.objectives_on = bool(_load_prefs().get("objectives", True))
@@ -546,6 +554,8 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
         self.debug = False
         self._d_prev = False
         self._tick_ms = 0.0
+        self._stage_ms = {}        # rolling ms per draw stage
+        self._stage_peak = {}      # worst single frame per stage
         self._stage_err = {}         # stage name -> last exception text
         self._radio_recent = []      # last few emitted radio lines (for the HUD)
         self._dbg_moves = 0          # position changes seen this session
@@ -973,10 +983,20 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
                       ("podium", self.draw_podium)]
                     if not (spec and nm in ("relative", "objective", "bubbles"))]
             for nm, fn in stages:
+                # PER-STAGE TIMING, so "the overlay feels slow" can be
+                # answered by looking rather than guessing. The debug HUD
+                # (Ctrl+Shift+D) prints the worst offenders. perf_counter
+                # twice per stage is tens of nanoseconds; it stays on.
+                _t = time.perf_counter()
                 try:
                     fn(s)
                 except Exception as ex:
                     self._stage_err[nm] = f"{type(ex).__name__}: {ex}"
+                _d = (time.perf_counter() - _t) * 1000.0
+                # a rolling mean, so one slow frame doesn't dominate the
+                # reading and a genuinely slow stage cannot hide in an average
+                self._stage_ms[nm] = self._stage_ms.get(nm, _d) * 0.9 + _d * 0.1
+                self._stage_peak[nm] = max(self._stage_peak.get(nm, 0.0), _d)
         elif self.visible and in_action:
             try:
                 self.draw_header(s)
@@ -2408,14 +2428,6 @@ class Overlay(BoothMixin, RadioMixin, DrawMixin, ObjectiveMixin):
             self._obj_say = None
         self._toast("OBJECTIVES ON" if self.objectives_on
                     else "OBJECTIVES OFF — no targets, just racing")
-
-    def _do_cycle_speedo_size(self):
-        """SMALL -> MEDIUM -> LARGE -> SMALL."""
-        nxt = {"s": "m", "m": "l", "l": "s"}
-        self.speedo_size = nxt.get(getattr(self, "speedo_size", "m"), "m")
-        _save_pref("speedo_size", self.speedo_size)
-        self._toast({"s": "SPEEDO: SMALL", "m": "SPEEDO: MEDIUM",
-                     "l": "SPEEDO: LARGE"}[self.speedo_size])
 
     def _do_cycle_speedo(self):
         """OFF -> KM/H -> MPH -> OFF."""
